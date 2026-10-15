@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},encodeGhost,decodeGhost,setGhostSrc,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -27,13 +27,18 @@ global.document={getElementById:id=>els[id]||(els[id]=U('#'+id)),querySelectorAl
 global.window=global;global.addEventListener=()=>{};global.matchMedia=()=>({matches:false});
 const LS={'fpr-player':'T'};global.localStorage={getItem:k=>k in LS?LS[k]:null,setItem(k,v){LS[k]=String(v)},removeItem(k){delete LS[k]},get length(){return Object.keys(LS).length},key:i=>Object.keys(LS)[i]};global.__LS=LS;global.requestAnimationFrame=()=>{};global.performance={now:()=>0};
 global.innerWidth=1400;global.innerHeight=800;global.devicePixelRatio=1;global.navigator={};
+// fake shared database (same calls the game makes): one signed-in viewer U1 plus a rival U2 seeded below
+const STORE={'records/U2':{players:[{name:'Rival',best:{'tsukimi__s30z':{t:20.5,at:1}}}]}};console.warn=()=>{};
+const fakeDb={doc:p=>({set:async v=>{STORE[p]=JSON.parse(JSON.stringify(v));},get:async()=>({exists:p in STORE,data:()=>STORE[p]})}),
+  collection:p=>({onSnapshot(cb){const docs=Object.keys(STORE).filter(k=>k.startsWith(p+'/')&&k.split('/').length===2).map(k=>({id:k.split('/')[1],data:()=>STORE[k]}));setTimeout(()=>cb({docs}),0);return()=>{};}})};
+global.claude={use:async n=>n==='db'?fakeDb:n==='user'?{id:async()=>'U1',can:()=>true}:null};
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
 const origLog=console.log;console.error=()=>{};
 try{eval(src);ok(true,'script loads');}catch(e){ok(false,'script loads: '+e.message);process.exit(1);}
 global.AudioContext=function(){return U('ac');};
 const t=global.__t;let now=0;const step=n=>{for(let k=0;k<n;k++){now+=16;t.frame(now);}};
 const drive=(frames,v)=>{const N=t.N;let k=t.pl.idx;for(let f=0;f<frames;f++){k=(k+1)%N;const p=t.P[k];t.pl.x=p.x;t.pl.z=p.z;t.pl.th=t.TH[k];t.pl.v=v;step(1);if(t.state!=='race')break;}};
-setTimeout(()=>{try{
+setTimeout(async()=>{try{
   // menu flow
   ok(t.step==='title','starts on the title screen');
   t.nextStep();ok(t.step==='mode','title -> mode');
@@ -58,6 +63,21 @@ setTimeout(()=>{try{
   {const w=t.revWarn,g=t.pl.gear;ok(g===3&&w&&w.g===2&&Math.abs(w.lim-t.CAR.gearTop[1])<1e-9,`refused downshift sets notice (gear ${g}, wants ${w&&w.g}, ${w&&w.lim.toFixed(0)} km/h)`);}
   t.pl.v=(t.CAR.gearTop[1]-5)/3.6;step(2);ok(!t.revWarn,'notice clears once slow enough');t.shiftGear(-1);ok(t.pl.gear===2,'downshift goes in after slowing');
   t.setTM('at');
+  // shared ghosts: encode/decode round trip, the No.1 ghost of another player, and uploading your own best
+  {const d=[];let x=10,z=-5,h=0.3;for(let i=0;i<2400;i++){x+=Math.sin(h)*2;z+=Math.cos(h)*2;h+=0.01*Math.sin(i/50);d.push(+x.toFixed(2),+(1+Math.sin(i/90)).toFixed(2),+z.toFixed(2),+h.toFixed(3));}
+   const enc=t.encodeGhost(d,4),g=t.decodeGhost(Object.assign({t:30},enc));let err=0;for(let i=0;i<d.length;i++)err=Math.max(err,Math.abs(g.d[i]-d[i]));
+   ok(err<0.006,`ghost encode/decode round trip (max error ${err.toFixed(4)}, ${enc.b.length} chars for 2 min)`);}
+  t.selectCar(0);t.selectCourse(0);
+  {const k='tsukimi__s30z__'+Array.from(new TextEncoder().encode('Rival')).map(b=>b.toString(16).padStart(2,'0')).join('');
+   const d=[];for(let k2=0;k2<t.N;k2+=3){const p=t.P[k2];d.push(p.x,p.y,p.z,t.TH[k2]);}
+   STORE['ghosts/U2/runs/'+k]=Object.assign({v:1,course:'tsukimi',car:'s30z',name:'Rival',t:20.5},t.encodeGhost(d,4));}
+  await new Promise(r=>setTimeout(r,50));
+  t.setMode('free');t.setGhostSrc('top');t.start();await new Promise(r=>setTimeout(r,20));
+  ok(t.ghostInfo&&t.ghostInfo.name==='Rival'&&t.ghost&&t.ghost.d.length>100,'free run races the No.1 ghost of another player ('+(t.ghostInfo&&t.ghostInfo.name)+')');
+  step(260);drive(Math.floor(t.N*2.2),40);await new Promise(r=>setTimeout(r,20));
+  {const mine=Object.keys(STORE).filter(k=>k.startsWith('ghosts/U1/runs/tsukimi__s30z__'));const g=mine.length&&t.decodeGhost(STORE[mine[0]]);
+   ok(mine.length===1&&g&&Math.abs(g.t-t.ownGhost.t)<0.002,'personal best lap uploaded as a shared ghost'+(g?` (${g.t.toFixed(2)} s, ${STORE[mine[0]].b.length} chars)`:''));}
+  t.setGhostSrc('self');t.toMenu('course');
   // 0-100 km/h per car: AT must match the catalogue figure, MT with perfect shifts must match AT
   for(let ci=0;ci<t.CARS.length;ci++){const res={};
     for(const tm of ['at','mt']){t.setTM(tm);t.selectCar(ci);t.selectCourse(2);t.setMode('free');t.start();step(130);

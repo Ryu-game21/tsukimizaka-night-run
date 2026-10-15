@@ -296,6 +296,9 @@ body:not(.mt) .pad.s{display:none}
 @media (pointer:coarse){#revWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 244px)}}
 @media (pointer:coarse) and (max-width:700px){#revWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}}
 
+#tl .gtag{font-size:13px;color:#9fd4ff;text-shadow:0 0 8px rgba(159,212,255,.5);max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#ghostNote{flex-basis:100%;margin-left:5.5em}
+
 </style>
 
 <canvas id="gl" aria-label="一人称視点のレース画面"></canvas>
@@ -305,6 +308,7 @@ body:not(.mt) .pad.s{display:none}
   <div class="k" id="timeK">TIME</div><div class="t" id="time">0:00.000</div>
   <div class="k">LAST</div><div id="last">-:--.---</div>
   <div class="k">BEST</div><div id="best">-:--.---</div>
+  <div class="k" id="ghostK" hidden>GHOST</div><div class="gtag" id="ghostV" hidden></div>
   <div class="k">SECTOR</div><div class="secs" id="secs"></div>
 </div>
 <div class="hud" id="tr" hidden>
@@ -406,7 +410,10 @@ body:not(.mt) .pad.s{display:none}
       <p class="eyebrow">STEP 6 ・ READY</p>
       <h1>スタート準備</h1>
       <dl class="summary" id="summary"></dl>
-      <div class="opts" id="ghostRow"><span class="ol">ゴースト</span><button class="tog" type="button" id="tgGhost" aria-pressed="true">ゴースト ON</button></div>
+      <div class="opts" id="ghostRow"><span class="ol">ゴースト</span><div class="grp"><button class="tog" type="button" id="tgGhost" aria-pressed="true">ゴースト ON</button>
+        <button class="tog gsrc" type="button" data-g="self" aria-pressed="true">自己ベスト</button>
+        <button class="tog gsrc" type="button" data-g="top" aria-pressed="false">この車の1位</button></div>
+        <span class="tmnote" id="ghostNote"></span></div>
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
       <div class="keys">
         <span><kbd>↑</kbd><kbd>W</kbd> アクセル</span>
@@ -1260,7 +1267,7 @@ function buildCourse(ci){
   sizeHud();
   try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){best=null;}
   bestSplits=null;try{const b=JSON.parse(localStorage.getItem(splitKey(C))||'null');if(Array.isArray(b)&&b.length===4)bestSplits=b;}catch(e){}
-  ghost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ghost=g;}catch(e){}
+  ownGhost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ownGhost=g;}catch(e){}ghost=ownGhost;ghostInfo=ownGhost?{name:'自己ベスト',t:ownGhost.t}:null;
   resetRace();AI.forEach(a=>a.v=VAI*0.55);demoS=0;
   setAmbient();
 }
@@ -1436,7 +1443,8 @@ function shiftGear(d){
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
 const opts={line:true,call:true,ghost:true};
-const GSTEP=0.05;let mode='race',ghost=null,rec=[],recT=0;
+const GSTEP=0.05;let mode='race',ghost=null,ownGhost=null,ghostInfo=null,ghostSel='self',rec=[],recT=0;
+try{if(localStorage.getItem('fpr-ghost-src')==='top')ghostSel='top';}catch(e){}
 try{if(localStorage.getItem('fpr-mode')==='free')mode='free';}catch(e){}
 function setMode(m){
   mode=m;try{localStorage.setItem('fpr-mode',m);}catch(e){}
@@ -1526,7 +1534,7 @@ $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
 $('tgCall').addEventListener('click',()=>setOpt('call',!opts.call));
 VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog vtog';b.type='button';b.dataset.i=i;b.textContent=v.n;b.addEventListener('click',()=>setView(i));$('views').appendChild(b);});
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
-$('tgGhost').addEventListener('click',()=>setOpt('ghost',!opts.ghost));
+$('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
 $('endBtn').addEventListener('click',()=>{if(state==='replay')endReplay();else if(tut)endTutorial(false);else endSession();});
 Object.keys(WEATHERS).forEach(w=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w=w;b.textContent=WEATHERS[w].n;b.addEventListener('click',()=>setWeather(w));$('weathers').appendChild(b);});
 Object.keys(TIMES).forEach(t=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.t=t;b.textContent=TIMES[t].n;b.addEventListener('click',()=>setTime(t));$('times').appendChild(b);});
@@ -1966,6 +1974,71 @@ async function initShared(){
   }catch(e){shared='off';}
   renderBoard();
 }
+/* shared ghosts: ghosts/<uid>/runs/<course>__<car>__<name hex>, readable by everyone, written by its owner.
+   A lap is x,y,z,heading every 0.05 s, stored as int16 steps (cm, 1e-4 rad) after a float origin, base64. */
+const ghostKey=(c,car,name)=>c.id+'__'+car.id+'__'+Array.from(new TextEncoder().encode(name)).map(b=>b.toString(16).padStart(2,'0')).join('');
+function encodeGhost(d,stride){
+  const n=Math.floor(d.length/stride);if(n<20||n>30000)return null;
+  const q=new Int16Array((n-1)*4);let x=d[0],y=d[1],z=d[2],h=d[3];
+  const cl=v=>Math.max(-32767,Math.min(32767,Math.round(v)));
+  for(let i=1;i<n;i++){const o=i*stride;
+    const dx=cl((d[o]-x)*100),dy=cl((d[o+1]-y)*100),dz=cl((d[o+2]-z)*100);let dh=d[o+3]-h;dh=((dh+Math.PI*3)%(Math.PI*2))-Math.PI;dh=cl(dh*1e4);
+    q.set([dx,dy,dz,dh],(i-1)*4);x+=dx/100;y+=dy/100;z+=dz/100;h+=dh/1e4;}   // steps from the rebuilt point, so rounding never drifts
+  const u8=new Uint8Array(q.buffer);let bin='';for(let i=0;i<u8.length;i+=8192)bin+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));
+  return {o:[+d[0].toFixed(3),+d[1].toFixed(3),+d[2].toFixed(3),+d[3].toFixed(4)],b:btoa(bin)};
+}
+function decodeGhost(doc){
+  if(!doc||!Array.isArray(doc.o)||doc.o.length!==4||doc.o.some(v=>typeof v!=='number'||!isFinite(v))||typeof doc.b!=='string'||doc.b.length>400000)return null;
+  let u8;try{const bin=atob(doc.b);u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);}catch(e){return null;}
+  if(u8.length%8)return null;const q=new Int16Array(u8.buffer),n=q.length/4+1,d=new Array(n*4);
+  let [x,y,z,h]=doc.o;d[0]=x;d[1]=y;d[2]=z;d[3]=h;
+  for(let i=1;i<n;i++){const k=(i-1)*4;x+=q[k]/100;y+=q[k+1]/100;z+=q[k+2]/100;h+=q[k+3]/1e4;d[i*4]=x;d[i*4+1]=y;d[i*4+2]=z;d[i*4+3]=h;}
+  return {t:doc.t,d,step:GSTEP};
+}
+function uploadGhost(c,car,t,data,stride){
+  if(shared!=='on'||!sdb||!UID||!PLAYER||!validT(t))return;
+  const enc=encodeGhost(data.slice(),stride);if(!enc)return;
+  const name=PLAYER,doc={v:1,course:c.id,car:car.id,name,t:Math.round(t*1000)/1000,tm:isMT()?'MT':'AT',o:enc.o,b:enc.b,at:Date.now()};
+  wq=wq.then(async()=>{try{await sdb.doc('ghosts/'+UID+'/runs/'+ghostKey(c,car,name)).set(doc);}catch(e){console.warn('ghost upload failed',e&&e.code);}});
+}
+let ghostReq=0;
+async function prepareGhost(){   // at the start of a free run: pick the ghost to race
+  // a best lap set before ghosts were shared: publish this device's ghost once if it is the lap on the board
+  if(shared==='on'&&ownGhost&&PLAYER&&UID){const mine=board.find(r=>r.uid===UID&&r.name===PLAYER&&r.course===C.id&&r.car===CAR.id),fk=pkey('fpr-ghost-up-'+C.id+'-'+CAR.id);
+    let done=null;try{done=localStorage.getItem(fk);}catch(e){}
+    if(mine&&Math.abs(mine.t-ownGhost.t)<0.002&&done!==String(ownGhost.t)){uploadGhost(C,CAR,ownGhost.t,ownGhost.d,4);try{localStorage.setItem(fk,String(ownGhost.t));}catch(e){}}}
+  const req=++ghostReq;ghost=ownGhost;ghostInfo=ownGhost?{name:'自己ベスト',t:ownGhost.t}:null;
+  if(ghostSel==='top'&&shared!=='off'){
+    const top=rankFor(C,CAR,'car')[0];
+    if(top&&!isMe(top)&&top.uid!=='local'&&sdb){
+      ghostInfo={name:top.name,t:top.t,loading:true};renderGhostTag();
+      try{const snap=await sdb.doc('ghosts/'+top.uid+'/runs/'+ghostKey(C,CAR,top.name)).get();
+        if(req!==ghostReq)return;
+        const g=snap&&snap.exists?decodeGhost(snap.data()):null;
+        if(g&&validT(g.t)){ghost=g;ghostInfo={name:top.name,t:g.t};}
+        else{ghostInfo=ownGhost?{name:'自己ベスト',t:ownGhost.t,note:top.name+' さんのゴーストはまだありません'}:{name:'—',t:null,note:top.name+' さんのゴーストはまだありません'};}
+      }catch(e){if(req!==ghostReq)return;ghostInfo=ownGhost?{name:'自己ベスト',t:ownGhost.t,note:'1位のゴーストを読み込めませんでした'}:null;}
+    }else if(top&&isMe(top)&&ownGhost)ghostInfo={name:(PLAYER||'あなた')+'（1位）',t:ownGhost.t};
+  }
+  renderGhostTag();
+  if(ghostInfo&&ghostInfo.note)showMsg(ghostInfo.note,true,2.5);
+}
+function renderGhostTag(){
+  const on=mode==='free'&&opts.ghost&&state!=='menu'&&ghostInfo&&ghostInfo.t!=null;
+  $('ghostK').hidden=$('ghostV').hidden=!on;
+  if(on)$('ghostV').textContent=(ghostInfo.loading?'読み込み中 ':'')+ghostInfo.name+' '+fmt(ghostInfo.t);
+}
+function setGhostSrc(g){
+  ghostSel=g;try{localStorage.setItem('fpr-ghost-src',g);}catch(e){}
+  document.querySelectorAll('.gsrc').forEach(b=>b.setAttribute('aria-pressed',b.dataset.g===g));ghostNote();
+}
+function ghostNote(){
+  const n=$('ghostNote');if(!n)return;const top=C?rankFor(COURSES[sel],CAR,'car')[0]:null;
+  n.textContent=!opts.ghost?'':ghostSel==='self'?(ownGhost?'自己ベスト '+fmt(ownGhost.t)+' と走ります。':'まだ自己ベストのゴーストがありません。1周走ると次から出ます。')
+    :shared==='off'?'共有ランキングにつながっていないため、自己ベストと走ります。'
+    :top?(isMe(top)?'1位はあなたです（'+fmt(top.t)+'）。自分のゴーストと走ります。':top.name+' さん '+fmt(top.t)+' のゴーストと走ります。'):'この車の記録はまだありません。';
+}
+document.querySelectorAll('.gsrc').forEach(b=>b.addEventListener('click',()=>setGhostSrc(b.dataset.g)));
 var synced=false;
 function syncLocalToShared(){  // personal bests set before sign-in / before this version get published once
   if(synced||shared!=='on'||!PLAYER)return;synced=true;
@@ -1987,7 +2060,7 @@ function setPlayer(n){
   renderPlayer();synced=false;
   if(C){try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){best=null;}
     bestSplits=null;try{const b=JSON.parse(localStorage.getItem(splitKey(C))||'null');if(Array.isArray(b)&&b.length===4)bestSplits=b;}catch(e){}
-    ghost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ghost=g;}catch(e){}}
+    ownGhost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ownGhost=g;}catch(e){}ghost=ownGhost;ghostInfo=ownGhost?{name:'自己ベスト',t:ownGhost.t}:null;}
   renderCourseCards();renderBoard();syncLocalToShared();
 }
 $('nameForm').addEventListener('submit',e=>{
@@ -2009,7 +2082,7 @@ function showStep(s){
   $('backBtn').textContent=s==='mode'?'タイトルへ':'戻る';
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
     bar.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showStep(b.dataset.s)));}
-  if(s==='go')renderSummary();
+  if(s==='go'){renderSummary();ghostNote();}
   if(s==='course'){renderCourseCards();renderBoard();rpMenuUi();}
   if(s==='tm')tmUi();
   $('showName').hidden=s!=='car';
@@ -2047,17 +2120,18 @@ $('goOpts').addEventListener('click',()=>{optsBack='title';showStep('opts');});
 $('goOpts2').addEventListener('click',()=>{optsBack='go';showStep('opts');});
 $('backBtn').addEventListener('click',prevStep);
 $('nextBtn').addEventListener('click',nextStep);
-function setHud(on){revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
+function setHud(on){if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
   initAudio();if(ac&&ac.state==='suspended')ac.resume();
   if(C!==COURSES[sel])buildCourse(sel);
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
+  resetRace();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
   sizeHud();
-  $('best').textContent=fmt(best);$('cn').classList.remove('show');
+  $('best').textContent=fmt(best);$('cn').classList.remove('show');renderGhostTag();
 }
 function endSession(){
   if(state==='menu')return;
@@ -2270,7 +2344,7 @@ function recordLap(lt,announce){
 function updateGhost(){
   const on=mode==='free'&&opts.ghost&&ghost&&state==='race'&&pl.lap>=1;
   if(!on){ghostCar.visible=false;return;}
-  const f=(raceT-lapStart)/GSTEP,i=Math.floor(f),d=ghost.d,n=d.length/4;
+  const f=(raceT-lapStart)/(ghost.step||GSTEP),i=Math.floor(f),d=ghost.d,n=d.length/4;
   if(i>=n-1){ghostCar.visible=false;return;}
   const t=f-i,a=i*4,b=a+4;
   let dth=d[b+3]-d[a+3];dth=((dth+Math.PI*3)%(Math.PI*2))-Math.PI;
@@ -2371,12 +2445,16 @@ function updatePlayer(dt,canDrive){
       if(mode==='free'){
         if(pl.lap>=2){
           const lt=raceT-lapStart;sectorHit(4);recordLap(lt,true);
-          if(!ghost||lt<ghost.t){ghost={t:lt,d:rec.slice()};try{localStorage.setItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id),JSON.stringify(ghost));}catch(e){}}
+          if(!ownGhost||lt<ownGhost.t){ownGhost={t:lt,d:rec.slice()};try{localStorage.setItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id),JSON.stringify(ownGhost));}catch(e){}
+            if(ghostSel==='self'||!ghost||lt<ghost.t){ghost=ownGhost;ghostInfo={name:ghostSel==='top'?(PLAYER||'あなた')+'（あなた）':'自己ベスト',t:lt};renderGhostTag();}}
+          if(best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rec,4);
           rpLap(lt);
         }
         lapStart=raceT;rec=[];recT=0;rpRec=[];rpT=0;
       }else{
-        if(pl.lap>=2){const lt=raceT-lapStart;sectorHit(4);lapStart=raceT;recordLap(lt,pl.lap<=LAPS);rpLap(lt);}
+        if(pl.lap>=2){const lt=raceT-lapStart;sectorHit(4);lapStart=raceT;recordLap(lt,pl.lap<=LAPS);
+          if(pl.lap>=3&&best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rpRec,6);   // flying laps only: lap 1 starts from the grid
+          rpLap(lt);}
         if(pl.lap===LAPS&&LAPS>1)showMsg('FINAL LAP',true,2);
         if(pl.lap>LAPS)finish();
       }
@@ -2650,7 +2728,7 @@ function frame(now){
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setMode(mode);setGhostSrc(ghostSel);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 document.querySelectorAll('#weathers .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===wxSel));$('wxNote').textContent=WEATHERS[wxSel].note;
 selectCourse(sel);setView(view);showStep('title');
