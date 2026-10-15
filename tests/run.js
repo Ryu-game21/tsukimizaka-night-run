@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},encodeGhost,decodeGhost,setGhostSrc,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -72,12 +72,14 @@ setTimeout(async()=>{try{
    const d=[];for(let k2=0;k2<t.N;k2+=3){const p=t.P[k2];d.push(p.x,p.y,p.z,t.TH[k2]);}
    STORE['ghosts/U2/runs/'+k]=Object.assign({v:1,course:'tsukimi',car:'s30z',name:'Rival',t:20.5},t.encodeGhost(d,4));}
   await new Promise(r=>setTimeout(r,50));
-  t.setMode('free');t.setGhostSrc('top');t.start();await new Promise(r=>setTimeout(r,20));
-  ok(t.ghostInfo&&t.ghostInfo.name==='Rival'&&t.ghost&&t.ghost.d.length>100,'free run races the No.1 ghost of another player ('+(t.ghostInfo&&t.ghostInfo.name)+')');
+  // the course's No.1 (any car) is the ghost: Rival set it in a 240Z, so the ghost runs as a 240Z even when you drive another car
+  t.selectCar(3);t.setMode('free');t.start();await new Promise(r=>setTimeout(r,20));
+  ok(t.ghostInfo&&t.ghostInfo.name==='Rival'&&t.ghostInfo.car==='s30z'&&t.ghost&&t.ghost.d.length>100,'free run races the course No.1 ghost ('+(t.ghostInfo&&t.ghostInfo.name)+', '+(t.ghostInfo&&t.ghostInfo.car)+')');
   step(260);drive(Math.floor(t.N*2.2),40);await new Promise(r=>setTimeout(r,20));
-  {const mine=Object.keys(STORE).filter(k=>k.startsWith('ghosts/U1/runs/tsukimi__s30z__'));const g=mine.length&&t.decodeGhost(STORE[mine[0]]);
-   ok(mine.length===1&&g&&Math.abs(g.t-t.ownGhost.t)<0.002,'personal best lap uploaded as a shared ghost'+(g?` (${g.t.toFixed(2)} s, ${STORE[mine[0]].b.length} chars)`:''));}
-  t.setGhostSrc('self');t.toMenu('course');
+  {const mine=Object.keys(STORE).filter(k=>k.startsWith('ghosts/U1/runs/tsukimi__r34__'));const g=mine.length&&t.decodeGhost(STORE[mine[0]]);
+   ok(mine.length===1&&g&&Math.abs(g.t-t.ownGhost.t)<0.002,'personal best lap uploaded as a shared ghost'+(g?` (${g.t.toFixed(2)} s, ${STORE[mine[0]].b.length} chars)`:''));
+   ok(t.ghostInfo&&t.ghostInfo.car==='r34'&&t.ghostInfo.t<20.5,'beating the course record makes your lap the ghost to chase');}
+  t.toMenu('course');t.selectCar(0);
   // 0-100 km/h per car: AT must match the catalogue figure, MT with perfect shifts must match AT
   for(let ci=0;ci<t.CARS.length;ci++){const res={};
     for(const tm of ['at','mt']){t.setTM(tm);t.selectCar(ci);t.selectCourse(2);t.setMode('free');t.start();step(130);
