@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -80,6 +80,14 @@ setTimeout(async()=>{try{
    ok(mine.length===1&&g&&Math.abs(g.t-t.ownGhost.t)<0.002,'personal best lap uploaded as a shared ghost'+(g?` (${g.t.toFixed(2)} s, ${STORE[mine[0]].b.length} chars)`:''));
    ok(t.ghostInfo&&t.ghostInfo.car==='r34'&&t.ghostInfo.t<20.5,'beating the course record makes your lap the ghost to chase');}
   t.toMenu('course');t.selectCar(0);
+  // achievements: a won race unlocks the first-steps set and that course's win; the list renders
+  ok(t.ACH.length>=95&&new Set(t.ACH.map(a=>a.id)).size===t.ACH.length,`${t.ACH.length} achievements with unique ids`);
+  t.selectCar(3);t.selectCourse(0);t.setMode('race');t.setWeather('rain');t.start();step(260);t.AI.forEach(a=>a.skillC=0.02);
+  {const N=t.N;let k=t.pl.idx;for(let f=0;f<N*4&&t.state==='race';f++){k=(k+1)%N;const p=t.P[k];t.pl.x=p.x;t.pl.z=p.z;t.pl.th=t.TH[k];t.pl.v=60;step(1);}}
+  {const U=t.ACHS.u;ok(t.state==='finish'&&U.first_lap&&U.first_win&&U.win_tsukimi&&U.lap_rain&&U.win_rain&&t.ACHS.cwin.r34,'won race unlocks first lap / first win / course win / rain ('+Object.keys(U).length+' unlocked)');
+   ok(!!t.ACHS.gold.tsukimi,'a lap faster than the guide pace earns the course gold');}
+  t.setWeather('clear');t.toMenu('course');
+  try{t.renderAch();ok(true,'achievement list renders');}catch(e){ok(false,'achievement list renders: '+e.message);}
   // 0-100 km/h per car: AT must match the catalogue figure, MT with perfect shifts must match AT
   for(let ci=0;ci<t.CARS.length;ci++){const res={};
     for(const tm of ['at','mt']){t.setTM(tm);t.selectCar(ci);t.selectCourse(2);t.setMode('free');t.start();step(130);
