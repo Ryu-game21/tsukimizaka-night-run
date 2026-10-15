@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -31,7 +31,7 @@ global.innerWidth=1400;global.innerHeight=800;global.devicePixelRatio=1;global.n
 const STORE={'records/U2':{players:[{name:'Rival',best:{'tsukimi__s30z':{t:20.5,at:1}}}]}};console.warn=()=>{};
 const fakeDb={doc:p=>({set:async v=>{STORE[p]=JSON.parse(JSON.stringify(v));},get:async()=>({exists:p in STORE,data:()=>STORE[p]})}),
   collection:p=>({onSnapshot(cb){const docs=Object.keys(STORE).filter(k=>k.startsWith(p+'/')&&k.split('/').length===2).map(k=>({id:k.split('/')[1],data:()=>STORE[k]}));setTimeout(()=>cb({docs}),0);return()=>{};}})};
-global.claude={use:async n=>n==='db'?fakeDb:n==='user'?{id:async()=>'U1',can:()=>true}:null};
+global.fetch=async()=>({status:503,ok:false,json:async()=>({error:true,reason:'offline test'})});global.claude={use:async n=>n==='db'?fakeDb:n==='user'?{id:async()=>'U1',can:()=>true}:null};
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
 const origLog=console.log;console.error=()=>{};
 try{eval(src);ok(true,'script loads');}catch(e){ok(false,'script loads: '+e.message);process.exit(1);}
@@ -88,6 +88,20 @@ setTimeout(async()=>{try{
    ok(!!t.ACHS.gold.tsukimi,'a lap faster than the guide pace earns the course gold');}
   t.setWeather('clear');t.toMenu('course');
   try{t.renderAch();ok(true,'achievement list renders');}catch(e){ok(false,'achievement list renders: '+e.message);}
+  // real weather: the course's live conditions drive the run (weather, time, cold tyres, wind)
+  {const om=t.parseOpenMeteo([{current:{time:'2026-10-15T23:10',weather_code:63,cloud_cover:100,precipitation:2.1,temperature_2m:-5,wind_speed_10m:10,wind_direction_10m:0,wind_gusts_10m:16,is_day:0},daily:{sunrise:['2026-10-15T06:00'],sunset:['2026-10-15T17:20']}}]);
+   ok(om.tsukimi&&om.tsukimi.wx==='rain'&&om.tsukimi.time==='night','Open-Meteo reply maps to rain / night');
+   t.selectCar(3);t.selectCourse(0);t.setWeather('clear');const g0=t.GRIP;
+   t.setWeather('real');t.setReal({at:Date.now(),status:'ok',courses:om});
+   ok(t.wxSel==='rain'&&t.timeSel==='night'&&t.tempC===-5,'real mode takes the course weather, time and temperature');
+   ok(Math.abs(t.GRIP/g0-0.8*0.91)<1e-6,'rain and -5 °C: grip '+(t.GRIP/g0).toFixed(3)+' of dry/mild');
+   ok(Math.abs(t.wind.ms-10)<1e-9&&Math.abs(t.wind.z+10)<1e-6,'north wind blows toward -z at 10 m/s');
+   // head vs tail wind on the same run: speed after 8 s flat out
+   const runWith=dir=>{t.setReal({at:Date.now(),status:'ok',courses:{tsukimi:Object.assign({},om.tsukimi,{wx:'clear',time:'day',temp:20,wind:15,gust:15,dir})}});
+     t.setMode('free');t.start();step(130);t.keys.up=1;for(let f=0;f<500;f++){step(1);t.pl.off=0;t.pl.th=t.TH[t.pl.idx];}t.keys.up=0;const v=t.pl.v;t.toMenu('course');return v;};
+   const th0=t.TH[0]*180/Math.PI,head=runWith((th0+3600)%360),tail=runWith((th0+180+3600)%360);
+   ok(tail>head,`tail wind is faster than head wind on the opening straight (${(tail*3.6).toFixed(1)} vs ${(head*3.6).toFixed(1)} km/h)`);
+   t.setWeather('clear');ok(t.wxSel==='clear'&&t.wind.ms===0,'switching back to a chosen weather turns real conditions off');}
   // 0-100 km/h per car: AT must match the catalogue figure, MT with perfect shifts must match AT
   for(let ci=0;ci<t.CARS.length;ci++){const res={};
     for(const tm of ['at','mt']){t.setTM(tm);t.selectCar(ci);t.selectCourse(2);t.setMode('free');t.start();step(130);

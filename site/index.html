@@ -327,6 +327,13 @@ body:not(.mt) .pad.s{display:none}
 .achs em{font-style:normal;font-family:var(--f-dot);font-size:11px;color:var(--lcd)}
 .achs small{font-family:var(--f-dot);font-size:11px;color:var(--dim);white-space:nowrap}
 
+.realinfo{border:1px solid var(--line);border-radius:3px;padding:10px 12px;margin:0 0 12px;display:grid;gap:4px;font-size:13px;line-height:1.6}
+.realinfo p{margin:0}
+.realinfo .age,.realinfo .cred{font-size:11px;color:var(--dim)}
+.realinfo .cred a{color:var(--lcd)}
+.realinfo .warn{color:#ffb4a0;font-weight:500}
+#times.dis{opacity:.4;pointer-events:none}
+
 </style>
 
 <canvas id="gl" aria-label="一人称視点のレース画面"></canvas>
@@ -336,6 +343,7 @@ body:not(.mt) .pad.s{display:none}
   <div class="k" id="timeK">TIME</div><div class="t" id="time">0:00.000</div>
   <div class="k">LAST</div><div id="last">-:--.---</div>
   <div class="k">BEST</div><div id="best">-:--.---</div>
+  <div class="k" id="wxK" hidden>WEATHER</div><div class="gtag" id="wxV" hidden></div>
   <div class="k" id="ghostK" hidden>GHOST</div><div class="gtag" id="ghostV" hidden></div>
   <div class="k">SECTOR</div><div class="secs" id="secs"></div>
 </div>
@@ -434,6 +442,8 @@ body:not(.mt) .pad.s{display:none}
       <div class="opts"><span class="ol">時間帯</span><div class="grp" id="times"></div></div>
       <div class="opts"><span class="ol">天候</span><div class="grp" id="weathers"></div></div>
       <p class="desc" id="wxNote"></p>
+      <div class="realinfo" id="realInfo" hidden><p id="realLine"></p><p class="age" id="realAge"></p><p class="warn" id="realWarn" hidden></p>
+        <p class="cred">天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>）</p></div>
     </section>
 
     <section class="step" data-s="go" hidden>
@@ -927,7 +937,7 @@ function updateWeatherFx(dt){
   if(!rain)return;
   const c=camera.position,cvx=Math.sin(pl.th)*pl.v,cvz=Math.cos(pl.th)*pl.v,BX=30,BY=26;
   if(!rainInit){for(let i=0;i<RAIN_N;i++){rainXYZ[i*3]=c.x+(Math.random()*2-1)*BX;rainXYZ[i*3+1]=c.y-6+Math.random()*BY;rainXYZ[i*3+2]=c.z+(Math.random()*2-1)*BX;}rainInit=true;}
-  const fall=24*dt,sx=-cvx*.03,sz=-cvz*.03;
+  const fall=24*dt,sx=-cvx*.03+wind.x*.035,sz=-cvz*.03+wind.z*.035;
   for(let i=0;i<RAIN_N;i++){const j=i*3;let x=rainXYZ[j],y=rainXYZ[j+1]-fall,z=rainXYZ[j+2];
     if(x-c.x>BX)x-=2*BX;else if(x-c.x<-BX)x+=2*BX;if(z-c.z>BX)z-=2*BX;else if(z-c.z<-BX)z+=2*BX;
     if(y<c.y-6)y+=BY;else if(y>c.y-6+BY)y-=BY;rainXYZ[j]=x;rainXYZ[j+1]=y;rainXYZ[j+2]=z;
@@ -1045,7 +1055,7 @@ function ctrlVecs(c,flat){
 }
 function computeTrack(c){
   W=c.W;HALF=W/2;RAIL=HALF+2.2;VMAX=CAR.vtop;VAI=VMAX*0.9;LAPS=c.laps;
-  const WX=WEATHERS[wxSel];GRIP=CAR.grip*WX.grip;GAI=GRIP*0.9;BR_P=CAR.brake*WX.brake*0.78;BR_AI=BR_P*0.72;
+  const WX=WEATHERS[wxSel];GRIP=CAR.grip*WX.grip*tempGrip();GAI=GRIP*0.9;BR_P=CAR.brake*WX.brake*0.78;BR_AI=BR_P*0.72;
   N=c.N||1200;
   const curve=new THREE.CatmullRomCurve3(ctrlVecs(c,false),true,'centripetal');
   P=curve.getSpacedPoints(N);P.pop();
@@ -1102,7 +1112,7 @@ function computeTrack(c){
 }
 
 function buildCourse(ci){
-  C=COURSES[ci];disposeWorld();
+  C=COURSES[ci];disposeWorld();applyCondition();
   const minY=computeTrack(C),E=applyWeather(Object.assign({},C.env,TIMES[timeSel],(C.env.over&&C.env.over[timeSel])||{}));
   // atmosphere
   scene.fog.color.setHex(E.fog);scene.fog.density=E.fogD;
@@ -1510,13 +1520,15 @@ function setView(v,announce){
   if(typeof achSet==='function'&&ACHS&&state!=='menu')achSet('views',id);
 }
 function setWeather(w){
-  wxSel=w;try{localStorage.setItem('fpr-weather',w);}catch(e){}
-  document.querySelectorAll('#weathers .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===w));
-  $('wxNote').textContent=WEATHERS[w].note;
+  if(w==='real'){realOn=true;}else{realOn=false;manualWx=w;try{localStorage.setItem('fpr-weather',w);}catch(e){}}
+  try{localStorage.setItem('fpr-realwx',realOn?'1':'0');}catch(e){}
+  document.querySelectorAll('#weathers .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===(realOn?'real':manualWx)));
+  $('wxNote').textContent=realOn?'そのコースの現地の今の天気・時間帯・気温・風で走ります。気温が低いとタイヤのグリップが落ち、風は直線の伸びや車の流れ方に影響します。':WEATHERS[manualWx].note;
+  if(realOn)startReal();realSig='';renderRealInfo();
   if(C)buildCourse(sel);
 }
 function setTime(t){
-  timeSel=t;try{localStorage.setItem('fpr-time',t);}catch(e){}
+  timeSel=t;manualTime=t;try{localStorage.setItem('fpr-time',t);}catch(e){}
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
@@ -1540,6 +1552,116 @@ function resetRace(){
   placePlayer(-33,-ln);pl.lap=0;pl.maxLap=0;
   raceT=0;lapStart=0;laps=[];rpRec=[];rpT=0;sessRp=null;curSplits=[];lastSplits=null;lapSectors=[];if(typeof renderSectors==='function')renderSectors();finishRank=0;curCorner=-1;cornerHit=false;score={great:0,total:0};lastBrake=false;
   $('last').textContent=fmt(null);
+}
+
+/* ---------- real weather: each course's current conditions from Open-Meteo (CC BY 4.0) ----------
+   Netlify build: the browser asks Open-Meteo directly every 15 min (one request for all courses).
+   Claude build: pages cannot reach other sites, so a scheduled job writes weather/now into the shared store hourly. */
+const REAL_LOC={tsukimi:[35.232,139.106,'箱根'],kirifuri:[36.773,139.623,'日光・霧降高原'],wangan:[35.619,139.781,'東京湾岸'],kaigan:[35.300,139.480,'湘南'],
+  spa:[50.437,5.971],suzuka:[34.843,136.541],nurburgring:[50.335,6.947],shanghai:[31.338,121.220],bahrain:[26.032,50.511],albertpark:[-37.850,144.968],
+  hungaroring:[47.582,19.250],bugatti:[47.956,0.208],monza:[45.620,9.281],silverstone:[52.073,-1.014],catalunya:[41.570,2.261],madring:[40.465,-3.616],
+  zandvoort:[52.389,4.541],marinabay:[1.291,103.864],yas:[24.467,54.603]};
+const REAL_EVERY=15*60*1000;
+let realOn=false,manualWx=wxSel,manualTime=null,REAL=null,realTimer=null,realSub=null;
+try{realOn=localStorage.getItem('fpr-realwx')==='1';const c=JSON.parse(localStorage.getItem('fpr-realwx-cache')||'null');if(c&&c.courses)REAL=c;}catch(e){}
+let wind={x:0,z:0,ms:0,gust:0,dir:0},tempC=null,windPh=0;
+const DIR16=['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];
+const dirName=d=>DIR16[Math.round(((d%360)+360)%360/22.5)%16];
+function wmoToWx(code,cloud,precip){
+  if(code===45||code===48)return 'fog';
+  if((code>=51&&code<=67)||(code>=71&&code<=86)||code>=95||precip>0.2)return 'rain';
+  return cloud>=70||code===3?'cloudy':'clear';
+}
+const WMO_JA=c=>c===0?'快晴':c<=2?'晴れ':c===3?'曇り':c===45||c===48?'霧':c<=57?'霧雨':c<=67?'雨':c<=77?'雪':c<=82?'にわか雨':c<=86?'にわか雪':'雷雨';
+function parseOpenMeteo(arr){
+  const out={};const list=Array.isArray(arr)?arr:[arr];
+  Object.keys(REAL_LOC).forEach((id,k)=>{const r=list[k];if(!r||!r.current)return;const cu=r.current,dl=r.daily||{};
+    const now=cu.time,sr=dl.sunrise&&dl.sunrise[0],ss=dl.sunset&&dl.sunset[0],mins=s=>{const m=/T(\d+):(\d+)/.exec(s||'');return m?+m[1]*60+ +m[2]:null;};
+    const t=mins(now),a=mins(sr),b=mins(ss);
+    const time=(t!=null&&a!=null&&b!=null&&(Math.abs(t-a)<=50||Math.abs(t-b)<=50))?'dusk':(cu.is_day?'day':'night');
+    out[id]={wx:wmoToWx(cu.weather_code,cu.cloud_cover,cu.precipitation),time,code:cu.weather_code,temp:cu.temperature_2m,wind:cu.wind_speed_10m,
+      dir:cu.wind_direction_10m,gust:cu.wind_gusts_10m,local:(now||'').slice(11,16)};});
+  return out;
+}
+async function fetchRealDirect(){
+  const ids=Object.keys(REAL_LOC),lat=ids.map(i=>REAL_LOC[i][0]).join(','),lon=ids.map(i=>REAL_LOC[i][1]).join(',');
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&daily=sunrise,sunset&timezone=auto&wind_speed_unit=ms&forecast_days=1';
+  try{
+    const r=await fetch(url);let j=null;try{j=await r.json();}catch(e){}
+    if(r.status===429||(j&&j.error&&/limit/i.test(j.reason||''))){realStatus('limit',(j&&j.reason)||'Too many requests');return;}
+    if(!r.ok||!j||j.error){realStatus('error',(j&&j.reason)||('HTTP '+r.status));return;}
+    REAL={at:Date.now(),status:'ok',src:'direct',courses:parseOpenMeteo(j)};
+    try{localStorage.setItem('fpr-realwx-cache',JSON.stringify(REAL));}catch(e){}
+    realChanged();
+  }catch(e){realStatus('error','通信できませんでした');}
+}
+function realStatus(st,msg){REAL=Object.assign({},REAL||{courses:{}},{status:st,msg,checked:Date.now()});realChanged();}
+// the shared store copy (Claude build) or the timer (Netlify build)
+function startReal(){
+  if(sdb){
+    if(realSub)return;
+    try{realSub=sdb.doc('weather/now').onSnapshot(s=>{
+      const d=s&&s.exists?s.data():null;
+      if(d&&d.courses&&typeof d.courses==='object'){REAL={at:typeof d.at==='number'?d.at:0,status:d.status||'ok',msg:d.msg||'',src:'shared',courses:d.courses};}
+      else REAL={at:0,status:'nodata',msg:'',src:'shared',courses:{}};
+      realChanged();},()=>{});}catch(e){}
+    return;
+  }
+  if(shared!=='off')return;   // still finding out which build this is
+  if(realTimer)return;
+  const due=!REAL||!REAL.at||Date.now()-REAL.at>REAL_EVERY-5000;if(due)fetchRealDirect();
+  realTimer=setInterval(()=>{if(realOn)fetchRealDirect();},REAL_EVERY);
+}
+function realFor(id){const r=REAL&&REAL.courses&&REAL.courses[id];return r&&WEATHERS[r.wx]&&TIMES[r.time]?r:null;}
+// what the next run uses: the live conditions when real weather is on (and known), else the menu choice
+function applyCondition(){
+  const r=realOn&&C?realFor(C.id):null;
+  if(r){wxSel=r.wx;timeSel=r.time;tempC=typeof r.temp==='number'?r.temp:null;
+    const ms=Math.max(0,+r.wind||0),g=Math.max(ms,+r.gust||ms),to=((+r.dir||0)+180)*Math.PI/180+(C.north||0);
+    wind={x:Math.sin(to)*ms,z:Math.cos(to)*ms,ms,gust:g,dir:+r.dir||0};}
+  else{wxSel=manualWx;timeSel=manualTime||timeSel;tempC=null;wind={x:0,z:0,ms:0,gust:0,dir:0};}
+}
+// tyres: full grip from 10 to 30 °C, about 0.6 %/°C less in the cold, 0.4 %/°C less in the heat
+function tempGrip(){if(tempC==null)return 1;const t=tempC;return t<10?Math.max(0.88,1-(10-t)*0.006):t>30?Math.max(0.94,1-(t-30)*0.004):1;}
+function windNow(dt){   // gusts: the wind breathes between its mean and gust speed
+  if(!wind.ms)return {x:0,z:0};windPh+=dt*(0.35+Math.random()*0.1);
+  const f=1+Math.max(0,Math.sin(windPh)*0.5+Math.sin(windPh*2.7)*0.5)*((wind.gust/wind.ms)-1)*0.8;return {x:wind.x*f,z:wind.z*f};
+}
+let realSig='';
+function realChanged(){
+  renderRealInfo();
+  if(!realOn||!C)return;
+  const r=realFor(C.id),sig=r?r.wx+r.time+Math.round(r.temp)+Math.round(r.wind):'';
+  if(sig!==realSig){realSig=sig;if(state==='menu')buildCourse(sel);}
+}
+const ago=ms=>{const m=Math.round(ms/60000);return m<1?'たった今':m<60?m+'分前':Math.floor(m/60)+'時間'+(m%60?m%60+'分':'')+'前';};
+function realLine(id){
+  const r=realFor(id);if(!r)return null;
+  const loc=REAL_LOC[id]&&REAL_LOC[id][2];
+  return `${loc?loc+'（'+COURSES.find(c=>c.id===id).name+'の天気）':'現地'} ${r.local||''} ・ ${WMO_JA(r.code)}（${WEATHERS[r.wx].n}・${TIMES[r.time].n}）・ ${r.temp!=null?r.temp.toFixed(1)+'°C':'—'} ・ 風 ${dirName(r.dir)} ${(+r.wind).toFixed(1)}m/s（突風 ${(+r.gust).toFixed(1)}m/s）`;
+}
+function realWarn(){
+  if(!REAL)return '天候データを取得中…';
+  if(REAL.status==='limit')return '天候データ（Open-Meteo）の取得回数が上限に達しました。しばらく新しいデータを取れないため、'+(REAL.at?ago(Date.now()-REAL.at)+'のデータで走ります。':'リアル天候は使えません。');
+  if(REAL.status==='error')return '天候データを取得できませんでした（'+(REAL.msg||'不明なエラー')+'）。'+(REAL.at?ago(Date.now()-REAL.at)+'のデータで走ります。':'');
+  if(REAL.status==='nodata')return '天候データがまだ届いていません（1時間ごとに更新されます）。';
+  if(REAL.at&&Date.now()-REAL.at>3*3600*1000)return '天候データが'+ago(Date.now()-REAL.at)+'から更新されていません。';
+  return '';
+}
+function renderRealInfo(){
+  const box=document.getElementById('realInfo');if(!box)return;
+  box.hidden=!realOn;if(!realOn)return;
+  const id=COURSES[sel].id,line=realLine(id),w=realWarn();
+  $('realLine').textContent=line||('このコースの天候データはまだありません。');
+  $('realAge').textContent=REAL&&REAL.at?'取得 '+new Date(REAL.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'（'+ago(Date.now()-REAL.at)+'）・ '+(REAL.src==='shared'?'1時間ごとに更新':'15分ごとに更新'):'';
+  $('realWarn').textContent=w;$('realWarn').hidden=!w;
+  const t=document.getElementById('times');if(t)t.classList.toggle('dis',realOn);
+}
+function windHud(){
+  if(!realOn||!wind.ms)return '';
+  const hx=Math.sin(pl.th),hz=Math.cos(pl.th),along=wind.x*hx+wind.z*hz,cross=wind.x*hz-wind.z*hx;
+  const kind=Math.abs(along)>=Math.abs(cross)?(along<0?'向かい風':'追い風'):'横風';
+  return `${kind} ${wind.ms.toFixed(1)}m/s`;
 }
 
 /* ---------- input ---------- */
@@ -1581,6 +1703,7 @@ VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog 
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
 $('endBtn').addEventListener('click',()=>{if(state==='replay')endReplay();else if(tut)endTutorial(false);else endSession();});
+{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w='real';b.textContent='リアル（現地の今）';b.addEventListener('click',()=>setWeather('real'));$('weathers').appendChild(b);}
 Object.keys(WEATHERS).forEach(w=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w=w;b.textContent=WEATHERS[w].n;b.addEventListener('click',()=>setWeather(w));$('weathers').appendChild(b);});
 Object.keys(TIMES).forEach(t=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.t=t;b.textContent=TIMES[t].n;b.addEventListener('click',()=>setTime(t));$('times').appendChild(b);});
 $('viewBtn').addEventListener('click',()=>{if(state==='replay')nextRpCam();else setView((view+1)%VIEWS.length,true);});
@@ -1772,7 +1895,7 @@ function audioFrame(dt,rpmT,gear){
   const sp=Math.abs(pl.v);
   A.sq.gain.setTargetAtTime(live?Math.min(.32,sqAmt*.38):0,t,.05);
   A.sqf.frequency.setTargetAtTime(880+Math.random()*160+sp*2.5,t,.04);
-  A.wind.gain.setTargetAtTime(live?Math.min(.32,Math.pow(sp/85,2)*(fp?.2:.32)):0,t,.1);
+  A.wind.gain.setTargetAtTime(live?Math.min(.36,Math.pow(sp/85,2)*(fp?.2:.32)+Math.min(.12,wind.ms/18*.12)*(fp?.5:1)):0,t,.1);
   A.road.gain.setTargetAtTime(live?Math.min(.28,sp/90*.24):0,t,.1);
   A.grav.gain.setTargetAtTime(live?offAmt*Math.min(.38,sp/30*.38):0,t,.05);
   A.scr.gain.setTargetAtTime(live?scrapeAmt*Math.min(.3,sp/25*.3):0,t,.04);
@@ -1844,7 +1967,7 @@ const fmt=t=>{if(t==null||!isFinite(t))return'-:--.---';const m=Math.floor(t/60)
 const t100=c=>c.t100sim;
 function renderCredits(){
   const list=COURSES.filter(c=>c.credit).map(c=>`<li>コース ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('')+CARS.filter(c=>c.credit).map(c=>`<li>${c.maker} ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('');
-  $('mcredit').innerHTML=list?`<p>3Dモデルのクレジット（いずれも軽量化のため改変）</p><ul>${list}</ul>`:'';
+  $('mcredit').innerHTML=(list?`<p>3Dモデルのクレジット（いずれも軽量化のため改変）</p><ul>${list}</ul>`:'')+'<p>リアル天候の天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>）</p>';
 }
 function renderCars(){
   renderCredits();
@@ -1925,7 +2048,7 @@ function parseDoc(id,d){
     const name=cleanName(p&&p.name);if(!name||!p.best||typeof p.best!=='object')return;
     for(const k in p.best){const r=p.best[k];if(!r||!validT(r.t))continue;
       const [cid,carid]=k.split('__');if(!COURSES.some(c=>c.id===cid)||!CARS.some(c=>c.id===carid))continue;
-      out.push({uid:id,name,course:cid,car:carid,t:r.t,at:typeof r.at==='number'?r.at:0});}
+      out.push({uid:id,name,course:cid,car:carid,t:r.t,at:typeof r.at==='number'?r.at:0,w:WEATHERS[r.w]?r.w:null,real:r.r===1});}
   });
   return out;
 }
@@ -1953,7 +2076,7 @@ function renderBoard(){
   show.forEach(r=>{
     const li=document.createElement('li');if(isMe(r))li.className='me';
     const car=CARS.find(x=>x.id===r.car);
-    [['rk',(rows.indexOf(r)+1)+''],['nm',r.name],['cr',boardScope==='all'&&car?car.short||car.name:''],['tm',fmt(r.t)]].forEach(([cl,t])=>{const e=document.createElement('span');e.className=cl;e.textContent=t;li.appendChild(e);});
+    [['rk',(rows.indexOf(r)+1)+''],['nm',r.name],['cr',[boardScope==='all'&&car?car.short||car.name:'',(r.real?'リアル':'')+(r.w&&r.w!=='clear'?(r.real?'・':'')+WEATHERS[r.w].n:'')].filter(Boolean).join(' ・ ')],['tm',fmt(r.t)]].forEach(([cl,t])=>{const e=document.createElement('span');e.className=cl;e.textContent=t;li.appendChild(e);});
     list.appendChild(li);
   });
   const what=boardScope==='all'?'このコース（全車）':'このコース × '+(CAR.short||CAR.name);
@@ -1984,7 +2107,7 @@ function submitBest(c,car,t,splits){
     let p=d.players.find(x=>x&&x.name===name);if(!p){p={name,best:{}};d.players.push(p);}
     if(!p.best||typeof p.best!=='object')p.best={};
     const k=rkey(c,car),cur=p.best[k];if(cur&&validT(cur.t)&&cur.t<=t)return;
-    p.best[k]={t:Math.round(t*1000)/1000,s:Array.isArray(splits)?splits.map(v=>v==null?null:Math.round(v*1000)/1000):null,at:Date.now()};
+    p.best[k]={w:wxSel,r:realOn?1:0,t:Math.round(t*1000)/1000,s:Array.isArray(splits)?splits.map(v=>v==null?null:Math.round(v*1000)/1000):null,at:Date.now()};
     d.updated=Date.now();
     const write=()=>sdb.doc('records/'+UID).set(d);
     try{await write();}
@@ -2004,7 +2127,7 @@ async function initShared(){
   try{db=window.claude&&window.claude.use?await window.claude.use('db'):null;}catch(e){db=null;}
   try{user=window.claude&&window.claude.use?await window.claude.use('user'):null;}catch(e){user=null;}
   try{UID=user?await user.id():null;}catch(e){UID=null;}
-  if(!db){shared='off';renderBoard();return;}
+  if(!db){shared='off';renderBoard();if(realOn)startReal();return;}
   sdb=db;shared=UID?'on':'readonly';
   if(shared==='on'&&user&&user.can){try{if(user.can('data.write')===false)shared='readonly';}catch(e){}}
   try{
@@ -2014,7 +2137,7 @@ async function initShared(){
       board=all;if(mine)myDoc=mine;
       if(shared==='connecting')shared=UID?'on':'readonly';
       renderBoard();if(state==='finish')renderResultRank();
-      syncLocalToShared();achRecords();
+      syncLocalToShared();achRecords();if(realOn)startReal();
     },err=>{shared=err&&err.code==='revoked'?'off':shared;if(err&&err.code==='unavailable'){setTimeout(initShared,4000);}renderBoard();});
   }catch(e){shared='off';}
   renderBoard();
@@ -2123,6 +2246,7 @@ function showStep(s){
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
     bar.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showStep(b.dataset.s)));}
   if(s==='go'){renderSummary();ghostNote();}
+  if(s==='cond'||s==='go'){if(realOn)startReal();renderRealInfo();}
   if(s==='course'){renderCourseCards();renderBoard();rpMenuUi();}
   if(s==='tm')tmUi();
   $('showName').hidden=s!=='car';
@@ -2135,7 +2259,7 @@ function prevStep(){if(step==='opts'){showStep(optsBack);return;}const k=STEPS.i
 function renderSummary(){
   const c=COURSES[sel];
   $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':'レース（'+c.laps+'周・4台）'],['マシン',CAR.maker+' '+CAR.name],['コース',c.name],
-    ['変速',TM==='mt'?(canMT()?'MT マニュアル':'MT（この車は変速なしのため自動）'):'AT オートマ'],['時間帯',TIMES[timeSel].n],['天候',WEATHERS[wxSel].n]]
+    ['変速',TM==='mt'?(canMT()?'MT マニュアル':'MT（この車は変速なしのため自動）'):'AT オートマ'],['時間帯',TIMES[timeSel].n+(realOn?'（現地）':'')],['天候',WEATHERS[wxSel].n]]
     .map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
 }
 function focusSel(q){const b=document.querySelector(q+'[aria-pressed="true"]');if(b)try{b.focus({preventScroll:false});}catch(e){}}
@@ -2166,6 +2290,9 @@ function start(){
   if(!PLAYER){openNameDlg();return;}
   initAudio();if(ac&&ac.state==='suspended')ac.resume();
   if(C!==COURSES[sel])buildCourse(sel);
+  else if(realOn){const was=wxSel+timeSel+tempC+wind.ms;applyCondition();if(was!==wxSel+timeSel+tempC+wind.ms)buildCourse(sel);}
+  {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
+   const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
   resetRace();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
@@ -2603,7 +2730,10 @@ function updatePlayer(dt,canDrive){
     if(v>0.5)eb=0.9+(CAR.ev||CAR.cvt?1.8*Math.min(1,kmhP/70):2.2*Math.min(1.05,rr)*Math.sqrt(CAR.gearTop[CAR.gears-1]/gt));
     pl.eb=eb-1.4;a-=eb*Math.sign(v);
   }else pl.eb=0;
-  a-=CAR.k*v*Math.abs(v);
+  // wind: drag works on the airspeed (head/tail wind along the heading); crosswind pushes the car sideways a little
+  const wv=windNow(dt),hx=Math.sin(pl.th),hz=Math.cos(pl.th),wAlong=wv.x*hx+wv.z*hz,va=v-wAlong;
+  a-=CAR.k*va*Math.abs(va);
+  if(wind.ms){const wCross=wv.x*hz-wv.z*hx;pl.windDrift=wCross*Math.abs(wCross)*0.0011*Math.min(1,sp/15);}else pl.windDrift=0;
   if(Math.abs(pl.off)>HW[pl.idx])a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
@@ -2615,7 +2745,7 @@ function updatePlayer(dt,canDrive){
   sqAmt=Math.abs(pl.off)>HW[pl.idx]||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
   offAmt=Math.abs(pl.off)>HW[pl.idx]?1:0;scrapeAmt=0;
   pl.th+=pl.steer*k*Math.sign(pl.v)*dt;
-  pl.x+=Math.sin(pl.th)*pl.v*dt;pl.z+=Math.cos(pl.th)*pl.v*dt;
+  pl.x+=Math.sin(pl.th)*pl.v*dt+Math.cos(pl.th)*(pl.windDrift||0)*dt;pl.z+=Math.cos(pl.th)*pl.v*dt-Math.sin(pl.th)*(pl.windDrift||0)*dt;
 
   const prev=pl.idx;pl.idx=nearest(pl.x,pl.z,pl.idx,30);
   if(state==='race'&&pl.lap>=1&&pl.lap===pl.maxLap)for(let k=1;k<4;k++){const b=Math.floor(N*k/4);if(prev<b&&pl.idx>=b&&pl.idx-prev<N/8&&curSplits.length<k)sectorHit(k);}
@@ -2927,6 +3057,7 @@ function frame(now){
         $('time').textContent=fmt(raceT);
       }
       $('best').textContent=fmt(best);
+      if(realOn&&!$('wxV').hidden){const r=realFor(C.id),wh=windHud();$('wxV').textContent=(r?WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':''):'')+(wh?' ・ '+wh:'');}
       const pprog=(pl.lap-1)*L+pl.idx*ds;
       if(mode!=='free')$('posN').textContent=state==='finish'?finishRank:1+AI.filter(a=>a.s>pprog).length;
       drawMap();
@@ -2943,7 +3074,7 @@ function frame(now){
 }
 setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
-document.querySelectorAll('#weathers .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.w===wxSel));$('wxNote').textContent=WEATHERS[wxSel].note;
+manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');
 renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();
 requestAnimationFrame(frame);
