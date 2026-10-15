@@ -287,6 +287,15 @@ body:not(.mt) .pad.s{display:none}
 .stepbar button[aria-current="step"]{background:linear-gradient(180deg,#fbfcfd,#c3cad3 55%,#eef1f4);color:#121722}
 #msg:not(.small){font-size:clamp(56px,13vw,132px)}
 
+/* downshift refused: tells how far to slow down, just above the speedometer */
+#revWarn{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 152px);max-width:calc(100% - 32px);box-sizing:border-box;
+  padding:5px 12px;background:var(--panel);border:1px solid rgba(255,154,60,.6);border-radius:3px;font-family:var(--f-body);font-weight:500;
+  font-size:14px;line-height:1.5;color:#ffd9b0;text-shadow:none;text-align:center}
+#revWarn b{font-family:var(--f-dot);font-weight:700;color:var(--orange)}
+@media (max-width:700px){#revWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 110px);font-size:12px}}
+@media (pointer:coarse){#revWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 244px)}}
+@media (pointer:coarse) and (max-width:700px){#revWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}}
+
 </style>
 
 <canvas id="gl" aria-label="一人称視点のレース画面"></canvas>
@@ -321,6 +330,7 @@ body:not(.mt) .pad.s{display:none}
 <div class="pad r" id="padR"><button data-k="down" aria-label="ブレーキ">BRK</button><button data-k="up" aria-label="アクセル">ACC</button></div>
 
 <div class="hud" id="showName" hidden></div>
+<div class="hud" id="revWarn" hidden aria-live="polite"></div>
 <div class="hud" id="rpHud" hidden><b>REPLAY</b><span id="rpInfo"></span><span id="rpTime"></span><span id="rpCamN"></span></div>
 <div class="hud" id="tut" hidden aria-live="polite"><p class="eyebrow">TUTORIAL <span id="tutN"></span></p><p id="tutT"></p><div class="tbar"><i id="tutBar"></i></div></div>
 <div class="hud" id="loading" hidden></div>
@@ -1407,11 +1417,20 @@ let TM='at';try{if(localStorage.getItem('fpr-tm')==='mt')TM='mt';}catch(e){}
 const canMT=()=>CAR.gears>1&&!CAR.ev&&!CAR.cvt,isMT=()=>TM==='mt'&&canMT();
 function setTM(m){TM=m;try{localStorage.setItem('fpr-tm',m);}catch(e){}tmUi();}
 function tmUi(){document.querySelectorAll('.tmtog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tm===TM));const n=document.getElementById('tmNote');if(n)n.textContent=TM==='mt'&&!canMT()?CAR.name+' は変速のない車なので、MTを選んでも自動で走ります。':'';}
+// refused downshift: say which speed the lower gear goes in at, counting down while braking
+let revWarn=null;
+function updateRevWarn(dt){
+  const el=document.getElementById('revWarn');if(!el)return;
+  if(!revWarn||state!=='race'){if(!el.hidden)el.hidden=true;revWarn=null;return;}
+  revWarn.t-=dt;const rem=Math.ceil(Math.abs(pl.v)*3.6-revWarn.lim);
+  if(revWarn.t<=0||rem<=0||pl.gear<=revWarn.g){revWarn=null;el.hidden=true;return;}
+  el.innerHTML=`回転オーバー ― ${revWarn.g}速は <b>${Math.floor(revWarn.lim)}km/h</b> 以下で入ります（あと <b>${rem}km/h</b> 減速）`;el.hidden=false;
+}
 function shiftGear(d){
   if(!isMT()||(state!=='race'&&state!=='count'))return;
   const ng=pl.gear+d;if(ng<1||ng>CAR.gears)return;
   // refuse a downshift that would over-rev the engine
-  if(d<0&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);return;}
+  if(d<0&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:CAR.gearTop[ng-1],t:2.5};updateRevWarn(0);return;}
   pl.gear=ng;
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
@@ -2028,7 +2047,7 @@ $('goOpts').addEventListener('click',()=>{optsBack='title';showStep('opts');});
 $('goOpts2').addEventListener('click',()=>{optsBack='go';showStep('opts');});
 $('backBtn').addEventListener('click',prevStep);
 $('nextBtn').addEventListener('click',nextStep);
-function setHud(on){['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
+function setHud(on){revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
   initAudio();if(ac&&ac.state==='suspended')ac.resume();
@@ -2174,7 +2193,7 @@ const TUT=[
   {t:()=>'カーブの頂点で推奨速度との差が ±12km/h 以内なら「GREAT!」。速すぎると OVER SPEED です。もう2つ、コーナーを曲がってみよう。',ok:s=>s.corners>=3,pr:s=>(s.corners-1)/2},
   {t:()=>'アクセルを離すとエンジンブレーキで少しずつ減速します。ギアが低く回転が高いほど強く効きます。少しだけ速度を落としたい時はアクセルを戻すだけでOK。',ok:s=>s.t>=8,pr:s=>s.t/8},
   {t:()=>touchUI?'壁に当たると大きく減速します。コースを外れると芝やダートで減速するので、すぐに路面へ戻ろう。':'壁に引っかかったり逆を向いてしまったら R キーでコースの中央に戻れます。C キーで視点も変えられます。',ok:s=>s.t>=8,pr:s=>s.t/8},
-  {t:()=>`メニューの「変速」で MT（マニュアル）を選ぶと、${touchUI?'▲▼ ボタン':'E キー（アップ）/ Q キー（ダウン）'}で自分でシフトします。上級者向けの操作です。`,ok:s=>s.t>=8,pr:s=>s.t/8},
+  {t:()=>`メニューの「変速」で MT（マニュアル）を選ぶと、${touchUI?'▲▼ ボタン':'E キー（アップ）/ Q キー（ダウン）'}で自分でシフトします。上級者向けの操作です。回転が高いとシフトダウンできないので、表示された速度まで減速してから下げよう。`,ok:s=>s.t>=8,pr:s=>s.t/8},
   {t:()=>'最後に、このまま走ってスタートラインまで戻り1周を完了しよう！ 周回のタイムは自己ベストとして記録されます。',ok:s=>s.laps>=1,pr:s=>0},
 ];
 function startTutorial(){
@@ -2581,7 +2600,7 @@ function frame(now){
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);updateGhost();updateTut(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);updateGhost();updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       if((fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3){showMsg('逆走中',true);msgT=0.2;}
