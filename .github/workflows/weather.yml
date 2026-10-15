@@ -1,0 +1,30 @@
+# Real weather for the Claude build: fetch every course's current weather from Open-Meteo (CC BY 4.0) every hour
+# and keep it as now.json on the "weather" branch (not main, so Netlify does not redeploy each hour).
+# A scheduled Claude task reads that file and writes it to the artifact's shared store (weather/now).
+name: weather
+on:
+  schedule:
+    - cron: '20 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: weather
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch
+        run: python3 tools/fetch_weather.py /tmp/now.json || true
+      - name: save to the weather branch
+        run: |
+          git config user.name 'weather-bot'
+          git config user.email 'weather-bot@users.noreply.github.com'
+          git fetch origin weather || true
+          if git rev-parse -q --verify origin/weather >/dev/null; then git switch -c weather origin/weather; else git switch --orphan weather; git rm -rfq . || true; fi
+          cp /tmp/now.json now.json
+          git add now.json
+          # one commit kept on the branch (amend + force) so it does not grow every hour
+          if git rev-parse -q --verify HEAD >/dev/null; then git commit -q --amend -m 'weather' ; else git commit -q -m 'weather'; fi
+          git push -q -f origin weather
+          cat now.json | head -c 300
