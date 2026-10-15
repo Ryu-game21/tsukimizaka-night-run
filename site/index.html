@@ -1393,11 +1393,178 @@ function loadModel(car){
       if(!o.isMesh)return;o.userData.shared=true;o.frustumCulled=false;
       const m=o.material;if(m){m.userData.shared=true;if(m.isMeshStandardMaterial){m.envMap=envTex;m.envMapIntensity=envInt;}m.needsUpdate=true;}
     });
-    const wrap=new THREE.Group();wrap.add(root);MODELS[car.id]=wrap;modelLoading[car.id]=false;
+    const wrap=new THREE.Group();wrap.add(root);
+    // wheels that spin and steer, body on springs (falls back to the static model if the split fails)
+    try{const t0=performance.now();if(rigModel(wrap,car))wrap.userData.rigMs=Math.round(performance.now()-t0);}catch(e){console.warn('rig failed',car.id,e);}
+    MODELS[car.id]=wrap;modelLoading[car.id]=false;
     if(CAR===car||AI.some(a=>a.car===car))buildCars();
     else if(ghostCarId===car.id){disposeObj(ghostCar);ghostCar=makeGhostCar(car);}
     if(CAR===car)renderSpec();
   }).catch(err=>{modelLoading[car.id]='fail';console.warn('model load failed',err);if(CAR===car||AI.some(a=>a.car===car))buildCars();if(CAR===car)renderSpec();});
+}
+const RIGS={
+  s30z:{hubs:[[-0.7297,0.2928,-1.1529,0.2927,-0.8448,-0.6147,0.0],[0.7304,0.2928,-1.1528,0.2927,0.6154,0.8455,0.0],[-0.7303,0.2928,1.1521,0.2927,-0.8453,-0.6152,0.0],[0.7336,0.2928,1.1522,0.2927,0.6185,0.8486,0.0]],spin:["Material.005","Material.011","Material.018","Material.021","Material.023","Material.043","Material.044"]},
+  m3e30:{hubs:[[-0.7023,0.3084,-1.2825,0.3085,-0.8282,-0.5764,0.0],[0.7023,0.3084,-1.2825,0.3085,0.5764,0.8282,0.0],[-0.6903,0.3084,1.2825,0.3085,-0.814,-0.5665,-0.5008],[0.6903,0.3084,1.2825,0.3085,0.5665,0.814,-0.5008]],spin:["BMW_E30_M3_RIM", "BMW_E30_M3_TIRE", "Brake_Disc", "Logo_Plane"]},
+  s180sx:{hubs:[[-0.6984,0.3435,-1.2376,0.3435,-0.8686,-0.5283,0.0],[0.6909,0.3435,-1.2376,0.3435,0.5207,0.861,0.0],[-0.6984,0.3435,1.2375,0.3435,-0.8686,-0.5283,0.0],[0.6909,0.3435,1.2375,0.3435,0.5207,0.861,0.0]],spin:["S13_chuki","S13_rim2","Scene_-_Root.002","TypeX_wheel","amdb11_brake.002","amdb11_misc.002","amdb11_misc_chrome.002","coupe"]},
+  r34:{hubs:[[-0.7173,0.3243,-1.3325,0.3243,-0.887,-0.5476,0.0],[0.7034,0.3243,-1.3325,0.3243,0.5337,0.8732,0.0],[-0.7173,0.3243,1.3325,0.3243,-0.887,-0.5476,0.0],[0.7034,0.3243,1.3325,0.3243,0.5337,0.8732,0.0]],spin:["Material.003", "Material.010", "Material.012"]},
+  a90:{hubs:[[-0.7766,0.3181,-1.2391,0.316,-0.9602,-0.6793,0.0],[0.7766,0.3181,-1.2391,0.316,0.6793,0.9602,0.0],[-0.8407,0.3145,1.2309,0.3124,-1.0023,-0.679,0.0],[0.8407,0.3145,1.2309,0.3124,0.679,1.0023,0.0]],spin:["Rim_b","rim_mat_01","w_TNRRims_84A18NaBrakeDisc_ForgedDrilled_Material1","w_TNRRims_84A18NaTireBlur_Material1"]},
+  p930:{hubs:[[-0.7772,0.3149,-1.1393,0.3149,-0.9129,-0.6415,0.0],[0.7772,0.3149,-1.1393,0.3149,0.6415,0.9129,0.0],[-0.7582,0.3149,1.1253,0.3148,-0.8761,-0.6402,-0.3233],[0.7582,0.3149,1.146,0.3147,0.6402,0.8761,-0.3233]],spin:["930_rim", "930_tire"]},
+  gt3rs:{hubs:[[-0.7698,0.3881,-1.2286,0.3881,-0.935,-0.6045,0.0],[0.7706,0.3881,-1.2286,0.3881,0.6053,0.9358,0.0],[-0.7698,0.3881,1.2284,0.3881,-0.935,-0.6045,0.0],[0.7706,0.3881,1.2284,0.3881,0.6053,0.9358,0.0]],spin:["Scene_-_Root.002", "TwiXeR_992_GT3RS_black", "TwiXeR_992_metal_radiator.002", "TwiXeR_992_wheels_chrome_1", "amdb11_brake.002", "amdb11_misc_chrome.002"]},
+  alfa33:{hubs:[[-0.7103,0.317,-1.1754,0.3132,-0.8384,-0.5822,0.0],[0.7079,0.317,-1.1754,0.3132,0.5798,0.836,0.0],[-0.6696,0.305,1.1745,0.3046,-0.7666,-0.5726,0.0],[0.6672,0.305,1.1745,0.3046,0.5702,0.7641,0.0]],spin:["Chrome", "forMayaAOlambert13", "forMayaAOlambert15", "forMayaAOmi_car_paint_phen2", "forMayaAOphong2"]},
+  mclarenf1:{hubs:[[-0.7781,0.35,-1.359,0.35,-0.9257,-0.6304,0.0],[0.7758,0.35,-1.359,0.35,0.6281,0.9235,0.0],[-0.819,0.3169,1.359,0.3169,-0.9282,-0.7097,0.0],[0.8167,0.3169,1.359,0.3169,0.7075,0.926,0.0]],spin:["black_aluminium","brakedisk","material_48","rimbolt","rimlogo","tire","tire_side"]},
+  challenger:{hubs:[[-0.8357,0.3629,-1.475,0.3629,-0.962,-0.7094,0.0],[0.8357,0.3629,-1.475,0.3629,0.7094,0.962,0.0],[-0.8357,0.3629,1.4756,0.3629,-0.962,-0.7094,0.3463],[0.8357,0.3629,1.4757,0.3629,0.7094,0.962,0.3505]],spin:["Material__289", "Material__290", "Material__291", "Material__301"]},
+  gt500:{hubs:[[-0.8055,0.352,-1.3587,0.3459,-0.9638,-0.6473,0.0],[0.8011,0.3459,-1.3612,0.3458,0.6429,0.9593,0.0],[-0.8276,0.3548,1.3642,0.3519,-0.9745,-0.6807,0.0],[0.8365,0.3491,1.3644,0.3455,0.6925,0.9805,0.0]],spin:["glossblack","lambert1","plate","tire"]},
+  hsto:{hubs:[[-0.8731,0.3522,-1.3097,0.3522,-1.042,-0.7043,0.0],[0.8731,0.3522,-1.3097,0.3522,0.7043,1.042,0.0],[-0.8986,0.339,1.3112,0.3336,-1.0586,-0.7387,0.0],[0.8986,0.339,1.3112,0.3336,0.7387,1.0586,0.0]],spin:["BLACK","CRBN_JANTE","Material.013","Material.025","PZEO","plaquette_de_frein.002","pneu.005","visse.002"]},
+  lpi8004:{hubs:[[-0.8857,0.3684,-1.4054,0.3683,-1.0699,-0.7015,0.0],[0.8951,0.3684,-1.4057,0.3683,0.7109,1.0792,0.0],[-0.895,0.3477,1.4238,0.336,-1.0527,-0.7374,-0.6774],[0.8967,0.3477,1.387,0.336,0.7391,1.0544,-0.6662]],spin:["Material.003","Material.011","Material.013","Material.020","Material.025"]},
+  gryaris:{hubs:[[-0.849,0.3105,-1.2846,0.3105,-0.9787,-0.7193,0.0],[0.8491,0.3112,-1.2846,0.3088,0.7195,0.9787,0.0],[-0.893,0.3289,1.2754,0.3128,-1.0324,-0.7535,0.0],[0.8932,0.3282,1.2754,0.3112,0.7539,1.0324,0.0]],spin:["Brake_Discs","advan-neova-ad09","advan-rs-df-wheels"]},
+  evo10:{hubs:[[-0.7712,0.3276,-1.3251,0.3266,-0.9032,-0.6391,0.0],[0.7712,0.3276,-1.3251,0.3266,0.6391,0.9032,0.0],[-0.7799,0.3265,1.325,0.3266,-0.9119,-0.6478,0.0],[0.7799,0.3265,1.325,0.3266,0.6478,0.9119,0.0]],spin:["BrakeDiscForgedDrilled1A", "Rim1A", "Tire1A"]},
+  vantage:{hubs:[[-0.8062,0.3536,-1.3525,0.3537,-0.9679,-0.6444,0.0],[0.8062,0.3536,-1.3525,0.3537,0.6445,0.968,0.0],[-0.815,0.3508,1.3525,0.35,-0.9617,-0.6684,0.0],[0.8148,0.3508,1.3525,0.35,0.6682,0.9614,0.0]],spin:["AstonMartin_VantageV8Reward_2018_Wheel1A_3D_3DWheel1B_Material","EXT_Disc","Tyre","center_blur","rim_black","rim_spoke"]},
+  gt4rs:{hubs:[[-0.7417,0.3413,-1.2314,0.3433,-0.9023,-0.581,0.0],[0.7417,0.3413,-1.2314,0.3433,0.581,0.9023,0.0],[-0.754,0.3396,1.2256,0.3394,-0.8882,-0.6197,0.0],[0.754,0.3396,1.2256,0.3394,0.6197,0.8882,0.0]],spin:["Porsche_718CaymanGT4RS_2022_Wheel1A_3D_3DWheel2B_Material"]},
+  lfa:{hubs:[[-0.8014,0.3474,-1.299,0.3472,-0.9663,-0.6365,0.0],[0.8014,0.3474,-1.3001,0.3472,0.6365,0.9663,0.0],[-0.7993,0.3467,1.3052,0.3458,-0.943,-0.6557,0.0],[0.7993,0.3467,1.3058,0.3458,0.6557,0.943,0.0]],spin:["Lexus_LFANurburgringPackage_2011_Wheel1A_3D_3DWheel2A_Material"]},
+  vettegs:{hubs:[[-0.783,0.3416,-1.3405,0.3387,-0.9641,-0.6019,0.0],[0.7829,0.3416,-1.3405,0.3387,0.6018,0.964,0.0],[-0.7971,0.3306,1.3445,0.3272,-0.9528,-0.6413,0.0],[0.7967,0.3308,1.3445,0.3272,0.6409,0.9524,0.0]],spin:["CChevrolet_CorvetteGrandSport_2017_Wheel1A_3D_3DWheel1A_Material1", "Metal_Ext", "Under", "material"]},
+  civicbtcc:{hubs:[[-0.8256,0.3304,-1.3665,0.3304,-0.961,-0.6902,0.0],[0.8215,0.3304,-1.3682,0.3304,0.6872,0.9558,0.0],[-0.8228,0.3324,1.3679,0.3304,-0.957,-0.6886,0.0],[0.8243,0.3324,1.3661,0.3304,0.6898,0.9588,0.0]],spin:["BRAKE_DISC", "EXT_RIMS", "EXT_TIRES"]},
+  nsxr:{hubs:[[-0.7657,0.3269,-1.265,0.3255,-0.9079,-0.6236,0.0],[0.7657,0.3269,-1.265,0.3255,0.6236,0.9079,0.0],[-0.7675,0.3066,1.265,0.3066,-0.8874,-0.6477,0.0],[0.7675,0.3066,1.265,0.3066,0.6477,0.8874,0.0]],spin:["Vehicle_Exterior_mm_rotor", "Vehicle_Exterior_mm_tyre", "Vehicle_Exterior_mm_wheel"]},
+  f40lb:{hubs:[[-0.8449,0.3199,-1.2252,0.3196,-1.0374,-0.6524,0.0],[0.8454,0.3199,-1.2285,0.3195,0.6534,1.0374,0.0],[-0.8337,0.3173,1.2243,0.3172,-0.9645,-0.7028,0.0],[0.8411,0.3173,1.2194,0.3171,0.7102,0.972,0.0]],spin:["Material.040_10","Material.040_47","Material.040_49","Material.040_5","Material.040_72","Material.040_73","Material.040_9"]},
+  mc20cielo:{hubs:[[-0.8235,0.3463,-1.354,0.3485,-0.9927,-0.6543,0.0],[0.8235,0.3463,-1.354,0.3485,0.6543,0.9927,0.0],[-0.8428,0.343,1.346,0.3416,-0.9792,-0.7063,0.0],[0.8428,0.343,1.346,0.3416,0.7063,0.9792,0.0]],spin:["Maserati_MC20CieloRewardRecycled_2023_Wheel1A_3D_3DWheel2A_Material1"]},
+  laferrari:{hubs:[[-0.8271,0.3472,-1.3244,0.3472,-0.9867,-0.6675,0.0],[0.8274,0.3508,-1.3272,0.3471,0.6678,0.987,0.0],[-0.8304,0.3295,1.3265,0.3291,-0.9818,-0.6791,0.0],[0.8382,0.333,1.3238,0.3292,0.6869,0.9895,0.0]],spin:["Material.111","Material.112","Material.113","Material.114","Material.115","Material.116","Material.117","Material.118","Material.119","Material.120","Material.121","Material.122","disc.003","disc.004","disc.005","disc.006","rim.001","rim.002","rim.003","rim.004","tread.001","tread.002","tread.003","tread.004","visse.009","visse.011","visse.012","visse.013"]},
+  model3:{hubs:[[-0.8347,0.3408,-1.4486,0.3409,-0.9616,-0.7078,0.0],[0.8363,0.3408,-1.4481,0.3409,0.7094,0.9632,0.0],[-0.8355,0.3408,1.4263,0.3348,-0.9602,-0.7109,0.0],[0.8353,0.3408,1.4268,0.3348,0.7107,0.96,0.0]],spin:["wheels.0","wheels.1","wheels.2","wheels.3","wheels.4","wheels.6"]},
+  f458:{hubs:[[-0.7975,0.3641,-1.3248,0.364,-0.955,-0.64,0.0],[0.7969,0.3641,-1.3248,0.364,0.6394,0.9544,0.0],[-0.8341,0.3365,1.3251,0.336,-0.9516,-0.7166,0.0],[0.8335,0.3365,1.3251,0.336,0.716,0.951,0.0]],spin:["black", "brake_bump_metal2", "inner_rim", "outer_rim", "rim_bump_metal", "wphong15SG1"]}};
+/* ---------- car rig: wheels cut out of the body so they spin and steer, and the body pitches / rolls on its springs ----------
+   RIGS[id] = {hubs:[[x,y,z,r,x0,x1,yaw0] x4 (rear-left, rear-right, front-left, front-right, car space)], spin:[materials]}
+   Every triangle lying wholly inside a wheel's cylinder (in that wheel's own frame: some models ship with the fronts turned,
+   yaw0) is moved to that wheel. Triangles of a "spin" material turn with the wheel; any other material inside the cylinder
+   (brake calipers, which are left out of the spin lists, uprights) only steers with it, and only well inside the rim (80% of the tyre radius), so arch
+   liners that a pre-turned wheel happened to enclose stay on the body. Triangles crossing the cylinder edge stay on the body. */
+function rigRead(a,i,k){
+  const A=a.isInterleavedBufferAttribute?a.data.array:a.array;
+  let v=a.isInterleavedBufferAttribute?A[i*a.data.stride+a.offset+k]:A[i*a.itemSize+k];
+  if(a.normalized){if(A instanceof Int8Array)v=Math.max(v/127,-1);else if(A instanceof Uint8Array)v/=255;else if(A instanceof Int16Array)v=Math.max(v/32767,-1);else if(A instanceof Uint16Array)v/=65535;}
+  return v;
+}
+function rigModel(wrap,car){
+  const cfg=RIGS[car.id];if(!cfg||!cfg.hubs)return false;
+  const root=wrap.children[0];wrap.updateMatrixWorld(true);
+  const inv=new THREE.Matrix4().copy(wrap.matrixWorld).invert(),spinM=new Set(cfg.spin||[]);
+  const H=cfg.hubs.map(h=>({x:h[0],y:h[1],z:h[2],r:h[3],x0:h[4],x1:h[5],yaw:h[6]||0,c:Math.cos(-(h[6]||0)),s:Math.sin(-(h[6]||0))}));
+  // a point in wheel q's straightened frame, relative to its hub
+  const local=(q,x,y,z,o)=>{const h=H[q],dx=x-h.x,dz=z-h.z;o[0]=dx*h.c+dz*h.s;o[1]=y-h.y;o[2]=-dx*h.s+dz*h.c;return o;};
+  const inside=(q,o,spin)=>{const h=H[q],X=o[0]+h.x;return Math.hypot(o[1],o[2])<=h.r*(spin?1.05:0.8)&&X>=h.x0-(h.x<0?0.12:0.04)&&X<=h.x1+(h.x>0?0.12:0.04);};
+  const zmid=(H[0].z+H[1].z+H[2].z+H[3].z)/4;
+  const meshes=[];root.traverse(o=>{if(o.isMesh&&o.geometry&&o.geometry.attributes.position)meshes.push(o);});
+  const geoUse=new Map();meshes.forEach(m=>geoUse.set(m.geometry,(geoUse.get(m.geometry)||0)+1));
+  const out=[0,1,2,3].map(()=>({spin:[],steer:[]}));   // per wheel: lists of {mat, P, N, U}
+  const v=new THREE.Vector3(),w=new THREE.Vector3(),o=[0,0,0];let moved=0,fixedN=0,bodyN=0;
+  meshes.forEach(m=>{
+    const M=new THREE.Matrix4().multiplyMatrices(inv,m.matrixWorld),NM=new THREE.Matrix3().getNormalMatrix(M);
+    const g=m.geometry,pa=g.attributes.position,na=g.attributes.normal,ua=g.attributes.uv,ix=g.index,nt=(ix?ix.count:pa.count)/3;
+    const isSpin=spinM.has(m.material&&m.material.name),flip=M.determinant()<0;   // mirrored instances: keep the winding facing out
+    // each vertex once: car-space position -> which wheel cylinder (if any) holds it; corners never overlap, so only
+    // the wheel on the vertex's own corner needs testing
+    const nv=pa.count,CP=new Float32Array(nv*3),wq=new Int8Array(nv),remap=new Int32Array(nv).fill(-1);
+    for(let i=0;i<nv;i++){v.set(rigRead(pa,i,0),rigRead(pa,i,1),rigRead(pa,i,2)).applyMatrix4(M);CP[i*3]=v.x;CP[i*3+1]=v.y;CP[i*3+2]=v.z;
+      const q=(v.x>0?1:0)+(v.z>zmid?2:0);wq[i]=inside(q,local(q,v.x,v.y,v.z,o),isSpin)?q:-1;}
+    const keep=[],buck=[[],[],[],[]];
+    for(let t=0;t<nt;t++){
+      const a=ix?ix.getX(t*3):t*3,b=ix?ix.getX(t*3+1):t*3+1,c=ix?ix.getX(t*3+2):t*3+2,q=wq[a];
+      if(q>=0&&wq[b]===q&&wq[c]===q)buck[q].push(t);else keep.push(t);
+    }
+    if(keep.length===nt)return;
+    moved+=nt-keep.length;
+    // a brake caliper sharing a spinning material (one texture for rim and caliper): a connected piece that covers only
+    // a sector of the circle, away from the hub, does not turn with the wheel
+    const parts=[[0,1,2,3].map(()=>[]),buck];
+    if(isSpin)buck.forEach((list,q)=>{if(list.length<40)return;
+      const id=new Map(),par=[],find=x=>{while(par[x]!==x)x=par[x]=par[par[x]];return x;},key=i=>Math.round(CP[i*3]*2e3)+','+Math.round(CP[i*3+1]*2e3)+','+Math.round(CP[i*3+2]*2e3);
+      const vid=i=>{const k=key(i);let v=id.get(k);if(v===undefined){v=par.length;par.push(v);id.set(k,v);}return v;};
+      const tv=list.map(t=>{const a=[0,1,2].map(k=>vid(ix?ix.getX(t*3+k):t*3+k));par[find(a[1])]=find(a[0]);par[find(a[2])]=find(a[0]);return a[0];});
+      const comp=new Map(),h=H[q];
+      list.forEach((t,j)=>{const r=find(tv[j]);let c=comp.get(r);if(!c)comp.set(r,c={tris:[],bins:new Set(),rmin:9,rmax:0,rs:0,n:0});c.tris.push(t);
+        for(let k=0;k<3;k++){const i=ix?ix.getX(t*3+k):t*3+k;local(q,CP[i*3],CP[i*3+1],CP[i*3+2],o);const rr=Math.hypot(o[1],o[2])/h.r;
+          c.bins.add(Math.floor((Math.atan2(o[1],o[2])+Math.PI)/(Math.PI*2)*36)%36);c.rmin=Math.min(c.rmin,rr);c.rmax=Math.max(c.rmax,rr);c.rs+=rr;c.n++;}});
+      // and a piece lying wholly outside the tyre (a fender lip sharing the rim's material) stays on the body; tread
+      // blocks and tiny tread knobs (at most ~2% proud of the tyre) still turn
+      const fixed=new Set(),body=new Set();comp.forEach(c=>{const cov=c.bins.size/36,rm=c.rs/c.n;
+        if((c.rmin>=1.025||(c.rmin>=1.01&&c.tris.length>=20))&&cov<0.5)c.tris.forEach(t=>body.add(t));
+        else if(c.tris.length>=40&&cov>=0.08&&cov<=0.45&&c.rmin>0.3&&rm>=0.35&&rm<=0.8)c.tris.forEach(t=>fixed.add(t));});
+      if(body.size){body.forEach(t=>keep.push(t));moved-=body.size;bodyN+=body.size;}
+      if(fixed.size||body.size){fixedN+=fixed.size;parts[0][q]=list.filter(t=>fixed.has(t));buck[q]=list.filter(t=>!fixed.has(t)&&!body.has(t));}});
+    parts.forEach((pb,pk)=>pb.forEach((list,q)=>{if(!list.length)return;
+      // indexed, each used vertex once, with every attribute (uv2, vertex colours, tangents...), not just position/normal/uv
+      const h=H[q],used=[],I=new (pa.count>65535?Uint32Array:Uint16Array)(list.length*3);
+      list.forEach((t,j)=>{for(let k=0;k<3;k++){const kk=flip&&k?3-k:k,i=ix?ix.getX(t*3+kk):t*3+kk;
+        if(remap[i]<0){remap[i]=used.length;used.push(i);}I[j*3+k]=remap[i];}});
+      const A={};for(const k in g.attributes)A[k]=new Float32Array(used.length*g.attributes[k].itemSize);
+      used.forEach((i,n)=>{remap[i]=-1;
+        for(const name in A){const at=g.attributes[name],sz=at.itemSize,D=A[name];
+          if(name==='position'){local(q,CP[i*3],CP[i*3+1],CP[i*3+2],o);D[n*3]=o[0];D[n*3+1]=o[1];D[n*3+2]=o[2];}
+          else if((name==='normal'||name==='tangent')&&sz>=3){w.set(rigRead(at,i,0),rigRead(at,i,1),rigRead(at,i,2));
+            if(name==='normal')w.applyMatrix3(NM);else w.transformDirection(M);w.normalize();
+            D[n*sz]=w.x*h.c+w.z*h.s;D[n*sz+1]=w.y;D[n*sz+2]=-w.x*h.s+w.z*h.c;if(sz===4)D[n*sz+3]=rigRead(at,i,3)*(flip?-1:1);}
+          else for(let c=0;c<sz;c++)D[n*sz+c]=rigRead(at,i,c);}});
+      out[q][isSpin&&pk===1?'spin':'steer'].push({mat:m.material,A,I,nv:used.length});
+    }));
+    // the body keeps the rest of this mesh (a private copy if the geometry is shared with other meshes)
+    if(!keep.length){m.parent.remove(m);return;}
+    let geo=g;if(geoUse.get(g)>1){geo=g.clone();m.geometry=geo;}
+    const idx=new (pa.count>65535?Uint32Array:Uint16Array)(keep.length*3);
+    keep.forEach((t,j)=>{for(let k=0;k<3;k++)idx[j*3+k]=ix?ix.getX(t*3+k):t*3+k;});
+    geo.setIndex(new THREE.BufferAttribute(idx,1));
+  });
+  if(!moved)return false;
+  const body=new THREE.Group(),inner=new THREE.Group(),rc=cfg.rc!=null?cfg.rc:0.3;body.name='rig_body';body.position.y=rc;inner.position.y=-rc;
+  wrap.remove(root);inner.add(root);body.add(inner);wrap.add(body);
+  for(let q=0;q<4;q++){
+    const steer=new THREE.Group(),spin=new THREE.Group();steer.name='rig_steer'+q;spin.name='rig_spin'+q;steer.position.set(H[q].x,H[q].y,H[q].z);steer.add(spin);wrap.add(steer);
+    for(const kind of['spin','steer'])out[q][kind].forEach(p=>{
+      const g=new THREE.BufferGeometry();for(const k in p.A)g.setAttribute(k,new THREE.BufferAttribute(p.A[k],p.A[k].length/p.nv));g.setIndex(new THREE.BufferAttribute(p.I,1));
+      if(!p.A.normal)g.computeVertexNormals();
+      const mesh=new THREE.Mesh(g,p.mat);mesh.frustumCulled=false;mesh.userData.shared=true;(kind==='spin'?spin:steer).add(mesh);
+    });
+  }
+  wrap.userData.rigR=H.map(h=>h.r);wrap.userData.rigFixed=fixedN;wrap.userData.rigBody=bodyN;
+  return true;
+}
+// per-instance handles (looked up by name, so it also works on clones) + spring state
+function rigOf(obj){
+  const b=obj.getObjectByName('rig_body');if(!b)return null;const wrap=b.parent,rr=wrap.userData.rigR||[.32,.32,.32,.32];
+  return {body:b,wheels:[0,1,2,3].map(q=>({steer:wrap.getObjectByName('rig_steer'+q),spin:wrap.getObjectByName('rig_spin'+q),front:q>=2,r:rr[q],ang:0})),pitch:0,pv:0,roll:0,rv:0};
+}
+// v m/s, steer -1..1 (input), yawRate rad/s, acc m/s² along the car; gain scales the body motion (1 = default)
+function rigUpdate(R,dt,v,steer,yawRate,acc,gain){
+  if(!R||!(dt>0))return;gain=gain==null?1:gain;
+  if(!isFinite(acc))acc=0;if(!isFinite(yawRate))yawRate=0;if(!isFinite(v))v=0;steer=isFinite(steer)?Math.max(-1,Math.min(1,steer)):0;
+  if(!isFinite(R.pitch+R.pv+R.roll+R.rv)){R.pitch=R.pv=R.roll=R.rv=0;}
+  const sp=Math.abs(v),lock=0.5*(1-Math.min(0.6,sp/75));            // full lock ~29°, less at speed (as a driver would use)
+  R.wheels.forEach(w=>{w.ang=(w.ang+v/w.r*dt)%(Math.PI*2);if(w.spin)w.spin.rotation.x=w.ang;if(w.steer)w.steer.rotation.y=w.front?steer*lock:0;});
+  // springs: nose dives under braking / squats under power, body leans out of the corner (~2.2° per g of cornering)
+  const G=9.8,pT=Math.max(-0.05,Math.min(0.05,-acc/G*0.028*gain)),rT=Math.max(-0.06,Math.min(0.06,v*yawRate/G*0.038*gain));
+  const K=70,D=10;R.pv+=(K*(pT-R.pitch)-D*R.pv)*dt;R.pitch+=R.pv*dt;R.rv+=(K*(rT-R.roll)-D*R.rv)*dt;R.roll+=R.rv*dt;
+  R.body.rotation.set(R.pitch,0,R.roll);
+}
+// drive a placed car's rig from how its pose changed since the last frame, so the player, rivals, the ghost, the replay
+// and the showroom demo all move the same way. steerIn (-1..1) when the input is known (the player), else from the yaw rate.
+function rigDrive(obj,dt,wb,steerIn){
+  if(!obj||!(dt>0))return;
+  let R=obj.userData.rig;if(R===undefined)R=obj.userData.rig=rigOf(obj);
+  if(!R)return;
+  if(!obj.visible){R.px=null;return;}
+  obj.updateMatrix();const e=obj.matrix.elements,x=obj.position.x,z=obj.position.z,h=Math.atan2(e[8],e[10]);
+  if(R.px==null||!isFinite(R.px)){R.px=x;R.pz=z;R.ph=h;R.v=0;R.acc=0;R.yaw=0;return;}
+  const dx=x-R.px,dz=z-R.pz;let dh=h-R.ph;dh=((dh+Math.PI*3)%(Math.PI*2))-Math.PI;
+  R.px=x;R.pz=z;R.ph=h;
+  // a jump (new lap of a replay, restart, respawn): settle instead of reading it as speed
+  if(Math.hypot(dx,dz)>Math.max(3,dt*120)||Math.abs(dh)>1){R.v=R.acc=R.yaw=0;R.pitch=R.pv=R.roll=R.rv=0;return;}
+  const v=(dx*Math.sin(h)+dz*Math.cos(h))/dt;
+  R.acc+=((v-R.v)/dt-R.acc)*Math.min(1,dt*8);R.v=v;R.yaw+=(dh/dt-R.yaw)*Math.min(1,dt*10);
+  let st=steerIn;
+  if(st==null||!isFinite(st)){const sp=Math.abs(v),lock=0.5*(1-Math.min(0.6,sp/75));
+    st=sp>1?Math.max(-1,Math.min(1,Math.atan((wb||2.5)*R.yaw/Math.max(sp,2))*Math.sign(v)/lock)):0;}
+  rigUpdate(R,dt,v,st,R.yaw,R.acc,1);
+}
+function rigFrame(dt){
+  rigDrive(playerCar,dt,CAR.body.wb,pl.steer);
+  if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
+  AI.forEach(a=>rigDrive(a.mesh,dt,a.car&&a.car.body.wb));
 }
 function addLights(g,s,L2){
   const ty=s.ride+s.h*0.66,hy=s.ride+s.h*0.6;
@@ -3069,6 +3236,7 @@ function frame(now){
     $('loading').hidden=!busy.length;
     if(busy.length)$('loading').textContent='3Dモデル読み込み中 '+busy.join('・');
   }
+  rigFrame(dt);
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }

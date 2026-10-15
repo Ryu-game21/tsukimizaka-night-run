@@ -42,6 +42,10 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   `cyl`（音: 3/4/6/8/10/12/'v8x'/'flat6'/'rotary'/'ev'）`turbo` `sc` `lag` `ev`
   `body:{w,l,ride,h,color,wb}` `model:{url,s,off,rotY}` `credit:{title,author,url,license,licUrl}`。
   加速力は `t100` と `top` から自動で合わせ込まれる（`simT100`）。
+- `const RIGS={` … 車のモーション（車輪の回転・前輪の操舵・車体のロール/ピッチ）の設定。車ごとに4輪の円柱
+  `hubs:[[x,y,z,半径,x0,x1,yaw0]×4]`（左後・右後・左前・右前、車の座標で m、+z が前、+x が左）と、車輪と一緒に回る
+  マテリアル名 `spin`。`rigModel` が読み込み時に車輪を切り出し、`rigDrive`/`rigFrame` が毎フレーム、各車の位置と向きの
+  変化から速度・加速度・ヨーレートを出して動かす（プレイヤー・ライバル・ゴースト・リプレイ・メニューのデモすべて同じ）。
 - `const XXX_DATA={pts:[...],hw:[...],bank:[...],rw:[...]}` … コースの中心線（x,y,z を 4m 間隔で平らに並べたもの）、
   半幅、バンク（横方向 1m あたりの高さ変化）、任意で壁の距離 `rw`。
 - `const COURSES=[` … コース一覧（`pts:XXX_DATA.pts` などで参照、`W` `N` `runoff` `laps` `env` `credit`）。
@@ -67,7 +71,20 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
    → `python3 tools/fix_alpha.py car_opt0.glb car_opt.glb` → `python3 tools/pack_png.py car_opt.glb site/cars/<id>`。
    1台あたり数MB以内が目安。
 6. `CARS` に項目を追加（実車のカタログ値。公表値がないものは desc に「目安」と書く）。クレジットとライセンスは必須。
+   続けて「車のモーション」の手順で `RIGS` も追加する。
 7. `node tests/run.js` … 0-100km/h がカタログ値と合い、AT と MT が一致することを確認。
+
+## 車のモーション（車を追加したら設定する）
+
+1. `python3 tools/rig_wheels.py <id>` … 4輪の円柱と回るマテリアルの候補を `RIGS` の1行で出す（たたき台）。
+   前輪が切れた状態で作られたモデルは yaw0 で真っすぐに直す。ブレーキキャリパーらしい物は回さない（前輪では操舵だけ）。
+2. `RIGS` に追加して、`python3 tools/rig_check.py <id>` で **実際に描画して必ず目で確認**（three.js r128 を
+   `work/three` に置く手順は docstring）。見る所:
+   - restDiff ≈ 0（止まっている時は元のモデルと同じ見た目。違うなら頂点属性・面の向き・切り出しの問題）
+   - spinOut = 0（車輪を回してもタイヤの外側が動かない）
+   - シートで、キャリパーが回っていないか、フェンダーの内張りなどボディの一部が車輪と一緒に動いていないか
+3. 回ってはいけない物が回る → そのマテリアルを `spin` から外す。ボディの一部が動く → 円柱（x0,x1,半径）を見直す。
+   切り出しに失敗した車は元の動かないモデルのまま表示される（`rigModel` が false を返す）。
 
 ## コースを追加する手順（Sketchfab のサーキット）
 
@@ -101,6 +118,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `node tests/run.js` … メニューの流れ、全コースの組み上げ、雨のグリップ、周回とリプレイ、チュートリアル、全車の 0-100km/h。
   three.js は Vector3 と CatmullRomCurve3 以外スタブなので、見た目は確認できない。
 - 見た目の確認は実ブラウザで。CDN（cdnjs / jsdelivr）と Google Fonts を読むので、オフライン環境では描画されない。
+  サンドボックスでは three.js r128 を GitHub から取り、Playwright でその場に差し替えて描画できる（`tools/rig_check.py` の方式）。
+  ただし swiftshader なので 1 フレーム数秒かかる。走行の確認は描画を止めて `frame()` を手で進めるとよい。
 - 911 ターボ（930）はターボラグの再現で、停止からの 0-100 がカタログ値より約 0.8 秒遅い（意図的）。
 
 ## 約束ごと

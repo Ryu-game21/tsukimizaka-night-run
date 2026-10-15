@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -88,6 +88,18 @@ setTimeout(async()=>{try{
    ok(!!t.ACHS.gold.tsukimi,'a lap faster than the guide pace earns the course gold');}
   t.setWeather('clear');t.toMenu('course');
   try{t.renderAch();ok(true,'achievement list renders');}catch(e){ok(false,'achievement list renders: '+e.message);}
+  // car motion rig: every car has four sane hubs, and the spring/wheel update behaves
+  {const bad=t.CARS.filter(c=>{const r=t.RIGS[c.id];if(!r||r.hubs.length!==4||!r.spin.length)return true;const h=r.hubs;
+      return !h.every(x=>x[3]>0.22&&x[3]<0.45&&x[4]<x[5])||!(h[0][0]<0&&h[1][0]>0&&h[2][0]<0&&h[3][0]>0)||!(h[2][2]>h[0][2]&&h[3][2]>h[1][2]);});
+    ok(!bad.length,'motion rig data for all '+t.CARS.length+' cars'+(bad.length?' (bad: '+bad.map(c=>c.id)+')':''));
+    const obj=()=>({rotation:{x:0,y:0,z:0,set(a,b,c){this.x=a;this.y=b;this.z=c;}}});
+    const R={body:obj(),wheels:[0,1,2,3].map(q=>({steer:obj(),spin:obj(),front:q>=2,r:0.3,ang:0})),pitch:0,pv:0,roll:0,rv:0};
+    t.rigUpdate(R,0,20,0,0,NaN,1);t.rigUpdate(R,0.016,20,0.5,0.3,NaN,1);
+    ok(isFinite(R.body.rotation.x)&&isFinite(R.body.rotation.z),'rig ignores a zero frame and a NaN acceleration');
+    for(let k=0;k<60;k++)t.rigUpdate(R,0.016,20,0,0,-9,1);
+    ok(R.body.rotation.x>0.01&&R.body.rotation.x<0.06,'braking dips the nose ('+(R.body.rotation.x*57.3).toFixed(1)+'°)');
+    ok(Math.abs(R.wheels[0].ang-((60*0.016+0.016)*20/0.3)%(Math.PI*2))<1e-6,'wheels turn at road speed');
+    t.rigUpdate(R,0.016,10,1,0,0,1);ok(R.wheels[2].steer.rotation.y>0.3&&R.wheels[0].steer.rotation.y===0,'only the front wheels steer');}
   // real weather: the course's live conditions drive the run (weather, time, cold tyres, wind)
   {const om=t.parseOpenMeteo([{current:{time:'2026-10-15T23:10',weather_code:63,cloud_cover:100,precipitation:2.1,temperature_2m:-5,wind_speed_10m:10,wind_direction_10m:0,wind_gusts_10m:16,is_day:0},daily:{sunrise:['2026-10-15T06:00'],sunset:['2026-10-15T17:20']}}]);
    ok(om.tsukimi&&om.tsukimi.wx==='rain'&&om.tsukimi.time==='night','Open-Meteo reply maps to rain / night');
