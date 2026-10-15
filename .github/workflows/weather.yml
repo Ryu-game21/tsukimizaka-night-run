@@ -13,7 +13,7 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: fetch
         run: python3 tools/fetch_weather.py /tmp/now.json || true
       - name: save to the weather branch
