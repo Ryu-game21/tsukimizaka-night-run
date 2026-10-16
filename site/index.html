@@ -571,7 +571,7 @@ const CARS=[
  {id:'gt3rs',maker:'ポルシェ',name:'911 GT3 RS',code:'992',year:2022,short:'911 GT3 RS',cls:'RR サーキット',drive:'RR',tm:'7速PDK',
   engine:'4.0L 水平対向6気筒 NA',ps:525,rpm:8500,trq:'465N·m / 6,300rpm',kg:1450,
   t100:3.2,top:296,cda:.85,gripG:1.25,brakeG:1.35,steer:1.05,gears:7,red:9000,cyl:'flat6',eye:1.0,
-  desc:'サーキットのために作られた911。巨大なリアウイングが強いダウンフォースを生み、9,000rpmまで回る自然吸気の水平対向6気筒を積む。コーナーの速さは全車でいちばん。',
+  desc:'サーキットのために作られた911。巨大なリアウイングが強いダウンフォースを生み、9,000rpmまで回る自然吸気の水平対向6気筒を積む。コーナーの速さは市販車でいちばん。',
   body:{w:1.9,l:4.572,ride:.15,h:.5,color:0xe0e0e0,wb:2.457},
   model:{url:'cars/gt3rs/model.json',s:1.00063,off:[0,0.0836,0.0611]},
   credit:{title:'Porsche GT3 RS',author:'Black Snow',url:'https://sketchfab.com/3d-models/porsche-gt3-rs-e738eae819c34d19a31dd066c45e0f3d',license:'CC BY 4.0',licUrl:'https://creativecommons.org/licenses/by/4.0/'}},
@@ -708,6 +708,13 @@ const CARS=[
   body:{w:1.937,l:4.527,ride:.11,h:.5,color:0xcc0000,wb:2.65},
   model:{url:'cars/f458/model.json',s:0.99935,off:[-0.0003,0.1515,0.1709]},
   credit:{title:'2011 Ferrari 458 Italia',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2011-ferrari-458-italia-bb6c7fa565c04ec59cd9d0e0a4d0098c',license:'CC BY 4.0',licUrl:'https://creativecommons.org/licenses/by/4.0/'}},
+ {id:'gtr3',turbo:1,maker:'日産',name:'GT-R NISMO GT3',code:'R35',year:2015,short:'GT-R GT3',cls:'FR ツインターボ',drive:'FR',tm:'6速シーケンシャル',
+  engine:'VR38DETT 3.8L V型6気筒 ツインターボ（GT3規定）',ps:550,rpm:6500,trq:'約637N·m',kg:1300,kgNote:'目安',
+  t100:3.4,top:285,cda:.9,gripG:1.4,brakeG:1.5,steer:1.0,gears:6,red:7500,cyl:6,eye:1.0,
+  desc:'GT-R（R35）をもとにNISMOが作ったFIA GT3規定のレース車両。市販車の4WDをやめて後輪駆動にし、エンジンを低く後ろへ寄せて重量配分を整えた。スリックタイヤと大きなウイングで、コーナーの速さは全車でいちばん。出力と重量は規定に沿った目安で、0-100km/hと最高速も目安。',
+  body:{w:2.04,l:4.78,ride:.08,h:.5,color:0xe8e8e8,wb:2.78},
+  model:{url:'cars/gtr3/model.json',s:100.32479,off:[0,0,-0.0003]},
+  credit:{title:'2015 Nissan GT-R Nismo GT3 (R35)',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2015-nissan-gt-r-nismo-gt3-r35-1061f7970dc84b6dad0a363540fbc102',license:'CC BY-NC-SA 4.0',licUrl:'https://creativecommons.org/licenses/by-nc-sa/4.0/'}},
 ];
 // RR: the engine sits over the driven wheels, so it launches cleanly
 const tractionOf=(c,v)=>v<18?(c.drive==='4WD'?1.12:c.drive==='RR'?1.04:(c.drive==='FR'||c.drive==='MR')?0.9:1):1;
@@ -1428,7 +1435,8 @@ const RIGS={
   mc20cielo:{hubs:[[-0.8235,0.3463,-1.354,0.3485,-0.9927,-0.6543,0.0],[0.8235,0.3463,-1.354,0.3485,0.6543,0.9927,0.0],[-0.8428,0.343,1.346,0.3416,-0.9792,-0.7063,0.0],[0.8428,0.343,1.346,0.3416,0.7063,0.9792,0.0]],spin:["Maserati_MC20CieloRewardRecycled_2023_Wheel1A_3D_3DWheel2A_Material1"]},
   laferrari:{hubs:[[-0.8271,0.3472,-1.3244,0.3472,-0.9867,-0.6675,0.0],[0.8274,0.3508,-1.3272,0.3471,0.6678,0.987,0.0],[-0.8304,0.3295,1.3265,0.3291,-0.9818,-0.6791,0.0],[0.8382,0.333,1.3238,0.3292,0.6869,0.9895,0.0]],spin:["Material.111","Material.112","Material.113","Material.114","Material.115","Material.116","Material.117","Material.118","Material.119","Material.120","Material.121","Material.122","disc.003","disc.004","disc.005","disc.006","rim.001","rim.002","rim.003","rim.004","tread.001","tread.002","tread.003","tread.004","visse.009","visse.011","visse.012","visse.013"]},
   model3:{hubs:[[-0.8347,0.3408,-1.4486,0.3409,-0.9616,-0.7078,0.0],[0.8363,0.3408,-1.4481,0.3409,0.7094,0.9632,0.0],[-0.8355,0.3408,1.4263,0.3348,-0.9602,-0.7109,0.0],[0.8353,0.3408,1.4268,0.3348,0.7107,0.96,0.0]],spin:["wheels.0","wheels.1","wheels.2","wheels.3","wheels.4","wheels.6"]},
-  f458:{hubs:[[-0.7975,0.3641,-1.3248,0.364,-0.955,-0.64,0.0],[0.7969,0.3641,-1.3248,0.364,0.6394,0.9544,0.0],[-0.8341,0.3365,1.3251,0.336,-0.9516,-0.7166,0.0],[0.8335,0.3365,1.3251,0.336,0.716,0.951,0.0]],spin:["black", "brake_bump_metal2", "inner_rim", "outer_rim", "rim_bump_metal", "wphong15SG1"]}};
+  f458:{hubs:[[-0.7975,0.3641,-1.3248,0.364,-0.955,-0.64,0.0],[0.7969,0.3641,-1.3248,0.364,0.6394,0.9544,0.0],[-0.8341,0.3365,1.3251,0.336,-0.9516,-0.7166,0.0],[0.8335,0.3365,1.3251,0.336,0.716,0.951,0.0]],spin:["black", "brake_bump_metal2", "inner_rim", "outer_rim", "rim_bump_metal", "wphong15SG1"]},
+  gtr3:{hubs:[[-0.8507,0.3557,-1.3945,0.355,-1.0186,-0.6827,0],[0.8507,0.3557,-1.3945,0.355,0.6827,1.0186,0],[-0.8306,0.3559,1.3855,0.3562,-1.0011,-0.6602,0],[0.8306,0.3559,1.3855,0.3562,0.6602,1.0011,0]],spin:["NNissan_GTRNISMOGT3_2015_Wheel1A_3D_3DWheel1A_Material1"]}};
 /* ---------- car rig: wheels cut out of the body so they spin and steer, and the body pitches / rolls on its springs ----------
    RIGS[id] = {hubs:[[x,y,z,r,x0,x1,yaw0] x4 (rear-left, rear-right, front-left, front-right, car space)], spin:[materials]}
    Every triangle lying wholly inside a wheel's cylinder (in that wheel's own frame: some models ship with the fronts turned,
@@ -1568,7 +1576,7 @@ const CAB={nsxr:[-0.34,0.95,-0.15],s30z:[-0.39,1.0,-0.45],m3e30:[0.38,1.05,-0.25
   p930:[0.36,1.0,-0.3],gt3rs:[0.36,1.08,-0.38],alfa33:[0.29,0.82,-0.11],mclarenf1:[0,0.95,0],challenger:[0.4,1.1,-0.3],gt500:[0.4,1.12,-0.38],
   hsto:null,lpi8004:[0.38,0.88,-0.1],gryaris:[-0.33,1.12,-0.18],evo10:[0.35,1.12,-0.15],vantage:[0.4,1.0,-0.37],gt4rs:[0.39,1.02,-0.22],
   lfa:[0.41,0.97,-0.35],vettegs:[0.38,0.98,-0.45],civicbtcc:[-0.27,1.05,-0.28],f40lb:[0.41,0.9,0],mc20cielo:[0.39,0.92,-0.05],
-  laferrari:[0.3,0.92,0.12],model3:[0.42,1.1,0],f458:[0.38,0.93,0.15]};
+  laferrari:[0.3,0.92,0.12],model3:[0.42,1.1,0],f458:[0.38,0.93,0.15],gtr3:[0.4,1.0,-0.3]};
 // cars without a cabin: which side the driver sits on
 const RHD={r34:1,hsto:0};
 // the eye point riding on the car body (so the view rolls and pitches with the cabin), or null for the drawn dashboard
@@ -1589,9 +1597,9 @@ function cabGlass(on){
   playerCar.traverse(o=>{
     if(o.isSprite){o.visible=!on;return;}
     if(!o.isMesh)return;const m=o.userData.glassOrig||o.material;
-    if(!m||Array.isArray(m)||!m.transparent||m.opacity<0.45||notGlass.test(m.name||''))return;
+    if(!m||Array.isArray(m)||!m.transparent||(m.opacity<0.45&&!m.transmission)||notGlass.test(m.name||''))return;
     if(!(glassRe.test(m.name||'')||m.color&&m.color.r+m.color.g+m.color.b<0.45))return;
-    if(!o.userData.glassOrig){o.userData.glassOrig=m;const g=m.clone();g.opacity=m.map?0.05:0.12;if(g.transmission)g.transmission=0;g.userData={};o.userData.glassCab=g;}
+    if(!o.userData.glassOrig){o.userData.glassOrig=m;const g=m.clone();g.opacity=m.map?0.05:Math.min(0.12,m.opacity);if(g.transmission)g.transmission=0;g.userData={};o.userData.glassCab=g;}
     o.material=on?o.userData.glassCab:o.userData.glassOrig;
   });
 }
