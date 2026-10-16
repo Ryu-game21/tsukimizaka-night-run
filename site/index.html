@@ -1561,6 +1561,53 @@ function rigDrive(obj,dt,wb,steerIn){
     st=sp>1?Math.max(-1,Math.min(1,Math.atan((wb||2.5)*R.yaw/Math.max(sp,2))*Math.sign(v)/lock)):0;}
   rigUpdate(R,dt,v,st,R.yaw,R.acc,1);
 }
+/* ---------- driver's seat: the camera sits at each car's own driver eye point, inside the model's real cabin ----------
+   [x,y,z] in car space (m; +x = left, +z = nose). Right-hand-drive cars sit at -x. null = the model has no usable
+   interior (the simple dashboard drawn on the camera is used instead, at the car's own seat and eye height). */
+const CAB={nsxr:[-0.34,0.95,-0.15],s30z:[-0.39,1.0,-0.45],m3e30:[0.38,1.05,-0.25],s180sx:[-0.36,1.08,-0.4],r34:null,a90:[0.4,1.05,-0.35],
+  p930:[0.36,1.0,-0.3],gt3rs:[0.36,1.08,-0.38],alfa33:[0.29,0.82,-0.11],mclarenf1:[0,0.95,0],challenger:[0.4,1.1,-0.3],gt500:[0.4,1.12,-0.38],
+  hsto:null,lpi8004:[0.38,0.88,-0.1],gryaris:[-0.33,1.12,-0.18],evo10:[0.35,1.12,-0.15],vantage:[0.4,1.0,-0.37],gt4rs:[0.39,1.02,-0.22],
+  lfa:[0.41,0.97,-0.35],vettegs:[0.38,0.98,-0.45],civicbtcc:[-0.27,1.05,-0.28],f40lb:[0.41,0.9,0],mc20cielo:[0.39,0.92,-0.05],
+  laferrari:[0.3,0.92,0.12],model3:[0.42,1.1,0],f458:[0.38,0.93,0.15]};
+// cars without a cabin: which side the driver sits on
+const RHD={r34:1,hsto:0};
+// the eye point riding on the car body (so the view rolls and pitches with the cabin), or null for the drawn dashboard
+function cabAnchor(){
+  const c=CAB[CAR.id];if(!c||!playerCar||!(CAR.model&&MODELS[CAR.id]))return null;
+  if(playerCar.userData.cabA&&playerCar.userData.cabA.parent)return playerCar.userData.cabA;
+  const body=playerCar.getObjectByName('rig_body'),a=new THREE.Object3D();
+  if(body)a.position.set(c[0],c[1]-body.position.y,c[2]),body.add(a);else{const w=playerCar.children.find(o=>o.isGroup||o.type==='Group');if(!w)return null;a.position.set(c[0],c[1],c[2]);w.add(a);}
+  playerCar.userData.cabA=a;return a;
+}
+// from inside, tinted glass would black out the view: see-through glass on the player's car while in the seat
+const glassRe=/glass|window|wind|vitre|scheib/i,notGlass=/light|lamp|tembus|logo|engine/i;
+// a faint courtesy light so the dashboard stays readable at night (reaches only ~1.5 m)
+const cabLight=new THREE.PointLight(0xc8d4ff,0.5,1.6,2);cabLight.position.set(0,0.1,0.2);cabLight.visible=false;camera.add(cabLight);
+function cabGlass(on){
+  cabLight.visible=on;
+  if(!playerCar||playerCar.userData.cabGlass===on)return;playerCar.userData.cabGlass=on;
+  playerCar.traverse(o=>{
+    if(o.isSprite){o.visible=!on;return;}
+    if(!o.isMesh)return;const m=o.userData.glassOrig||o.material;
+    if(!m||Array.isArray(m)||!m.transparent||m.opacity<0.45||notGlass.test(m.name||''))return;
+    if(!(glassRe.test(m.name||'')||m.color&&m.color.r+m.color.g+m.color.b<0.45))return;
+    if(!o.userData.glassOrig){o.userData.glassOrig=m;const g=m.clone();g.opacity=m.map?0.05:0.12;if(g.transmission)g.transmission=0;g.userData={};o.userData.glassCab=g;}
+    o.material=on?o.userData.glassCab:o.userData.glassOrig;
+  });
+}
+const _cq=new THREE.Quaternion(),_cv=new THREE.Vector3(),_turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI),
+  _dip=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-0.012);
+// place the camera in the seat; returns false when the car has no cabin (caller falls back to the drawn dashboard)
+function seatCamera(sx,sy){
+  const a=cabAnchor();if(!a)return false;
+  playerCar.position.set(pl.x,pl.y,pl.z);playerCar.rotation.set(-Math.atan(SL[pl.idx]),pl.th,0,'YXZ');playerCar.updateMatrixWorld(true);
+  a.getWorldPosition(_cv);a.getWorldQuaternion(_cq);
+  camera.position.copy(_cv);camera.position.x+=sx||0;camera.position.y+=sy||0;
+  camera.quaternion.copy(_cq).multiply(_turn).multiply(_dip);
+  return true;
+}
+// the drawn dashboard, at this car's seat: sideways offset (car +x = left) for the driver's side
+function seatSide(){const c=CAB[CAR.id];return c?c[0]:RHD[CAR.id]?-0.37:0.37;}
 function rigFrame(dt){
   rigDrive(playerCar,dt,CAR.body.wb,pl.steer);
   if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
@@ -2565,7 +2612,8 @@ function updateReplay(dt){
 }
 function updateReplayCam(dt){
   const id=rpCamId(),fp=id==='cockpit',sl=SL[pl.idx],fx=Math.sin(pl.th),fz=Math.cos(pl.th);
-  playerCar.visible=!fp;interior.visible=fp;hoodG.visible=fp;
+  const cab=fp&&!!cabAnchor();cabGlass(cab);
+  playerCar.visible=!fp||cab;interior.visible=fp&&!cab;hoodG.visible=interior.visible;
   playerCar.position.set(pl.x,pl.y,pl.z);playerCar.rotation.set(-Math.atan(sl),pl.th,0,'YXZ');
   const d=((pl.th-camTh+Math.PI*3)%(Math.PI*2))-Math.PI;camTh+=d*Math.min(1,dt*3.5);
   camera.up.set(0,1,0);let fovT=60,snap=false;
@@ -2585,7 +2633,7 @@ function updateReplayCam(dt){
     const bx=Math.sin(camTh),bz=Math.cos(camTh),rx=bz,rz=-bx;
     camera.position.set(pl.x-bx*22+rx*16*rpSide,pl.y+26,pl.z-bz*22+rz*16*rpSide);camera.lookAt(pl.x+fx*8,pl.y,pl.z+fz*8);fovT=42;
   }else{
-    const h=CAR.eye;camera.position.set(pl.x,pl.y+h,pl.z);camera.lookAt(pl.x+fx*10,pl.y+h-0.12+sl*10,pl.z+fz*10);
+    if(!(cab&&seatCamera())){const h=CAR.eye,ss=seatSide(),lx=fz*ss,lz=-fx*ss;camera.position.set(pl.x+lx,pl.y+h,pl.z+lz);camera.lookAt(pl.x+lx+fx*10,pl.y+h-0.12+sl*10,pl.z+lz+fz*10);}
     camera.rotateZ(-pl.steer*Math.min(1,Math.abs(pl.v)/40)*0.025);fovT=72+Math.min(1,Math.abs(pl.v)/VMAX)*12;
   }
   if(Math.abs(camera.fov-fovT)>0.05){camera.fov=snap?fovT:camera.fov+(fovT-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();}
@@ -3016,7 +3064,8 @@ function updateCamera(dt){
   camera.up.set(0,1,0);
   let fovT=72+Math.min(1,Math.abs(pl.v)/VMAX)*12,snap=false;
   const show=state==='menu';
-  playerCar.visible=show||!VIEWS[view].fp;interior.visible=!show&&vid==='cockpit';hoodG.visible=interior.visible;
+  const cab=!show&&vid==='cockpit'&&!!cabAnchor();cabGlass(cab);
+  playerCar.visible=show||!VIEWS[view].fp||cab;interior.visible=!show&&vid==='cockpit'&&!cab;hoodG.visible=interior.visible;
   if(playerCar.visible){
     playerCar.position.set(pl.x,pl.y,pl.z);playerCar.rotation.set(-Math.atan(sl),pl.th,0,'YXZ');
     const d=((pl.th-camTh+Math.PI*3)%(Math.PI*2))-Math.PI;camTh+=d*Math.min(1,dt*(vid==='top'?2.5:4.5));
@@ -3048,9 +3097,11 @@ function updateCamera(dt){
     const dist=Math.max(4,cm.distanceTo(playerCar.position));
     fovT=Math.max(9,Math.min(55,2*Math.atan(9/dist)*180/Math.PI));snap=true;
   }else{
-    const h=CAR.eye,fw=0;
-    camera.position.set(pl.x+fx*fw+sx,pl.y+h+sy+sl*fw,pl.z+fz*fw);
-    camera.lookAt(pl.x+fx*(fw+10),pl.y+h-0.12+sl*(fw+10),pl.z+fz*(fw+10));
+    if(!(cab&&seatCamera(sx,sy))){
+      const h=CAR.eye,ss=seatSide(),lx=fz*ss,lz=-fx*ss;
+      camera.position.set(pl.x+lx+sx,pl.y+h+sy,pl.z+lz);
+      camera.lookAt(pl.x+lx+fx*10,pl.y+h-0.12+sl*10,pl.z+lz+fz*10);
+    }
     camera.rotateZ(-pl.steer*Math.min(1,Math.abs(pl.v)/40)*0.025);
   }
   if(Math.abs(camera.fov-fovT)>0.05){camera.fov=snap?fovT:camera.fov+(fovT-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();}
