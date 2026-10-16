@@ -763,6 +763,27 @@ const CARS=[
   body:{w:2.04,l:4.78,ride:.08,h:.5,color:0xe8e8e8,wb:2.78},
   model:{url:'cars/gtr3/model.json',s:100.32479,off:[0,0,-0.0003]},
   credit:{title:'2015 Nissan GT-R Nismo GT3 (R35)',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2015-nissan-gt-r-nismo-gt3-r35-1061f7970dc84b6dad0a363540fbc102',license:'CC BY-NC-SA 4.0',licUrl:'https://creativecommons.org/licenses/by-nc-sa/4.0/'}},
+ {id:'jesko',turbo:1,maker:'ケーニグセグ',name:'ジェスコ',code:'Jesko',year:2020,short:'ジェスコ',cls:'ミッドシップ V8ターボ',drive:'MR',tm:'9速LST（多板クラッチ）',
+  engine:'5.0L V型8気筒 ツインターボ（E85燃料時）',ps:1622,rpm:7800,trq:'1,500N·m / 5,100rpm',kg:1420,kgNote:'目安',
+  t100:2.5,top:400,cda:.9,gripG:1.25,brakeG:1.4,steer:1.0,gears:9,red:8500,cyl:8,eye:.95,
+  desc:'スウェーデンのケーニグセグが作ったハイパーカー。1,600psのV8ツインターボと、9つのクラッチで瞬時に好きなギアへ飛び移る9速トランスミッションを持つ。大きなリアウイングで高速コーナーも踏ん張る。0-100km/hと最高速はメーカーの公表がないため目安。',
+  body:{w:2.03,l:4.61,ride:.1,h:.45,color:0xf0f0f0,wb:2.70},
+  model:{url:'cars/jesko/model.json',s:99.78973,off:[0,0.0001,0.0005]},
+  credit:{title:'2020 Koenigsegg Jesko',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2020-koenigsegg-jesko-c657f51fb0db43e38fea172dfa385287',license:'CC BY 4.0',licUrl:'https://creativecommons.org/licenses/by/4.0/'}},
+ {id:'imola',turbo:1,maker:'パガーニ',name:'イモラ',code:'Imola',year:2021,short:'イモラ',cls:'ミッドシップ V12ターボ',drive:'MR',tm:'7速AMT',
+  engine:'AMG製 6.0L V型12気筒 ツインターボ',ps:838,rpm:6000,trq:'1,100N·m',kg:1246,kgNote:'乾燥重量',
+  t100:2.8,top:350,cda:.85,gripG:1.2,brakeG:1.35,steer:1.0,gears:7,red:6800,cyl:12,eye:.95,
+  desc:'ウアイラをもとに、イモラ・サーキットで1万6千kmを走り込んで仕上げた5台限定のパガーニ。AMG製のV12ツインターボを積み、カーボンとチタンを組み合わせた車体は1,250kgを切る。0-100km/hと最高速は目安。',
+  body:{w:2.04,l:4.845,ride:.1,h:.45,color:0x1c2a4a,wb:2.795},
+  model:{url:'cars/imola/model.json',s:98.00141,off:[0,0,0.0013]},
+  credit:{title:'2021 Pagani Imola',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2021-pagani-imola-41d59a9e413944ba82e4a230db4c170c',license:'CC BY-NC-SA 4.0',licUrl:'https://creativecommons.org/licenses/by-nc-sa/4.0/'}},
+ {id:'s2000',maker:'ホンダ',name:'S2000（C-West N1 エアロ）',code:'AP1',year:2004,short:'S2000',cls:'FR スポーツ',drive:'FR',tm:'6速MT',
+  engine:'F20C 2.0L 直列4気筒 DOHC VTEC NA',ps:250,rpm:8300,trq:'218N·m / 7,500rpm',kg:1240,
+  t100:5.8,top:240,cda:.66,gripG:1.0,brakeG:1.08,steer:1.0,gears:6,red:9000,cyl:4,eye:1.02,
+  desc:'9,000rpmまで回る2.0Lの自然吸気エンジンを積んだオープンのFR。リッターあたり125psは当時の量産NAで世界一だった。チューナーC-WestのN1エアロとウイングを付けた仕様。日本仕様は180km/hで制限されるため、最高速は制限解除時の目安。',
+  body:{w:1.75,l:4.135,ride:.12,h:.55,color:0x2a2b2e,wb:2.40},
+  model:{url:'cars/s2000/model.json',s:99.58472,off:[0,0.0001,0]},
+  credit:{title:'2004 C-West N1 S2000 AP1 Aero Body Kit - Type II',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2004-c-west-n1-s2000-ap1-aero-body-kit-type-ii-ac45655b07a3471fb70c0f5636ad959e',license:'CC BY-NC-SA 4.0',licUrl:'https://creativecommons.org/licenses/by-nc-sa/4.0/'}}
 ];
 // RR: the engine sits over the driven wheels, so it launches cleanly
 const tractionOf=(c,v)=>v<18?(c.drive==='4WD'?1.12:c.drive==='RR'?1.04:(c.drive==='FR'||c.drive==='MR')?0.9:1):1;
@@ -1484,7 +1505,10 @@ const RIGS={
   laferrari:{hubs:[[-0.8271,0.3472,-1.3244,0.3472,-0.9867,-0.6675,0.0],[0.8274,0.3508,-1.3272,0.3471,0.6678,0.987,0.0],[-0.8304,0.3295,1.3265,0.3291,-0.9818,-0.6791,0.0],[0.8382,0.333,1.3238,0.3292,0.6869,0.9895,0.0]],spin:["Material.111","Material.112","Material.113","Material.114","Material.115","Material.116","Material.117","Material.118","Material.119","Material.120","Material.121","Material.122","disc.003","disc.004","disc.005","disc.006","rim.001","rim.002","rim.003","rim.004","tread.001","tread.002","tread.003","tread.004","visse.009","visse.011","visse.012","visse.013"]},
   model3:{hubs:[[-0.8347,0.3408,-1.4486,0.3409,-0.9616,-0.7078,0.0],[0.8363,0.3408,-1.4481,0.3409,0.7094,0.9632,0.0],[-0.8355,0.3408,1.4263,0.3348,-0.9602,-0.7109,0.0],[0.8353,0.3408,1.4268,0.3348,0.7107,0.96,0.0]],spin:["wheels.0","wheels.1","wheels.2","wheels.3","wheels.4","wheels.6"]},
   f458:{hubs:[[-0.7975,0.3641,-1.3248,0.364,-0.955,-0.64,0.0],[0.7969,0.3641,-1.3248,0.364,0.6394,0.9544,0.0],[-0.8341,0.3365,1.3251,0.336,-0.9516,-0.7166,0.0],[0.8335,0.3365,1.3251,0.336,0.716,0.951,0.0]],spin:["black", "brake_bump_metal2", "inner_rim", "outer_rim", "rim_bump_metal", "wphong15SG1"]},
-  gtr3:{hubs:[[-0.8507,0.3557,-1.3945,0.355,-1.0186,-0.6827,0],[0.8507,0.3557,-1.3945,0.355,0.6827,1.0186,0],[-0.8306,0.3559,1.3855,0.3562,-1.0011,-0.6602,0],[0.8306,0.3559,1.3855,0.3562,0.6602,1.0011,0]],spin:["NNissan_GTRNISMOGT3_2015_Wheel1A_3D_3DWheel1A_Material1"]}};
+  gtr3:{hubs:[[-0.8507,0.3557,-1.3945,0.355,-1.0186,-0.6827,0],[0.8507,0.3557,-1.3945,0.355,0.6827,1.0186,0],[-0.8306,0.3559,1.3855,0.3562,-1.0011,-0.6602,0],[0.8306,0.3559,1.3855,0.3562,0.6602,1.0011,0]],spin:["NNissan_GTRNISMOGT3_2015_Wheel1A_3D_3DWheel1A_Material1"]},
+  jesko:{hubs:[[-0.8327,0.3787,-1.3547,0.3755,-0.9779,-0.6875,0],[0.833,0.3787,-1.3547,0.3755,0.6878,0.9782,0],[-0.8426,0.3535,1.3453,0.35,-0.9779,-0.7072,0],[0.8429,0.3535,1.3453,0.35,0.7075,0.9782,0]],spin:["CARBON","jeskoVehicle_Exterior_mm_rotor1","jeskoVehicle_Exterior_mm_tyre1","jeskoVehicle_Exterior_mm_wheel1"]},
+  imola:{hubs:[[-0.8366,0.35,-1.3995,0.3525,-1.026,-0.6471,0],[0.8366,0.35,-1.3995,0.3525,0.6471,1.026,0],[-0.8326,0.3287,1.3955,0.329,-0.9755,-0.6898,0],[0.8326,0.3287,1.3955,0.329,0.6898,0.9755,0]],spin:["Pagani_Imola_2021_Wheel1A_3D_3DWheel1B_Material"]},
+  s2000:{hubs:[[-0.7313,0.3206,-1.203,0.3245,-0.8625,-0.6001,0],[0.7313,0.3206,-1.203,0.3245,0.6001,0.8625,0],[-0.6985,0.3206,1.197,0.3245,-0.8297,-0.5672,0],[0.6985,0.3206,1.197,0.3245,0.5672,0.8297,0]],spin:["cwestcrim_2","cwestrim_G","w_TNRRims_91A18NaBrakeDisc_ForgedDrilled_Material1","w_TNRRims_91A18NaTireBlur_Material1"]}};
 /* ---------- car rig: wheels cut out of the body so they spin and steer, and the body pitches / rolls on its springs ----------
    RIGS[id] = {hubs:[[x,y,z,r,x0,x1,yaw0] x4 (rear-left, rear-right, front-left, front-right, car space)], spin:[materials]}
    Every triangle lying wholly inside a wheel's cylinder (in that wheel's own frame: some models ship with the fronts turned,
@@ -1624,7 +1648,7 @@ const CAB={nsxr:[-0.34,0.95,-0.15],s30z:[-0.39,1.0,-0.45],m3e30:[0.38,1.05,-0.25
   p930:[0.36,1.0,-0.3],gt3rs:[0.36,1.08,-0.38],alfa33:[0.29,0.82,-0.11],mclarenf1:[0,0.95,0],challenger:[0.4,1.1,-0.3],gt500:[0.4,1.12,-0.38],
   hsto:null,lpi8004:[0.38,0.88,-0.1],gryaris:[-0.33,1.12,-0.18],evo10:[0.35,1.12,-0.15],vantage:[0.4,1.0,-0.37],gt4rs:[0.39,1.02,-0.22],
   lfa:[0.41,0.97,-0.35],vettegs:[0.38,0.98,-0.45],civicbtcc:[-0.27,1.05,-0.28],f40lb:[0.41,0.9,0],mc20cielo:[0.39,0.92,-0.05],
-  laferrari:[0.3,0.92,0.12],model3:[0.42,1.1,0],f458:[0.38,0.93,0.15],gtr3:[0.4,1.0,-0.3]};
+  laferrari:[0.3,0.92,0.12],model3:[0.42,1.1,0],f458:[0.38,0.93,0.15],gtr3:[0.4,1.0,-0.3],jesko:[0.4,0.95,0.05],imola:[0.38,1.0,0],s2000:[-0.33,0.97,-0.22]};
 // cars without a cabin: which side the driver sits on
 const RHD={r34:1,hsto:0};
 // the eye point riding on the car body (so the view rolls and pitches with the cabin), or null for the drawn dashboard
