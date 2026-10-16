@@ -327,6 +327,37 @@ body:not(.mt) .pad.s{display:none}
 .achs em{font-style:normal;font-family:var(--f-dot);font-size:11px;color:var(--lcd)}
 .achs small{font-family:var(--f-dot);font-size:11px;color:var(--dim);white-space:nowrap}
 
+.pfsel{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:10px 0 4px}
+.pfsel select{font:inherit;font-size:14px;color:var(--ink);background:#141a26;border:1px solid var(--line);border-radius:3px;padding:6px 8px;max-width:100%}
+.pfhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin:14px 0 4px}
+.pfhead b{font-family:var(--f-dot);font-weight:700;font-size:22px;color:var(--ink);overflow-wrap:anywhere}
+.pfhead small{font-size:12px;color:var(--dim)}
+.pfhead em{font-style:normal;font-size:11px;color:var(--amber);border:1px solid var(--amber);border-radius:2px;padding:0 5px}
+#pfBody h3{font-family:var(--f-dot);font-weight:600;font-size:13px;letter-spacing:.12em;color:var(--dim);margin:18px 0 8px}
+.tiers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tiers div{border:1px solid var(--tc);border-radius:3px;padding:6px 8px;display:grid;gap:2px;background:rgba(205,215,228,.04)}
+.tiers div[data-tier="b"]{--tc:#c98b55}.tiers div[data-tier="s"]{--tc:#c9d1db}.tiers div[data-tier="g"]{--tc:#f0c75a}.tiers div[data-tier="p"]{--tc:#9fe3ff}
+.tiers span{font-size:11px;color:var(--tc);letter-spacing:.08em}
+.tiers b{font-family:var(--f-dot);font-weight:700;font-size:18px;color:var(--ink)}
+.tiers b small{font-size:11px;color:var(--dim);font-weight:600}
+.pfstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:0}
+.pfstats div{border:1px solid var(--line);border-radius:3px;padding:6px 10px;display:grid;gap:1px}
+.pfstats dt{font-size:11px;color:var(--dim)}
+.pfstats dd{margin:0;font-family:var(--f-dot);font-weight:600;font-size:17px;color:var(--lcd);font-variant-numeric:tabular-nums}
+.pfstats dd small{font-size:11px;color:var(--dim)}
+.pfrec{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.pfrec th{font-weight:500;font-size:11px;color:var(--dim);text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)}
+.pfrec td{padding:4px 6px;border-bottom:1px solid rgba(205,215,228,.07)}
+.pfrec td.t{font-family:var(--f-dot);font-weight:600;color:var(--lcd);text-align:right;white-space:nowrap}
+.pfrec td.r{text-align:right;white-space:nowrap;color:var(--dim)}
+.pfrec td.r.top{color:var(--amber);font-weight:700}
+.pfrec td.c{color:var(--dim);font-size:12px}
+.pfrec tr.none td{opacity:.45}
+.pfnote{font-size:12px;color:var(--dim);line-height:1.6;margin:8px 0 0}
+.blist li[data-pk]{cursor:pointer}
+.blist li[data-pk]:hover{background:rgba(205,215,228,.08)}
+@media (max-width:520px){.tiers{grid-template-columns:repeat(2,minmax(0,1fr))}.pfrec .c{display:none}}
+
 .realinfo{border:1px solid var(--line);border-radius:3px;padding:10px 12px;margin:0 0 12px;display:grid;gap:4px;font-size:13px;line-height:1.6}
 .realinfo p{margin:0}
 .realinfo .age,.realinfo .cred{font-size:11px;color:var(--dim)}
@@ -388,6 +419,7 @@ body:not(.mt) .pad.s{display:none}
         <button class="btn" type="button" id="goStart">ゲームスタート</button>
         <button class="btn sub" type="button" id="goTut">チュートリアル</button>
         <button class="btn sub" type="button" id="goAch">実績</button>
+        <button class="btn sub" type="button" id="goProf">プレイヤー記録</button>
         <button class="btn sub" type="button" id="goOpts">設定</button>
       </div>
       <p class="press">Enter でスタート</p>
@@ -471,6 +503,13 @@ body:not(.mt) .pad.s{display:none}
       <p class="achsum" id="achSum"></p>
       <div class="achbar"><i id="achBar"></i></div>
       <div id="achList"></div>
+    </section>
+
+    <section class="step" data-s="prof" hidden>
+      <p class="eyebrow">PLAYER RECORD</p>
+      <h1>プレイヤー記録</h1>
+      <div class="pfsel"><label class="ol" for="pfPick">プレイヤー</label><select id="pfPick"></select></div>
+      <div id="pfBody"></div>
     </section>
 
     <section class="step" data-s="opts" hidden>
@@ -2296,7 +2335,7 @@ function renderBoard(){
   const meIdx=rows.findIndex(isMe);
   const show=rows.slice(0,TOP_N);if(meIdx>=TOP_N)show.push(rows[meIdx]);
   show.forEach(r=>{
-    const li=document.createElement('li');if(isMe(r))li.className='me';
+    const li=document.createElement('li');if(isMe(r))li.className='me';li.dataset.pk=keyOf(r);li.title=r.name+' の記録を見る';li.addEventListener('click',()=>openProf(li.dataset.pk,'course'));
     const car=CARS.find(x=>x.id===r.car);
     [['rk',(rows.indexOf(r)+1)+''],['nm',r.name],['cr',[boardScope==='all'&&car?car.short||car.name:'',(r.real?'リアル':'')+(r.w&&r.w!=='clear'?(r.real?'・':'')+WEATHERS[r.w].n:'')].filter(Boolean).join(' ・ ')],['tm',fmt(r.t)]].forEach(([cl,t])=>{const e=document.createElement('span');e.className=cl;e.textContent=t;li.appendChild(e);});
     list.appendChild(li);
@@ -2354,12 +2393,12 @@ async function initShared(){
   if(shared==='on'&&user&&user.can){try{if(user.can('data.write')===false)shared='readonly';}catch(e){}}
   try{
     db.collection('records').onSnapshot(snap=>{
-      const all=[];let mine=null;
-      snap.docs.forEach(d=>{const v=d.data();if(d.id===UID)mine=v;all.push(...parseDoc(d.id,v));});
-      board=all;if(mine)myDoc=mine;
+      const all=[],pf={};let mine=null;
+      snap.docs.forEach(d=>{const v=d.data();if(d.id===UID)mine=v;all.push(...parseDoc(d.id,v));parseProfs(d.id,v,pf);});
+      board=all;PROFS=pf;if(mine)myDoc=mine;
       if(shared==='connecting')shared=UID?'on':'readonly';
       renderBoard();if(state==='finish')renderResultRank();
-      syncLocalToShared();achRecords();if(realOn)startReal();
+      syncLocalToShared();achRecords();queueProf();if(step==='prof'&&!$('menu').hidden)renderProf();if(realOn)startReal();
     },err=>{shared=err&&err.code==='revoked'?'off':shared;if(err&&err.code==='unavailable'){setTimeout(initShared,4000);}renderBoard();});
   }catch(e){shared='off';}
   renderBoard();
@@ -2445,7 +2484,7 @@ function setPlayer(n){
   if(C){try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){best=null;}
     bestSplits=null;try{const b=JSON.parse(localStorage.getItem(splitKey(C))||'null');if(Array.isArray(b)&&b.length===4)bestSplits=b;}catch(e){}
     ownGhost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ownGhost=g;}catch(e){}ghost=null;ghostInfo=null;}
-  renderCourseCards();renderBoard();syncLocalToShared();
+  renderCourseCards();renderBoard();syncLocalToShared();queueProf();
 }
 $('nameForm').addEventListener('submit',e=>{
   e.preventDefault();const n=cleanName($('nameIn').value);
@@ -2462,8 +2501,9 @@ let step='title',optsBack='title';
 function showStep(s){
   step=s;document.querySelectorAll('#mcard .step').forEach(e=>e.hidden=e.dataset.s!==s);
   const k=STEPS.indexOf(s),bar=$('stepBar');
-  bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach';
+  bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof';
   if(s==='ach')renderAch();
+  if(s==='prof')renderProf();
   $('backBtn').textContent=s==='mode'?'タイトルへ':'戻る';
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
     bar.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showStep(b.dataset.s)));}
@@ -2477,7 +2517,7 @@ function showStep(s){
   const el=document.querySelector(f);if(el)try{el.focus({preventScroll:s!=='car'&&s!=='course'});}catch(e){}
 }
 function nextStep(){const k=STEPS.indexOf(step);if(step==='title')showStep('mode');else if(k>=0&&k<STEPS.length-1)showStep(STEPS[k+1]);else if(step==='go')start();}
-function prevStep(){if(step==='opts'){showStep(optsBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
+function prevStep(){if(step==='opts'){showStep(optsBack);return;}if(step==='prof'){showStep(profBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
 function renderSummary(){
   const c=COURSES[sel];
   $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':'レース（'+c.laps+'周・4台）'],['マシン',CAR.maker+' '+CAR.name],['コース',c.name],
@@ -2784,7 +2824,7 @@ function achLoad(){
     if(validT(t)){ACHS.cl[c.id]=1;ACHS.car[car.id]=1;if(!ACHS.laps)ACHS.laps=1;}}));
   achCheck(true);
 }
-function achSave(){achDirty=false;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}}
+function achSave(){achDirty=false;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}if(typeof queueProf==='function')queueProf();}
 // unlock whatever is newly met; quiet = no toast (loading)
 function achCheck(quiet){
   if(!ACHS)return;const got=[];
@@ -2858,6 +2898,125 @@ function renderAch(){
     box.appendChild(ul);
   });
 }
+
+/* ---------- player record: each player's achievements, totals and course bests ----------
+   A player's summary (counts only, no achievement list) rides in their records/<uid> entry as `prof`, so every
+   player can see everyone's. On a build without the shared store, the players of this browser are shown. */
+var PROFS={},profT=null,profBack='title',profKey=null,profOpts='';
+function PK(uid,name){return uid+'\u0001'+name;}
+function selfKey(){return PK(shared==='on'&&UID?UID:'local',PLAYER||'');}
+function keyOf(r){return isMe(r)?selfKey():PK(r.uid,r.name);}
+function profSummary(S){
+  const t={b:0,s:0,g:0,p:0};let n=0,pts=0;
+  for(const a of ACH)if(S.u&&S.u[a.id]){n++;t[a.tier]++;pts+=ACH_TIER[a.tier].p;}
+  const num=v=>typeof v==='number'&&isFinite(v)?v:0;
+  return {v:1,n,pts,t,km:Math.round(num(S.km)*10)/10,laps:num(S.laps),races:num(S.races),wins:num(S.wins),winsMT:num(S.winsMT),clean:num(S.clean),
+    top:Math.round(num(S.top)),greats:num(S.greats),cars:cnt(S.car),courses:cnt(S.cl),golds:cnt(S.gold),recs:cnt(S.rec)};
+}
+// someone else's summary from the shared store: numbers only, clamped
+function cleanProf(o){
+  if(!o||typeof o!=='object')return null;
+  const n=(v,max)=>typeof v==='number'&&isFinite(v)&&v>=0?Math.min(v,max):0,t=o.t&&typeof o.t==='object'?o.t:{};
+  return {n:n(o.n,999),pts:n(o.pts,1e6),t:{b:n(t.b,999),s:n(t.s,999),g:n(t.g,999),p:n(t.p,999)},km:n(o.km,1e7),laps:n(o.laps,1e7),races:n(o.races,1e7),
+    wins:n(o.wins,1e7),winsMT:n(o.winsMT,1e7),clean:n(o.clean,1e7),top:n(o.top,999),greats:n(o.greats,1e8),cars:n(o.cars,999),courses:n(o.courses,999),
+    golds:n(o.golds,999),recs:n(o.recs,999),at:n(o.at,9e15)};
+}
+function parseProfs(id,d,out){
+  if(!d||!Array.isArray(d.players))return;
+  d.players.slice(0,20).forEach(p=>{const name=cleanName(p&&p.name);if(!name)return;const pr=cleanProf(p.prof);if(pr)out[PK(id,name)]=pr;});
+}
+// publish my summary a little after it changes, never in the middle of a run
+function queueProf(){if(shared!=='on'||!PLAYER||!UID||!ACHS)return;clearTimeout(profT);profT=setTimeout(publishProf,8000);}
+function publishProf(){
+  if(!ACHS||shared!=='on'||!sdb||!UID||!PLAYER)return;
+  if(state==='race'||state==='count'){profT=setTimeout(publishProf,20000);return;}
+  const name=PLAYER,pr=profSummary(ACHS),sig=JSON.stringify(pr);
+  wq=wq.then(async()=>{
+    const d=myDoc&&Array.isArray(myDoc.players)?JSON.parse(JSON.stringify(myDoc)):{players:[]};
+    let p=d.players.find(x=>x&&x.name===name);
+    if(p&&p.prof){const c=Object.assign({},p.prof);delete c.at;if(JSON.stringify(c)===sig)return;}
+    if(!p){if(d.players.length>=20)return;p={name,best:{}};d.players.push(p);}
+    p.prof=Object.assign({},pr,{at:Date.now()});d.updated=Date.now();
+    try{await sdb.doc('records/'+UID).set(d);myDoc=d;}catch(e){console.warn('profile publish failed',e&&e.code);}
+  });
+}
+function profPlayers(){
+  const m=new Map(),add=(k,name,uid)=>{if(name&&!m.has(k))m.set(k,{k,name,uid});};
+  if(PLAYER)add(selfKey(),PLAYER,shared==='on'?UID:'local');
+  const src=shared==='off'?localEntries():board.concat(shared==='readonly'?localEntries().filter(r=>r.name===PLAYER):[]);
+  src.forEach(r=>add(keyOf(r),r.name,r.uid));
+  for(const k in PROFS){const i=k.indexOf('\u0001');add(k,k.slice(i+1),k.slice(0,i));}
+  if(shared==='off'){try{for(let i=0;i<localStorage.length;i++){const mm=/^fpr-ach@(.+)$/.exec(localStorage.key(i)||'');if(mm)add(PK('local',mm[1]),mm[1],'local');}}catch(e){}}
+  const list=[...m.values()];list.forEach(p=>{const d=profData(p);p.pts=d?d.pts:-1;});
+  return list.sort((a,b)=>(b.k===selfKey())-(a.k===selfKey())||b.pts-a.pts||a.name.localeCompare(b.name,'ja'));
+}
+function profData(p){
+  if(p.k===selfKey()&&ACHS)return profSummary(ACHS);
+  if(PROFS[p.k])return PROFS[p.k];
+  if(p.uid==='local'){   // another player of this browser
+    try{const o=JSON.parse(localStorage.getItem(p.name===LEGACY_OWNER?'fpr-ach':'fpr-ach@'+p.name)||'null');if(o&&typeof o==='object'){const S=Object.assign(achBlank(),o);return profSummary(S);}}catch(e){}
+  }
+  return null;
+}
+function openProf(k,back){profKey=k;profBack=back||'title';showStep('prof');}
+function renderProf(){
+  const box=$('pfBody'),pick=$('pfPick');if(!box)return;
+  const players=profPlayers();
+  if(!players.length){pick.hidden=true;box.innerHTML='';const n=document.createElement('p');n.className='pfnote';n.textContent='まだ記録がありません。名前を決めて走ると、ここに記録が残ります。';box.appendChild(n);return;}
+  pick.hidden=false;
+  if(!profKey||!players.some(p=>p.k===profKey))profKey=players[0].k;
+  const sig=players.map(p=>p.k+p.pts).join('|');
+  if(sig!==profOpts){profOpts=sig;pick.textContent='';
+    players.forEach(p=>{const o=document.createElement('option');o.value=p.k;o.textContent=p.name+(p.k===selfKey()?'（あなた）':'')+(p.pts>=0?'　'+p.pts.toLocaleString()+'pt':'');pick.appendChild(o);});}
+  pick.value=profKey;
+  const P=players.find(p=>p.k===profKey),D=profData(P),me=P.k===selfKey();
+  box.textContent='';
+  const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;};
+  const head=el('div','pfhead');head.append(el('b',null,P.name));if(me)head.append(el('em',null,'あなた'));
+  if(!me&&D&&D.at)head.append(el('small',null,'最終更新 '+new Date(D.at).toLocaleDateString('ja-JP')));
+  box.append(head);
+  // achievements
+  box.append(el('h3',null,'実績'));
+  if(D){
+    const all=ACH.reduce((s,a)=>s+ACH_TIER[a.tier].p,0),sum=el('p','achsum');
+    sum.append('解除 ',el('b',null,D.n+' / '+ACH.length),'　ポイント ',el('b',null,D.pts.toLocaleString()+' / '+all.toLocaleString()+' pt'));
+    const bar=el('div','achbar'),bi=el('i');bi.style.width=Math.min(100,D.n/ACH.length*100).toFixed(1)+'%';bar.append(bi);
+    const tiers=el('div','tiers');
+    ['p','g','s','b'].forEach(k=>{const d=el('div');d.dataset.tier=k;const total=ACH.filter(a=>a.tier===k).length,b=el('b',null,String(D.t[k]||0));b.append(el('small',null,' / '+total));d.append(el('span',null,ACH_TIER[k].n),b);tiers.append(d);});
+    box.append(sum,bar,tiers);
+  }else box.append(el('p','pfnote','このプレイヤーの実績はまだ届いていません（実績を記録する前のバージョンで遊んだか、まだ走っていません）。'));
+  // totals
+  const rowsBy=COURSES.map(c=>{const rows=rankFor(c,CAR,'all'),i=rows.findIndex(r=>keyOf(r)===P.k);return {c,rows,i,r:i>=0?rows[i]:null};});
+  const src=shared==='off'?localEntries():board.concat(shared==='readonly'?localEntries().filter(r=>r.name===PLAYER):[]);
+  const combos=new Set(src.filter(r=>keyOf(r)===P.k).map(r=>r.course+'__'+r.car)).size,tops=rowsBy.filter(x=>x.i===0).length;
+  box.append(el('h3',null,'走りの記録'));
+  const dl=el('dl','pfstats');
+  const stat=(k,v,unit)=>{const d=el('div'),dd=el('dd',null,v);if(unit)dd.append(el('small',null,' '+unit));d.append(el('dt',null,k),dd);dl.append(d);};
+  if(D){
+    stat('総走行距離',D.km.toLocaleString('ja-JP',{maximumFractionDigits:1}),'km');
+    stat('周回',D.laps.toLocaleString(),'周');
+    stat('レース',D.races.toLocaleString(),'戦');
+    stat('優勝',D.wins.toLocaleString(),D.races?'回（勝率 '+Math.round(D.wins/D.races*100)+'%）':'回');
+    stat('最高速',D.top.toLocaleString(),'km/h');
+    stat('コーナー GREAT',D.greats.toLocaleString(),'回');
+    stat('ノーコンタクト優勝',D.clean.toLocaleString(),'回');
+    stat('走った車',D.cars+' / '+CARS.length,'台');
+    stat('走ったコース',D.courses+' / '+COURSES.length);
+    stat('ゴールドタイム',D.golds+' / '+COURSES.length,'コース');
+  }
+  stat('コースレコード（全車1位）',String(tops),'コース');
+  stat('記録した組み合わせ',String(combos),'コース×車');
+  box.append(dl);
+  // course bests
+  box.append(el('h3',null,'コースごとのベストタイム'));
+  const tb=el('table','pfrec'),th=el('tr');['コース','車','タイム','順位（全車）'].forEach((t,i)=>{const h=el('th',i===1?'c':null,t);if(i>=2)h.style.textAlign='right';th.append(h);});tb.append(th);
+  rowsBy.forEach(x=>{const tr=el('tr',x.r?null:'none'),car=x.r&&CARS.find(c=>c.id===x.r.car);
+    tr.append(el('td',null,x.c.name),el('td','c',car?car.short||car.name:'—'),el('td','t',x.r?fmt(x.r.t):'—'),el('td','r'+(x.i===0?' top':''),x.r?(x.i+1)+'位 / '+x.rows.length+'人':''));tb.append(tr);});
+  box.append(tb);
+  box.append(el('p','pfnote',shared==='on'||shared==='readonly'?'タイムと順位は共有ランキングのもの。実績と走行距離は、そのプレイヤーが最後に遊んだ時点の数字です。':'この端末で遊んだプレイヤーの記録です。'));
+}
+$('pfPick').addEventListener('change',e=>{profKey=e.target.value;renderProf();});
+$('goProf').addEventListener('click',()=>openProf(selfKey(),'title'));
 
 /* ---------- update ---------- */
 const tmp={};

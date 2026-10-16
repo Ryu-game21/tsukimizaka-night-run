@@ -57,6 +57,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
+- `player record`（`renderProf`）… プレイヤー記録の画面。自分の実績の集計（`profSummary`：解除数・ランク別の数・走行距離など、
+  数だけ）を `records/<uid>` の各プレイヤーに `prof` として載せ（`publishProf`、走行中は送らない）、全員の分を読んで表示する。
 - 共有ランキング（`initShared`）は Claude の `window.claude.use('db')` があるときだけ動き、無ければ端末内の記録に切り替わる。
 
 ## 車を追加する手順（Sketchfab の GLB）

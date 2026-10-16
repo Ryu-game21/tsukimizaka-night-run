@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -88,6 +88,16 @@ setTimeout(async()=>{try{
    ok(!!t.ACHS.gold.tsukimi,'a lap faster than the guide pace earns the course gold');}
   t.setWeather('clear');t.toMenu('course');
   try{t.renderAch();ok(true,'achievement list renders');}catch(e){ok(false,'achievement list renders: '+e.message);}
+  // player record: my summary is published into my records doc, and others' summaries are read back (sanitised)
+  {const me=t.profSummary(t.ACHS);ok(me.n===Object.keys(t.ACHS.u).length&&me.wins>=1&&me.t.b>=1,'player summary counts achievements by rank ('+me.n+' / b'+me.t.b+' s'+me.t.s+' g'+me.t.g+')');
+   t.toMenu('course');t.publishProf();await t.wqP;
+   const mine=STORE['records/U1']&&STORE['records/U1'].players.find(p=>p.name==='T');
+   ok(!!(mine&&mine.prof&&mine.prof.n===me.n&&mine.best&&Object.keys(mine.best).length),'player summary is shared alongside the best laps');
+   const bad=t.cleanProf({n:'x',pts:-5,km:1e99,t:{g:3}});ok(bad.n===0&&bad.pts===0&&bad.km===1e7&&bad.t.g===3,'other players\' summaries are sanitised');
+   t.PROFS=Object.assign({},t.PROFS,{['U2\u0001Rival']:t.cleanProf({n:12,pts:420,t:{b:8,s:3,g:1,p:0},km:321.5,wins:4,races:9})});
+   const ps=t.profPlayers();ok(ps[0].name==='T'&&ps.some(p=>p.name==='Rival'&&p.pts===420),'player list: me first, rivals with their points');
+   try{t.openProf('U2\u0001Rival','title');t.renderProf();ok(true,'player record screen renders');}catch(e){ok(false,'player record screen renders: '+e.message);}
+   t.toMenu('course');}
   // car motion rig: every car has four sane hubs, and the spring/wheel update behaves
   {const bad=t.CARS.filter(c=>{const r=t.RIGS[c.id];if(!r||r.hubs.length!==4||!r.spin.length)return true;const h=r.hubs;
       return !h.every(x=>x[3]>0.22&&x[3]<0.45&&x[4]<x[5])||!(h[0][0]<0&&h[1][0]>0&&h[2][0]<0&&h[3][0]>0)||!(h[2][2]>h[0][2]&&h[3][2]>h[1][2]);});
