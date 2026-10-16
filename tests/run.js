@@ -6,7 +6,7 @@ const fs=require('fs'),path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8');
 const i0=html.lastIndexOf('<script>'),i1=html.indexOf('</script>',i0);
 let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
-src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
+src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},get lapInvs(){return lapInvs},get lapInv(){return lapInv},get best(){return best},get HW(){return HW},get NR(){return NR},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
 get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
@@ -103,6 +103,15 @@ setTimeout(async()=>{try{
    t.addBoard([{uid:'U9',name:'Speedy',course:t.COURSES[2].id,car:t.CARS[0].id,t:6.5,at:Date.now()}]);t.crCheck();
    ok(t.crShowing,'a new course record by another player pops up');
    t.crCheck();ok(!t.crQ.length,'the same record is not announced twice');}
+  // track limits: a lap with all four wheels past the road edge is shown but voided (no best, no ranking)
+  {t.selectCar(5);t.selectCourse(1);t.setMode('free');t.start();step(260);
+   const N=t.N,w=t.CAR.body.w/2;let k=t.pl.idx,b1;const lap0=t.laps.length;
+   for(let f=0;f<Math.floor(N*2.3)&&t.state==='race';f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],o=f>N*0.6&&f<N*0.6+6?t.HW[k]+w+0.4:0;
+     t.pl.x=p.x+n.x*o;t.pl.z=p.z+n.z*o;t.pl.th=t.TH[k];t.pl.v=40;step(1);if(t.laps.length===lap0+1&&b1===undefined)b1=t.best;}
+   const iv=t.lapInvs.slice(lap0);
+   ok(iv[0]===true&&b1==null,'off-track lap is voided and not saved as a best ('+iv+')');
+   ok(iv[1]===false&&t.best!=null&&Math.abs(t.best-t.laps[lap0+1])<1e-9,'the next clean lap counts');
+   t.toMenu('course');}
   // car motion rig: every car has four sane hubs, and the spring/wheel update behaves
   {const bad=t.CARS.filter(c=>{const r=t.RIGS[c.id];if(!r||r.hubs.length!==4||!r.spin.length)return true;const h=r.hubs;
       return !h.every(x=>x[3]>0.22&&x[3]<0.45&&x[4]<x[5])||!(h[0][0]<0&&h[1][0]>0&&h[2][0]<0&&h[3][0]>0)||!(h[2][2]>h[0][2]&&h[3][2]>h[1][2]);});

@@ -27,6 +27,9 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 #tl .k{color:var(--dim);font-size:11px;letter-spacing:.14em;text-shadow:none}
 #tl .lap{font-size:26px}
 #tl .t{font-size:20px}
+#tl .t.inv{color:var(--red)}
+#tl .t.inv::after{content:' 無効';font-size:11px;letter-spacing:.08em}
+.res td.inv{color:var(--dim);text-decoration:line-through}
 #tr{top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;display:grid;justify-items:end;gap:8px}
 #pos{display:flex;align-items:baseline;gap:4px}
 #pos b{font-weight:400;font-size:54px;line-height:1}
@@ -1765,7 +1768,7 @@ function shiftGear(d){
   if(d<0&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:CAR.gearTop[ng-1],t:2.5};updateRevWarn(0);return;}
   pl.gear=ng;
 }
-let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
+let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],lapInv=false,lapInvs=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
 const opts={line:true,call:true,ghost:true};
 const GSTEP=0.05;let mode='race',ghost=null,ownGhost=null,ghostInfo=null,rec=[],recT=0;
@@ -1820,7 +1823,7 @@ function resetRace(){
   const ln=W*0.22,grid=[[-9,ln],[-17,-ln],[-25,ln]];
   AI.forEach((a,k)=>{a.s=grid[k][0];a.lane=a.laneT=grid[k][1];a.v=0;a.fin=0;a.skillC=a.skill*C.ai;});
   placePlayer(-33,-ln);pl.lap=0;pl.maxLap=0;
-  raceT=0;lapStart=0;laps=[];rpRec=[];rpT=0;sessRp=null;curSplits=[];lastSplits=null;lapSectors=[];if(typeof renderSectors==='function')renderSectors();finishRank=0;curCorner=-1;cornerHit=false;score={great:0,total:0};lastBrake=false;
+  raceT=0;lapStart=0;laps=[];lapInv=false;lapInvs=[];rpRec=[];rpT=0;sessRp=null;curSplits=[];lastSplits=null;lapSectors=[];if(typeof renderSectors==='function')renderSectors();finishRank=0;curCorner=-1;cornerHit=false;score={great:0,total:0};lastBrake=false;
   $('last').textContent=fmt(null);
 }
 
@@ -2577,10 +2580,10 @@ function endSession(){
   if(mode!=='free'){toMenu('course');return;}
   state='finish';ghostCar.visible=false;
   $('rCourse').textContent='フリー走行 ・ '+C.name+' ・ '+CAR.name;
-  const sb=laps.length?Math.min(...laps):null;
+  const vl=laps.filter((t,i)=>!lapInvs[i]),sb=vl.length?Math.min(...vl):null;
   $('rPos').innerHTML=fmt(sb)+'<span>この回のベスト</span>';
   const shown=laps.slice(-10),off=laps.length-shown.length;
-  $('rTable').innerHTML=(laps.length?shown.map((t,i)=>`<tr><td>LAP ${off+i+1}${lapSectors[off+i]?`<small>${lapSectors[off+i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===sb?'best':''}">${fmt(t)}</td></tr>`).join(''):'<tr><td>記録した周回</td><td>なし</td></tr>')
+  $('rTable').innerHTML=(laps.length?shown.map((t,i)=>`<tr><td>LAP ${off+i+1}${lapSectors[off+i]?`<small>${lapSectors[off+i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${lapInvs[off+i]?'inv':t===sb?'best':''}">${fmt(t)}${lapInvs[off+i]?'<small>無効</small>':''}</td></tr>`).join(''):'<tr><td>記録した周回</td><td>なし</td></tr>')
     +`<tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   renderResultRank();$('rpBtn').hidden=!sessRp;$('result').hidden=false;$('retryBtn').focus();
 }
@@ -2602,8 +2605,8 @@ function finish(){
   finishRank=1+AI.filter(a=>a.fin).length;
   $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name;
   $('rPos').innerHTML=finishRank+'<span>位 / 4台</span>';
-  const bl=Math.min(...laps);
-  $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===bl?'best':''}">${fmt(t)}</td></tr>`).join('')
+  const bl=Math.min(...laps.filter((t,i)=>!lapInvs[i]));
+  $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${lapInvs[i]?'inv':t===bl?'best':''}">${fmt(t)}${lapInvs[i]?'<small>無効</small>':''}</td></tr>`).join('')
     +`<tr><td>TOTAL</td><td>${fmt(raceT)}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   renderResultRank();$('rpBtn').hidden=!sessRp;
   setTimeout(()=>{if(state==='finish'){$('result').hidden=false;$('retryBtn').focus();}},1400);
@@ -2616,8 +2619,8 @@ const RPCAMS=[{id:'auto',n:'自動'},{id:'tv',n:'中継カメラ'},{id:'chase',n
 const RPAUTO=['tv','chase','tv','low','heli','tv','cockpit'];
 function curGear(){return CAR.ev||CAR.cvt?1:isMT()?pl.gear:gearOf(Math.abs(pl.v)*3.6);}
 const rpKey=c=>pkey('fpr-rp-'+c.id+'-'+CAR.id);
-function rpLap(lt){
-  if(rpRec.length<60){rpRec=[];rpT=0;return;}
+function rpLap(lt,inv){
+  if(inv||rpRec.length<60){rpRec=[];rpT=0;return;}
   const r={t:lt,d:rpRec,tm:isMT()?'MT':'AT',wx:wxSel,time:timeSel};
   if(!sessRp||lt<sessRp.t)sessRp=r;
   if(best!=null&&lt<=best+1e-9)saveRp(r);
@@ -2856,9 +2859,10 @@ function achLapStart(){lapGreat=0;lapJudged=0;lapFast=0;}
 function achCorner(great){lapJudged++;if(great){lapGreat++;raceGreat++;ACHS&&(ACHS.greats++);}}
 function achContact(){if(state==='race')raceContacts++;}
 function achDrive(dt,sp,rev){if(!ACHS||state!=='race')return;const d=sp*dt/1000;ACHS.km+=d;if(rev)ACHS.revKm+=d;if(sp*3.6>ACHS.top)ACHS.top=sp*3.6;achKmAcc+=d;if(achKmAcc>0.5){achKmAcc=0;achDirty=true;achCheck();}}
-function achLap(lt,pb){
+function achLap(lt,pb,inv){
   if(!ACHS)return;const S=ACHS;
   S.laps++;if(isMT())S.lapsMT++;if(pb)S.pbs++;
+  if(inv){achLapStart();achDirty=true;achCheck();return;}
   S.cl[C.id]=1;S.car[CAR.id]=1;S.combo[wxSel+'_'+timeSel]=1;S.f['lap_'+timeSel]=1;if(wxSel==='rain'||wxSel==='fog')S.f['lap_'+wxSel]=1;
   const judged=corners.filter(c=>c.grade>=2).length;
   if(judged>=3&&lapJudged>=judged&&lapGreat>=judged)S.perf[C.id]=1;
@@ -3090,9 +3094,14 @@ function sectorHit(k){
   if(k===4){lastSplits=curSplits.slice();lapSectors.push(lastSplits.map((v,i)=>v==null?null:v-(i&&lastSplits[i-1]!=null?lastSplits[i-1]:0)));curSplits=[];}
   renderSectors();
 }
-function recordLap(lt,announce){
-  laps.push(lt);$('last').textContent=fmt(lt);
+function recordLap(lt,announce,inv){
+  laps.push(lt);lapInvs.push(!!inv);$('last').textContent=fmt(lt)+(inv?' 無効':'');
   const prevBest=best;
+  if(inv){   // track limits: the lap is shown but never becomes a best, a ranking entry, a ghost or a replay
+    achLap(lt,false,true);
+    if(announce){chime('lap');showMsg('トラックリミット違反 ・ ラップ無効',true,2);}
+    return;
+  }
   if(best==null||lt<best){best=lt;try{localStorage.setItem(bestKey(C),String(lt));}catch(e){}
     if(lastSplits&&lastSplits.every(v=>v!=null)){bestSplits=lastSplits.slice();try{localStorage.setItem(splitKey(C),JSON.stringify(bestSplits));}catch(e){}}
     submitBest(C,CAR,lt,bestSplits);}
@@ -3186,6 +3195,10 @@ function updatePlayer(dt,canDrive){
     const tgt=(fx*T[pl.idx].x+fz*T[pl.idx].z)>=0?TH[pl.idx]:TH[pl.idx]+Math.PI;
     const d=((tgt-pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;pl.th+=d*Math.min(1,dt*4);
   }
+  // track limits: all four wheels past the edge of the road (the car's inner side beyond HW) voids the lap
+  if(state==='race'&&(mode!=='free'||pl.lap>=1)&&!lapInv&&Math.abs(pl.off)-CAR.body.w/2>HW[pl.idx]+0.05){
+    lapInv=true;pop('トラックリミット','over');showMsg('トラックリミット違反 ・ このラップは無効',true,2);
+  }
   // corner judge at apex
   if(state==='race'){
     const cid=cornerAt[pl.idx];
@@ -3207,7 +3220,8 @@ function updatePlayer(dt,canDrive){
     if(pl.lap>pl.maxLap&&state==='race'){
       pl.maxLap=pl.lap;
       if(mode==='free'){
-        if(pl.lap>=2){
+        if(pl.lap>=2&&lapInv){const lt=raceT-lapStart;sectorHit(4);recordLap(lt,true,true);rpLap(lt,true);}
+        else if(pl.lap>=2){
           const lt=raceT-lapStart;sectorHit(4);recordLap(lt,true);
           if(!ownGhost||lt<ownGhost.t){ownGhost={t:lt,d:rec.slice()};try{localStorage.setItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id),JSON.stringify(ownGhost));}catch(e){}
           }
@@ -3216,11 +3230,11 @@ function updatePlayer(dt,canDrive){
           if(best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rec,4);
           rpLap(lt);
         }
-        lapStart=raceT;rec=[];recT=0;rpRec=[];rpT=0;achLapStart();
+        lapStart=raceT;lapInv=false;rec=[];recT=0;rpRec=[];rpT=0;achLapStart();
       }else{
-        if(pl.lap>=2){const lt=raceT-lapStart;sectorHit(4);lapStart=raceT;recordLap(lt,pl.lap<=LAPS);
-          if(pl.lap>=3&&best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rpRec,6);   // flying laps only: lap 1 starts from the grid
-          rpLap(lt);}
+        if(pl.lap>=2){const lt=raceT-lapStart,inv=lapInv;sectorHit(4);lapStart=raceT;lapInv=false;recordLap(lt,pl.lap<=LAPS,inv);
+          if(!inv&&pl.lap>=3&&best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rpRec,6);   // flying laps only: lap 1 starts from the grid
+          rpLap(lt,inv);}
         if(pl.lap===LAPS&&LAPS>1)showMsg('FINAL LAP',true,2);
         if(pl.lap>LAPS)finish();
       }
@@ -3485,6 +3499,7 @@ function frame(now){
         $('time').textContent=fmt(raceT);
       }
       $('best').textContent=fmt(best);
+      $('time').classList.toggle('inv',lapInv&&state==='race');
       if(realOn&&!$('wxV').hidden){const r=realFor(C.id),wh=windHud();$('wxV').textContent=(r?WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':''):'')+(wh?' ・ '+wh:'');}
       const pprog=(pl.lap-1)*L+pl.idx*ds;
       if(mode!=='free')$('posN').textContent=state==='finish'?finishRank:1+AI.filter(a=>a.s>pprog).length;

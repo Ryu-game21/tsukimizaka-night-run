@@ -52,6 +52,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `const XXX_DATA={pts:[...],hw:[...],bank:[...],rw:[...]}` … コースの中心線（x,y,z を 4m 間隔で平らに並べたもの）、
   半幅、バンク（横方向 1m あたりの高さ変化）、任意で壁の距離 `rw`。
 - `const COURSES=[` … コース一覧（`pts:XXX_DATA.pts` などで参照、`W` `N` `runoff` `laps` `env` `credit`）。
+- トラックリミット（`lapInv`）… 4輪すべてが道幅の外（`|off|-body.w/2 > HW`）に出たラップは無効。タイムは表示するが、ベスト・ランキング・
+  ゴースト・リプレイ・ゴールドには使わない（`recordLap(lt,announce,inv)`、`lapInvs` が結果表の印）。レースのタイム加算はなし。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
