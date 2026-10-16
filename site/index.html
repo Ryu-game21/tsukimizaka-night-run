@@ -32,6 +32,7 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 #pos b{font-weight:400;font-size:54px;line-height:1}
 #pos span{font-size:16px;color:var(--amber)}
 #map{width:150px;height:150px;opacity:.92}
+#tyres{width:150px;height:138px}
 #gauge{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 6px);width:320px;height:140px}
 #msg{top:36%;left:0;right:0;text-align:center;font-size:clamp(48px,12vw,120px);line-height:1;letter-spacing:.06em}
 #msg.small{font-size:clamp(22px,5vw,40px);color:var(--red);text-shadow:0 0 14px rgba(255,90,70,.7)}
@@ -203,6 +204,7 @@ body:not(.mt) .pad.s{display:none}
   .courses{grid-template-columns:repeat(3,minmax(0,1fr))}
   #gauge{width:220px;height:96px}
   #map{width:96px;height:96px}
+  #tyres{width:112px;height:103px}
   #pos b{font-size:40px}
   #tl .lap{font-size:20px}
   #tl .t{font-size:16px}
@@ -389,6 +391,7 @@ body:not(.mt) .pad.s{display:none}
 <div class="hud" id="tr" hidden>
   <div id="pos"><b id="posN">4</b><span>位 / 4</span></div>
   <canvas id="map"></canvas>
+  <canvas id="tyres" aria-label="タイヤの状態"></canvas>
 </div>
 <div class="hud" id="cn" hidden>
   <canvas id="cnArrow"></canvas>
@@ -1927,7 +1930,8 @@ function applyCondition(){
   else{wxSel=manualWx;timeSel=manualTime||timeSel;tempC=null;wind={x:0,z:0,ms:0,gust:0,dir:0};}
 }
 // tyres: full grip from 10 to 30 °C, about 0.6 %/°C less in the cold, 0.4 %/°C less in the heat
-function tempGrip(){if(tempC==null)return 1;const t=tempC;return t<10?Math.max(0.88,1-(10-t)*0.006):t>30?Math.max(0.94,1-(t-30)*0.004):1;}
+// the air temperature now works through the tyres (see tyre temperature): cold air keeps them cold, hot air overheats them
+function tempGrip(){return 1;}
 function windNow(dt){   // gusts: the wind breathes between its mean and gust speed
   if(!wind.ms)return {x:0,z:0};windPh+=dt*(0.35+Math.random()*0.1);
   const f=1+Math.max(0,Math.sin(windPh)*0.5+Math.sin(windPh*2.7)*0.5)*((wind.gust/wind.ms)-1)*0.8;return {x:wind.x*f,z:wind.z*f};
@@ -2601,7 +2605,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();scStart();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  resetRace();tyreReset();scStart();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -2617,7 +2621,7 @@ function endSession(){
   $('rPos').innerHTML=fmt(sb)+'<span>この回のベスト</span>';
   const shown=laps.slice(-10),off=laps.length-shown.length;
   $('rTable').innerHTML=(laps.length?shown.map((t,i)=>`<tr><td>LAP ${off+i+1}${lapSectors[off+i]?`<small>${lapSectors[off+i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===sb?'best':''}">${fmt(t)}</td></tr>`).join(''):'<tr><td>記録した周回</td><td>なし</td></tr>')
-    +`<tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
+    +`<tr><td>タイヤ</td><td>${tyreStat.n>1?'平均 '+Math.round(tyreStat.sum/tyreStat.n)+'°C ・ 適温 '+Math.round(tyreStat.ok/tyreStat.n*100)+'%':'—'}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   renderResultRank();$('rpBtn').hidden=!sessRp;$('result').hidden=false;$('retryBtn').focus();
 }
 function toMenu(to){
@@ -2640,7 +2644,7 @@ function finish(){
   $('rPos').innerHTML=finishRank+'<span>位 / 4台</span>';
   const bl=Math.min(...laps);
   $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===bl?'best':''}">${fmt(t)}</td></tr>`).join('')
-    +`<tr><td>TOTAL</td><td>${fmt(raceT)}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
+    +`<tr><td>TOTAL</td><td>${fmt(raceT)}</td></tr><tr><td>タイヤ</td><td>${tyreStat.n>1?'平均 '+Math.round(tyreStat.sum/tyreStat.n)+'°C ・ 適温 '+Math.round(tyreStat.ok/tyreStat.n*100)+'%':'—'}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   renderResultRank();$('rpBtn').hidden=!sessRp;
   setTimeout(()=>{if(state==='finish'){$('result').hidden=false;$('retryBtn').focus();}},1400);
   showMsg(finishRank===1?'優勝':'FINISH',false,1.4);chime('finish');achFinish(finishRank);
@@ -3191,6 +3195,67 @@ function scHoldPlayer(dt){
   else scar.held=Math.max(0,scar.held-dt);
 }
 
+/* ---------- tyre temperature: each tyre heats with the work it does and cools in the air ----------
+   Order FL, FR, RL, RR. Cornering loads the outside tyres, braking the fronts, wheelspin the driven ones. Grip is
+   best inside a window (road tyres 70-95 °C, racing tyres 80-105 °C); cold or overheated tyres slide sooner and
+   brake shorter. The air temperature (real weather) and rain set how fast they cool. Rivals are not affected. */
+var tyreT=[40,40,40,40],tyreK=1,tyreStat={n:0,ok:0,sum:0},tyreMsgT=0,tyreWarm=false;
+function tyreWin(car){return (car||CAR).gripG>=1.2?[80,105]:[70,95];}
+function tyreAmb(){return tempC!=null?tempC:timeSel==='day'?24:timeSel==='dusk'?19:15;}
+function tyreGripOf(t,w){return t<w[0]?Math.max(0.82,1-(w[0]-t)*0.004):t>w[1]?Math.max(0.8,1-(t-w[1])*0.006):1;}
+function tyreReset(){const a=tyreAmb()+22;tyreT=[a,a,a,a];tyreStat={n:0,ok:0,sum:0};tyreWarm=false;tyreMsgT=0;tyreCalc();}
+function tyreCalc(){const w=tyreWin();tyreK=tyreT.reduce((s,t)=>s+tyreGripOf(t,w),0)/4;}
+function tyreUpdate(dt,sp,aLat,thr,brk,trac){
+  if(!(dt>0))return;
+  const lat=Math.min(2.5,Math.abs(aLat)/9.8),left=aLat>0,amb=tyreAmb(),wet=wxSel==='rain';
+  const bg=brk&&pl.v>1?CAR.brake*WEATHERS[wxSel].brake/9.8:0,D=CAR.drive;
+  const spin=thr&&sp<18&&trac<1.05&&!CAR.ev?(1.05-trac)*10:0;
+  const cool=(0.01+0.00035*sp)*(wet?2.2:1);
+  for(let q=0;q<4;q++){
+    const front=q<2,isLeft=q%2===0,outside=left?!isLeft:isLeft;
+    let h=lat*(outside?0.8:0.2)*6.5+bg*(front?0.65:0.35)*4.5;
+    if(spin&&(D==='4WD'||(front?D==='FF':D!=='FF')))h+=spin;
+    h*=Math.min(1,sp/8+0.2);
+    tyreT[q]+=(h-(tyreT[q]-amb)*cool*(1+Math.max(0,tyreT[q]-amb)/90))*dt;tyreT[q]=Math.max(amb-2,Math.min(160,tyreT[q]));
+  }
+  tyreCalc();
+  if(state==='race'){const w=tyreWin(),avg=(tyreT[0]+tyreT[1]+tyreT[2]+tyreT[3])/4;tyreStat.n+=dt;tyreStat.sum+=avg*dt;if(tyreK>0.985)tyreStat.ok+=dt;
+    tyreMsgT-=dt;
+    if(!tyreWarm&&tyreK>0.985&&tyreStat.n>3){tyreWarm=true;if(!scOn())showMsg('タイヤ 適温',true,1.4);}
+    else if(tyreMsgT<=0&&Math.max(...tyreT)>w[1]+12){tyreMsgT=12;showMsg('タイヤ オーバーヒート',true,1.6);}}
+}
+function tyreColor(t,w){
+  const st=[[w[0]-35,[70,140,255]],[w[0]-8,[90,190,255]],[w[0],[100,215,130]],[w[1],[100,215,130]],[w[1]+10,[255,210,74]],[w[1]+25,[255,90,70]]];
+  if(t<=st[0][0])return 'rgb('+st[0][1]+')';
+  for(let i=1;i<st.length;i++)if(t<=st[i][0]){const f=(t-st[i-1][0])/(st[i][0]-st[i-1][0]),a=st[i-1][1],b=st[i][1];return 'rgb('+a.map((v,k)=>Math.round(v+(b[k]-v)*f))+')';}
+  return 'rgb('+st[st.length-1][1]+')';
+}
+let tyW=0,tyH=0;
+function drawTyres(){
+  const cv=$('tyres');if(!cv||cv.offsetParent===null)return;
+  const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),W=Math.round(r.width*dpr),H=Math.round(r.height*dpr);
+  if(W!==tyW||H!==tyH){cv.width=tyW=W;cv.height=tyH=H;}
+  const c=cv.getContext('2d'),u=W/150;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);
+  c.fillStyle='rgba(8,10,20,.55)';c.fillRect(0,0,W,H);
+  const w=tyreWin(),cx=W/2,F='"Chakra Petch","M PLUS 1",sans-serif',avg=(tyreT[0]+tyreT[1]+tyreT[2]+tyreT[3])/4;
+  c.textBaseline='middle';
+  c.textAlign='left';c.fillStyle='#8f93ad';c.font=`600 ${10*u}px ${F}`;c.fillText('TYRE',8*u,11*u);
+  const cold=avg<w[0]-3,hot=Math.max(...tyreT)>w[1]+3;
+  c.textAlign='right';c.fillStyle=hot?'#ff5a46':cold?'#6fb6ff':'#6ad88a';c.font=`600 ${10*u}px ${F}`;
+  c.fillText(hot?'熱すぎ':cold?'冷えている':'適温',W-8*u,11*u);
+  // car outline and the four tyres (front at the top)
+  c.strokeStyle='rgba(205,215,228,.35)';c.lineWidth=1.5*u;c.beginPath();
+  c.roundRect?c.roundRect(cx-15*u,22*u,30*u,76*u,8*u):c.rect(cx-15*u,22*u,30*u,76*u);c.stroke();
+  c.textAlign='center';
+  [[-1,0],[1,0],[-1,1],[1,1]].forEach(([sx,ry],q)=>{const t=tyreT[q],x=cx+sx*24*u,y=(ry?82:38)*u,tw=13*u,th=26*u;
+    c.fillStyle=tyreColor(t,w);c.beginPath();c.roundRect?c.roundRect(x-tw/2,y-th/2,tw,th,3*u):c.rect(x-tw/2,y-th/2,tw,th);c.fill();
+    c.fillStyle='#ece8dc';c.font=`600 ${12*u}px ${F}`;c.fillText(Math.round(t)+'°',x+sx*24*u,y);});
+  const pct=Math.round(tyreK*100);c.fillStyle=tyreK>0.985?'#6ad88a':tyreK>0.92?'#ffd27a':'#ff5a46';
+  c.font=`700 ${15*u}px ${F}`;c.fillText('グリップ '+pct+'%',cx,116*u);
+  c.fillStyle='#8f93ad';c.font=`500 ${9*u}px ${F}`;c.fillText('適温 '+w[0]+'〜'+w[1]+'°C',cx,129*u);
+}
+const recNow=v=>v*Math.sqrt(tyreK);
+
 /* ---------- update ---------- */
 const tmp={};
 /* sector (quarter-lap) split times */
@@ -3279,7 +3344,7 @@ function updatePlayer(dt,canDrive){
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
   if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):22;
-  if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake:(v>-8?-6:0);
+  if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
     let eb=1.4;
@@ -3295,10 +3360,11 @@ function updatePlayer(dt,canDrive){
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
-  const g=GRIP*(D==='FF'&&thr?0.95:1);
+  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
+  tyreUpdate(dt,sp,pl.steer*k*sp*Math.sign(pl.v),thr,brk,trac);
   sqAmt=Math.abs(pl.off)>HW[pl.idx]||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
   offAmt=Math.abs(pl.off)>HW[pl.idx]?1:0;scrapeAmt=0;
   pl.th+=pl.steer*k*Math.sign(pl.v)*dt;
@@ -3325,7 +3391,7 @@ function updatePlayer(dt,canDrive){
     if(cid>=0){const c=corners[cid];
       const was=(prev-c.start+N)%N,now=(pl.idx-c.start+N)%N,ap=(c.apex-c.start+N)%N;
       if(was<ap&&now>=ap&&now-was<20&&c.grade>=2&&pl.v>0){
-        score.total++;const kmh=pl.v*3.6,diff=kmh-c.rec;achCorner(!cornerHit&&Math.abs(diff)<=12);
+        score.total++;const kmh=pl.v*3.6,diff=kmh-recNow(c.rec);achCorner(!cornerHit&&Math.abs(diff)<=12);
         if(cornerHit)pop('接触','over');
         else if(Math.abs(diff)<=12){score.great++;pop('GREAT!','great');chime('great');}
         else if(diff<-12)pop('GOOD','good');
@@ -3485,19 +3551,19 @@ function updateCall(){
   el.style.setProperty('--cc',G.c);
   $('cnG').textContent=(c.dir<0?'左 ':'右 ')+G.n;
   $('cnD').textContent=dist>0?Math.max(0,Math.round(dist/10)*10):'0';
-  $('cnR').textContent=c.rec;
-  const need=(v*v-c.recV*c.recV)/(2*BR_P);
+  const recK=Math.round(recNow(c.rec)),recVK=recNow(c.recV);$('cnR').textContent=recK;
+  const need=(v*v-recNow(c.recV)**2)/(2*BR_P*(0.35+0.65*tyreK));
   let st='OK',cls='';
-  if(v>c.recV+2&&need>dist-15){st='ブレーキ!';cls='brake';}
-  else if(v>c.recV*1.1&&dist<60){st='速すぎ';cls='over';}
-  else if(v<c.recV*0.8)st='加速OK';
+  if(v>recVK+2&&need>dist-15){st='ブレーキ!';cls='brake';}
+  else if(v>recVK*1.1&&dist<60){st='速すぎ';cls='over';}
+  else if(v<recVK*0.8)st='加速OK';
   $('cnS').textContent=st;
   el.classList.toggle('brake',cls==='brake');el.classList.toggle('over',cls==='over');el.classList.add('show');
   if(cls==='brake'&&!lastBrake)beep(880,0.07,2);
   lastBrake=cls==='brake';
   const nx=c.next,gap=((nx.start-c.end+N)%N)*ds;
   $('cnN').textContent=(nx&&nx!==c&&gap<90)?`続けて ${nx.dir<0?'左':'右'} ${GRADES[nx.grade].n}`:'';
-  callInfo={rec:c.rec,cls};
+  callInfo={rec:recK,cls};
 }
 
 /* ---------- HUD ---------- */
@@ -3621,7 +3687,7 @@ function frame(now){
       if(realOn&&!$('wxV').hidden){const r=realFor(C.id),wh=windHud();$('wxV').textContent=(r?WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':''):'')+(wh?' ・ '+wh:'');}
       const pprog=(pl.lap-1)*L+pl.idx*ds;
       if(mode!=='free')$('posN').textContent=state==='finish'?finishRank:1+AI.filter(a=>a.s>pprog).length;
-      drawMap();
+      drawMap();drawTyres();
     }
   }
   loadTick-=dt;if(loadTick<=0){loadTick=.25;
