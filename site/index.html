@@ -491,6 +491,8 @@ body:not(.mt) .pad.s{display:none}
       <p class="eyebrow">STEP 6 ・ READY</p>
       <h1>スタート準備</h1>
       <dl class="summary" id="summary"></dl>
+      <div class="opts" id="scRow"><span class="ol">スタート</span><div class="grp"><button class="tog" type="button" id="tgSC" aria-pressed="true">セーフティカー先導 ON</button></div>
+        <span class="tmnote">1周目はセーフティカーの後ろを隊列で走り、2周目に入る直前にセーフティカーが抜けてレース開始。1周目は追い越し禁止。</span></div>
       <div class="opts" id="ghostRow"><span class="ol">ゴースト</span><div class="grp"><button class="tog" type="button" id="tgGhost" aria-pressed="true">ゴースト ON</button></div>
         <span class="tmnote" id="ghostNote"></span></div>
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
@@ -785,6 +787,12 @@ const CARS=[
   model:{url:'cars/s2000/model.json',s:99.58472,off:[0,0.0001,0]},
   credit:{title:'2004 C-West N1 S2000 AP1 Aero Body Kit - Type II',author:'Ddiaz Design',url:'https://sketchfab.com/3d-models/2004-c-west-n1-s2000-ap1-aero-body-kit-type-ii-ac45655b07a3471fb70c0f5636ad959e',license:'CC BY-NC-SA 4.0',licUrl:'https://creativecommons.org/licenses/by-nc-sa/4.0/'}}
 ];
+// cars that only ever drive as the safety car (not selectable): same shape as CARS for the model loader and the rig
+const SCCARS=[
+ {id:'slssc',maker:'メルセデス・ベンツ',name:'SLS AMG セーフティカー',short:'SLS SC',drive:'FR',
+  body:{w:1.939,l:4.638,ride:.12,h:.5,color:0xb8bcc2,wb:2.68},
+  model:{url:'cars/slssc/model.json',s:0.99301,off:[0,0.004,-0.2073]},
+  credit:{title:'Mercedes SLS Safety Car',author:'Dave Love SketchFab',url:'https://sketchfab.com/3d-models/mercedes-sls-safety-car-1c7ce092d4e4410dab3d7d02dc87a6a2',license:'CC BY 4.0',licUrl:'https://creativecommons.org/licenses/by/4.0/'}}];
 // RR: the engine sits over the driven wheels, so it launches cleanly
 const tractionOf=(c,v)=>v<18?(c.drive==='4WD'?1.12:c.drive==='RR'?1.04:(c.drive==='FR'||c.drive==='MR')?0.9:1):1;
 function simT100(c,acc,V){let v=0,t=0;while(v<27.78&&t<40){v+=(acc*tractionOf(c,v)*(1-(v/V)**2)-c.k*v*v)*0.01;t+=0.01;}return t;}
@@ -1475,6 +1483,7 @@ function loadModel(car){
     MODELS[car.id]=wrap;modelLoading[car.id]=false;
     if(CAR===car||AI.some(a=>a.car===car))buildCars();
     else if(ghostCarId===car.id){disposeObj(ghostCar);ghostCar=makeGhostCar(car);}
+    if(typeof scar!=='undefined'&&scar&&scar.car===car)scBuildMesh();
     if(CAR===car)renderSpec();
   }).catch(err=>{modelLoading[car.id]='fail';console.warn('model load failed',err);if(CAR===car||AI.some(a=>a.car===car))buildCars();if(CAR===car)renderSpec();});
 }
@@ -1508,7 +1517,8 @@ const RIGS={
   gtr3:{hubs:[[-0.8507,0.3557,-1.3945,0.355,-1.0186,-0.6827,0],[0.8507,0.3557,-1.3945,0.355,0.6827,1.0186,0],[-0.8306,0.3559,1.3855,0.3562,-1.0011,-0.6602,0],[0.8306,0.3559,1.3855,0.3562,0.6602,1.0011,0]],spin:["NNissan_GTRNISMOGT3_2015_Wheel1A_3D_3DWheel1A_Material1"]},
   jesko:{hubs:[[-0.8327,0.3787,-1.3547,0.3755,-0.9779,-0.6875,0],[0.833,0.3787,-1.3547,0.3755,0.6878,0.9782,0],[-0.8426,0.3535,1.3453,0.35,-0.9779,-0.7072,0],[0.8429,0.3535,1.3453,0.35,0.7075,0.9782,0]],spin:["CARBON","jeskoVehicle_Exterior_mm_rotor1","jeskoVehicle_Exterior_mm_tyre1","jeskoVehicle_Exterior_mm_wheel1"]},
   imola:{hubs:[[-0.8366,0.35,-1.3995,0.3525,-1.026,-0.6471,0],[0.8366,0.35,-1.3995,0.3525,0.6471,1.026,0],[-0.8326,0.3287,1.3955,0.329,-0.9755,-0.6898,0],[0.8326,0.3287,1.3955,0.329,0.6898,0.9755,0]],spin:["Pagani_Imola_2021_Wheel1A_3D_3DWheel1B_Material"]},
-  s2000:{hubs:[[-0.7313,0.3206,-1.203,0.3245,-0.8625,-0.6001,0],[0.7313,0.3206,-1.203,0.3245,0.6001,0.8625,0],[-0.6985,0.3206,1.197,0.3245,-0.8297,-0.5672,0],[0.6985,0.3206,1.197,0.3245,0.5672,0.8297,0]],spin:["cwestcrim_2","cwestrim_G","w_TNRRims_91A18NaBrakeDisc_ForgedDrilled_Material1","w_TNRRims_91A18NaTireBlur_Material1"]}};
+  s2000:{hubs:[[-0.7313,0.3206,-1.203,0.3245,-0.8625,-0.6001,0],[0.7313,0.3206,-1.203,0.3245,0.6001,0.8625,0],[-0.6985,0.3206,1.197,0.3245,-0.8297,-0.5672,0],[0.6985,0.3206,1.197,0.3245,0.5672,0.8297,0]],spin:["cwestcrim_2","cwestrim_G","w_TNRRims_91A18NaBrakeDisc_ForgedDrilled_Material1","w_TNRRims_91A18NaTireBlur_Material1"]},
+  slssc:{hubs:[[-0.8173,0.3437,-1.34,0.3437,-0.9695,-0.6651,0],[0.817,0.3476,-1.34,0.3437,0.6648,0.9692,0],[-0.8329,0.3432,1.34,0.3388,-0.9643,-0.7014,0],[0.8332,0.3432,1.34,0.3388,0.7018,0.9646,0]],spin:["brake_disk","details","material","tyre"]}};
 /* ---------- car rig: wheels cut out of the body so they spin and steer, and the body pitches / rolls on its springs ----------
    RIGS[id] = {hubs:[[x,y,z,r,x0,x1,yaw0] x4 (rear-left, rear-right, front-left, front-right, car space)], spin:[materials]}
    Every triangle lying wholly inside a wheel's cylinder (in that wheel's own frame: some models ship with the fronts turned,
@@ -1692,6 +1702,7 @@ function rigFrame(dt){
   rigDrive(playerCar,dt,CAR.body.wb,pl.steer);
   if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
   AI.forEach(a=>rigDrive(a.mesh,dt,a.car&&a.car.body.wb));
+  if(scar&&scar.mesh)rigDrive(scar.mesh,dt,scar.car.body.wb);
 }
 function addLights(g,s,L2){
   const ty=s.ride+s.h*0.66,hy=s.ride+s.h*0.6;
@@ -1791,13 +1802,13 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true};
+const opts={line:true,call:true,ghost:true,sc:true};
 const GSTEP=0.05;let mode='race',ghost=null,ownGhost=null,ghostInfo=null,rec=[],recT=0;
 try{if(localStorage.getItem('fpr-mode')==='free')mode='free';}catch(e){}
 function setMode(m){
   mode=m;try{localStorage.setItem('fpr-mode',m);}catch(e){}
   document.querySelectorAll('.mtog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
-  $('ghostRow').hidden=m!=='free';
+  $('ghostRow').hidden=m!=='free';$('scRow').hidden=m==='free';if(m==='race')SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));
   $('startBtn').textContent=m==='free'?'フリー走行を始める':'レースを始める';
 }
 let timeSel='night',view=0,camTh=0;
@@ -1826,7 +1837,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -1988,7 +1999,7 @@ document.querySelectorAll('.pad button[data-k]').forEach(b=>{
 });
 function setOpt(k,v){
   opts[k]=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
-  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト '}[k]+(v?'ON':'OFF');
+  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 '}[k]+(v?'ON':'OFF');
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
 $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
@@ -1996,6 +2007,7 @@ $('tgCall').addEventListener('click',()=>setOpt('call',!opts.call));
 VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog vtog';b.type='button';b.dataset.i=i;b.textContent=v.n;b.addEventListener('click',()=>setView(i));$('views').appendChild(b);});
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
+$('tgSC').addEventListener('click',()=>setOpt('sc',!opts.sc));
 $('endBtn').addEventListener('click',()=>{if(state==='replay')endReplay();else if(tut)endTutorial(false);else endSession();});
 {const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w='real';b.textContent='リアル（現地の今）';b.addEventListener('click',()=>setWeather('real'));$('weathers').appendChild(b);}
 Object.keys(WEATHERS).forEach(w=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w=w;b.textContent=WEATHERS[w].n;b.addEventListener('click',()=>setWeather(w));$('weathers').appendChild(b);});
@@ -2260,7 +2272,7 @@ try{const s=parseInt(localStorage.getItem('fpr-course'));if(s>=0&&s<COURSES.leng
 const fmt=t=>{if(t==null||!isFinite(t))return'-:--.---';const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(3);};
 const t100=c=>c.t100sim;
 function renderCredits(){
-  const list=COURSES.filter(c=>c.credit).map(c=>`<li>コース ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('')+CARS.filter(c=>c.credit).map(c=>`<li>${c.maker} ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('');
+  const list=COURSES.filter(c=>c.credit).map(c=>`<li>コース ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('')+CARS.concat(SCCARS).filter(c=>c.credit).map(c=>`<li>${c.maker} ${c.name}：<a href="${c.credit.url}" target="_blank" rel="noopener">“${c.credit.title}”</a> by ${c.credit.author}（<a href="${c.credit.licUrl}" target="_blank" rel="noopener">${c.credit.license}</a>）</li>`).join('');
   $('mcredit').innerHTML=(list?`<p>3Dモデルのクレジット（いずれも軽量化のため改変）</p><ul>${list}</ul>`:'')+'<p>リアル天候の天気データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>（<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>）</p>';
 }
 function renderCars(){
@@ -2589,7 +2601,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  resetRace();scStart();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -2611,7 +2623,7 @@ function endSession(){
 function toMenu(to){
   if(tut){tutRestore();to='title';}
   state='menu';$('rpHud').hidden=true;$('result').hidden=true;$('menu').hidden=false;setHud(false);$('split').classList.remove('show');showMsg('');ghostCar.visible=false;applyOffset();camera.updateProjectionMatrix();$('showName').hidden=false;
-  renderCourseCards();renderBoard();resetRace();AI.forEach(a=>a.v=VAI*0.55);
+  renderCourseCards();renderBoard();resetRace();scStop();AI.forEach(a=>a.v=VAI*0.55);
   showStep(typeof to==='string'?to:'course');
 }
 $('startBtn').addEventListener('click',start);
@@ -3085,6 +3097,100 @@ function crNext(){
   setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{crShowing=false;crNext();},400);},n.summary?6000:4800);
 }
 
+/* ---------- safety car start: lap 1 behind the safety car, it pulls off the road before lap 2, green at the line ----------
+   The safety car (ヴァンテージ or SLS, picked per race) runs a fixed pace profile. Nobody passes during lap 1: rivals
+   queue behind the car ahead, the player is held back when closing in. Near the end of the lap it peels off to the
+   outside and fades away; the field keeps the pace until the leader reaches the line, then GREEN. */
+var scar=null;
+const SC_GAP=7.5,SC_EXIT=320;
+function scWanted(){return mode==='race'&&opts.sc&&LAPS>=2&&L>SC_EXIT*2.5&&!tut;}
+function scStart(){
+  scStop();if(!scWanted())return;
+  const pool=SCCARS.concat(CARS.filter(c=>c.id==='vantage')),car=pool[Math.floor(Math.random()*pool.length)];
+  // pace: about 75% of the rivals' racing speed, at most 170 km/h, braking a little softer (a lap takes ~1.4x a race lap)
+  const v=new Float32Array(N);for(let i=0;i<N;i++)v[i]=Math.min(vc[i]*0.75,170/3.6);
+  for(let p=0;p<2;p++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;v[i]=Math.min(v[i],Math.sqrt(v[j]*v[j]+2*BR_AI*0.7*ds));}
+  scar={car,s:12,v:0,lane:0,laneT:0,side:1,phase:'lead',fade:1,mesh:null,lights:[],glow:[],pace:v,t:0,green:false,held:0,told:-99,intro:false};
+  loadModel(car);scBuildMesh();
+}
+function scStop(){if(scar&&scar.mesh)disposeObj(scar.mesh);scar=null;}
+const scOn=()=>!!(scar&&!scar.green);
+function scPace(s){const i=Math.floor(wrap(s)/ds)%N;return scar.pace[i];}
+function scBuildMesh(){
+  if(!scar)return;if(scar.mesh)disposeObj(scar.mesh);
+  const g=makeCar(scar.car);g.traverse(o=>{if(o.isSprite)o.visible=false;});scar.mesh=g;scar.lights=[];scar.glow=[];
+  // the roof light bar: its own material per bar so it can flash, plus two amber glows over it
+  const box=new THREE.Box3(),tmpB=new THREE.Box3();let has=false;g.updateMatrixWorld(true);
+  g.traverse(o=>{if(o.isMesh&&o.material&&o.material.name==='safety_light'){o.material=o.material.clone();o.material.userData={};o.material.emissive=new THREE.Color(0);scar.lights.push(o.material);tmpB.setFromObject(o);box.union(tmpB);has=true;}});
+  const top=has?box:new THREE.Box3(new THREE.Vector3(-.5,scar.car.body.ride+scar.car.body.h+.45,-.3),new THREE.Vector3(.5,scar.car.body.ride+scar.car.body.h+.55,0));
+  const c=top.getCenter(new THREE.Vector3()),w=Math.max(0.4,top.max.x-top.min.x);
+  for(const sx of[-1,1]){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:whiteGlow,color:0xffa018,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0}));
+    sp.scale.set(1.6,1.0,1);sp.position.set(c.x+sx*w*0.3,top.max.y+0.05,c.z);sp.userData.scGlow=true;g.add(sp);scar.glow.push(sp);}
+  g.userData.carId=scar.car.id;place(scar,{x:0,z:0,y:0,i:0});scPlace();
+}
+function scPlace(){if(!scar||!scar.mesh)return;const o=sample(scar.s,scar.lane,tmp);scar.mesh.position.set(o.x,o.y,o.z);const i=o.i;
+  // heading follows the lane change while it pulls off
+  const dl=(scar.laneT-scar.lane)*0.12;scar.mesh.lookAt(o.x+T[i].x+NR[i].x*dl,o.y+SL[i],o.z+T[i].z+NR[i].z*dl);}
+// progress of everyone in the field (track metres from the start line; lap 1 runs 0..L)
+function fieldList(){
+  const pprog=(pl.lap-1)*L+pl.idx*ds+(pl.x-P[pl.idx].x)*T[pl.idx].x+(pl.z-P[pl.idx].z)*T[pl.idx].z;
+  const list=AI.map(a=>({s:a.s,v:a.v,a}));list.push({s:pprog,v:pl.v,me:true});return list;
+}
+// car directly ahead of progress s (the safety car while it leads)
+function scAhead(s,list){
+  let best=null;
+  if(scar.phase==='lead'&&scar.s>s)best={s:scar.s,v:scar.v};
+  for(const c of list){if(c.s>s+0.5&&(!best||c.s<best.s))best=c;}
+  return best;
+}
+function scUpdate(dt){
+  if(!scar||scar.green)return;
+  const list=fieldList(),lead=Math.max(...list.map(c=>c.s));
+  if(state==='race'){
+    if(scar.phase==='lead'){
+      // the safety car waits for the field: never more than ~45 m ahead of the leader
+      let tv=scPace(scar.s);const gap=scar.s-lead;if(gap>45)tv*=Math.max(0.35,1-(gap-45)/40);
+      scar.v=scar.v<tv?Math.min(tv,scar.v+4.5*dt):Math.max(tv,scar.v-BR_AI*0.8*dt);scar.s+=scar.v*dt;
+      if(scar.s>=L-SC_EXIT){scar.phase='exit';
+        const i=Math.floor(wrap(scar.s)/ds)%N;scar.side=(RW[i]-HW[i])>=0?1:-1;scar.laneT=scar.side*(HW[i]+8);
+        showMsg('SC IN THIS LAP',true,2.5);}
+    }else if(scar.phase==='exit'){
+      scar.s+=scar.v*dt;scar.v=Math.max(8,scar.v-4*dt);scar.lane+=(scar.laneT-scar.lane)*Math.min(1,dt*0.9);
+      const i=Math.floor(wrap(scar.s)/ds)%N;if(Math.abs(scar.lane)>HW[i]+2.5)scar.fade=Math.max(0,scar.fade-dt*0.8);
+      if(scar.fade<=0&&scar.mesh){disposeObj(scar.mesh);scar.mesh=null;}
+    }
+    if(lead>=L){scar.green=true;showMsg('GREEN FLAG',true,2.2);chime('best');if(scar.mesh){disposeObj(scar.mesh);scar.mesh=null;}return;}
+  }
+  scar.t+=dt;
+  if(state==='race'&&!scar.intro){scar.intro=true;showMsg('SAFETY CAR',true,2.5);}
+  if(scar.mesh){scPlace();
+    const on=Math.floor(scar.t*3.2)%2;scar.lights.forEach((m,k)=>{m.emissive.setHex(((k+on)%2)?0xff9010:0x221000);});
+    scar.glow.forEach((g,k)=>{g.material.opacity=(((k+on)%2)?0.95:0.12)*scar.fade;});
+    if(scar.fade<1)scar.mesh.traverse(o=>{if(o.isMesh&&o.material&&!o.userData.scFade){o.material=o.material.clone();o.material.userData={};o.material.transparent=true;o.userData.scFade=1;}if(o.isMesh&&o.userData.scFade)o.material.opacity=scar.fade;});
+  }
+}
+// rivals: hold position behind the car ahead, at the pace
+function scAITarget(a,target){
+  if(!scOn())return target;
+  const list=fieldList(),ah=scAhead(a.s,list);
+  let t=Math.min(target,scPace(a.s)*1.15);
+  if(ah){const gap=ah.s-a.s;t=Math.min(t,Math.max(0,ah.v+(gap-SC_GAP)*0.9));}
+  else if(scar.phase!=='lead')t=Math.min(t,scPace(a.s));
+  return t;
+}
+// the player: no passing during lap 1
+function scHoldPlayer(dt){
+  if(!scOn()||state!=='race')return;
+  const list=fieldList(),me=list.find(c=>c.me),ah=scAhead(me.s,list);
+  let cap=1e9;
+  if(ah){const gap=ah.s-me.s;cap=Math.max(0,ah.v-1,ah.v+(gap-SC_GAP+1)*1.2);if(gap<4)cap=Math.min(cap,ah.v*0.8);}
+  else cap=scPace(me.s)*1.1;   // leading after the safety car has gone: keep the pace to the line
+  if(pl.v>cap){pl.v=Math.max(cap,pl.v-30*dt);scar.held+=dt;
+    // tell the player once in a while, only when they are really pushing
+    if(scar.held>1.2&&keys.up&&scar.t-scar.told>8){scar.told=scar.t;showMsg('追い越し禁止',true,1.4);}}
+  else scar.held=Math.max(0,scar.held-dt);
+}
+
 /* ---------- update ---------- */
 const tmp={};
 /* sector (quarter-lap) split times */
@@ -3148,6 +3254,7 @@ function updateAI(dt,active){
     const gap=pprog-a.s,lat=Math.abs(pl.off-a.lane);
     if(state!=='menu'&&gap>0&&gap<14&&lat<2.4){target=Math.min(target,pl.v*0.97+2);a.laneT=pl.off>0?-lmax:lmax;}
     for(const b of AI){if(b===a)continue;const g2=b.s-a.s;if(g2>0&&g2<10&&Math.abs(b.lane-a.lane)<2.2){target=Math.min(target,b.v+1);a.laneT=b.lane>0?-lmax*0.9:lmax*0.9;}}
+    if(scOn()){target=scAITarget(a,target);a.laneT=a.lane;}
     a.thr=a.v<target-0.5?.85:.2;
     if(a.v<target)a.v=Math.min(target,a.v+Math.max(0.6,CAR.acc*0.95*(1-Math.pow(a.v/CAR.vmax,2))-CAR.k*a.v*a.v)*dt);else a.v=Math.max(target,a.v-CAR.brake*WEATHERS[wxSel].brake*0.8*dt);
     a.lane+=(a.laneT-a.lane)*Math.min(1,dt*0.9);
@@ -3186,6 +3293,7 @@ function updatePlayer(dt,canDrive){
   if(Math.abs(pl.off)>HW[pl.idx])a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
+  scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
   const g=GRIP*(D==='FF'&&thr?0.95:1);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
@@ -3211,7 +3319,7 @@ function updatePlayer(dt,canDrive){
     const d=((tgt-pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;pl.th+=d*Math.min(1,dt*4);
   }
   // corner judge at apex
-  if(state==='race'){
+  if(state==='race'&&!scOn()){
     const cid=cornerAt[pl.idx];
     if(cid>=0&&cid!==curCorner){curCorner=cid;cornerHit=false;}
     if(cid>=0){const c=corners[cid];
@@ -3439,6 +3547,7 @@ function drawMap(){
     c.beginPath();c.moveTo(ox+a.x*sc,oz+a.z*sc);c.lineTo(ox+b.x*sc,oz+b.z*sc);c.stroke();}
   const s0=P[0];c.fillStyle='#ece8dc';c.fillRect(ox+s0.x*sc-3,oz+s0.z*sc-3,6,6);
   c.fillStyle='#8f93ad';for(let k=1;k<4;k++){const q=P[Math.floor(N*k/4)];c.fillRect(ox+q.x*sc-2,oz+q.z*sc-2,4,4);}
+  if(scar&&scar.mesh&&!scar.green){const m=scar.mesh.position;c.fillStyle=Math.floor(scar.t*3.2)%2?'#ffa018':'#ffe08a';c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
   if(ghostCar.visible){const m=ghostCar.position;c.fillStyle='rgba(159,212,255,.8)';c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
   if(mode!=='free')for(const a of AI){const m=a.mesh.position;c.fillStyle='#'+a.color.toString(16).padStart(6,'0');c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
   c.fillStyle='#ff5a46';c.beginPath();c.arc(ox+pl.x*sc,oz+pl.z*sc,4.5,0,7);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();
@@ -3471,7 +3580,7 @@ function frame(now){
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);updateGhost();updateTut(dt);updateRevWarn(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       const wrongWay=(fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3;
@@ -3525,7 +3634,7 @@ function frame(now){
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');

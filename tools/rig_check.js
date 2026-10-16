@@ -1,7 +1,7 @@
 // Render check for the car motion rig (used by tools/rig_check.py; runs inside the game page with internals exposed).
 // Returns per-car numbers and a 3x3 contact sheet: rest pose vs the original, wheels spun, steered, body roll, tint.
 async (id)=>{
-const car=CARS.find(c=>c.id===id),cfg=RIGS[id];
+const car=CARS.concat(typeof SCCARS!=="undefined"?SCCARS:[]).find(c=>c.id===id),cfg=RIGS[id];
 const mk=async(rig)=>{const gl=await loadPacked(car.model.url);const root=gl.scene,f=car.model;root.scale.setScalar(f.s);
   if(f.rotY){root.rotation.y=Math.PI;root.position.set(-f.off[0]*f.s,f.off[1]*f.s,-f.off[2]*f.s);}else root.position.set(f.off[0]*f.s,f.off[1]*f.s,f.off[2]*f.s);
   root.traverse(o=>{if(o.isMesh)o.frustumCulled=false;});const w=new THREE.Group();w.add(root);let ms=0;if(rig){const t=performance.now();rigModel(w,car);ms=performance.now()-t;}return [w,ms];};

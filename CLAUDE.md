@@ -59,6 +59,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `player record`（`renderProf`）… プレイヤー記録の画面。自分の実績の集計（`profSummary`：解除数・ランク別の数・走行距離など、
   数だけ）を `records/<uid>` の各プレイヤーに `prof` として載せ（`publishProf`、走行中は送らない）、全員の分を読んで表示する。
+- `safety car start`（`scStart`/`scUpdate`、状態は `scar`）… レースの1周目はセーフティカー先導（ヴァンテージか SLS、`SCCARS` は選べない車）。
+  1周目は追い越し禁止（AI は前の車の後ろに並び、プレイヤーは速度を抑える）、残り `SC_EXIT` m で道の外へ抜けて消え、先頭がラインを越えたら GREEN。設定 `opts.sc` で切れる。
 - 共有ランキング（`initShared`）は Claude の `window.claude.use('db')` があるときだけ動き、無ければ端末内の記録に切り替わる。
 
 ## 車を追加する手順（Sketchfab の GLB）

@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -115,6 +115,24 @@ setTimeout(async()=>{try{
     ok(R.body.rotation.x>0.01&&R.body.rotation.x<0.06,'braking dips the nose ('+(R.body.rotation.x*57.3).toFixed(1)+'°)');
     ok(Math.abs(R.wheels[0].ang-((60*0.016+0.016)*20/0.3)%(Math.PI*2))<1e-6,'wheels turn at road speed');
     t.rigUpdate(R,0.016,10,1,0,0,1);ok(R.wheels[2].steer.rotation.y>0.3&&R.wheels[0].steer.rotation.y===0,'only the front wheels steer');}
+  // safety car start: lap 1 in a queue behind the safety car, which pulls off before lap 2; green at the line
+  {t.toMenu('course');t.selectCar(3);t.selectCourse(5);t.setWeather('clear');t.opts.sc=true;t.setMode('race');t.start();
+   ok(!!t.scar&&['slssc','vantage'].includes(t.scar.car.id),'a safety car leads the race start ('+(t.scar&&t.scar.car.id)+')');
+   step(300);let passed=0,ahead=0,exitSeen=false,greenT=null,maxV=0;const order0=t.AI.map(a=>a.s);
+   for(let f=0;f<60*400&&t.state==='race';f++){
+     // the player floors it along the track
+     t.keys.up=1;const P=t.P,N=t.N;const k=(t.pl.idx+8)%N,des=Math.atan2(P[k].x-t.pl.x,P[k].z-t.pl.z);let d=((des-t.pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;t.keys.left=d>0.02?1:0;t.keys.right=d<-0.02?1:0;
+     step(1);const S=t.scar;if(!S)break;
+     if(!S.green){const fl=t.fieldList();if(S.phase==='lead'&&fl.some(c=>c.s>S.s+0.5))ahead++;if(S.phase==='exit')exitSeen=true;maxV=Math.max(maxV,t.pl.v);
+       const ord=t.AI.map(a=>a.s);for(let i=0;i<3;i++)for(let j=0;j<3;j++)if(i!==j&&order0[i]>order0[j]&&ord[i]<ord[j]-0.5)passed++;}
+     else{greenT=t.raceT;break;}}
+   t.keys.up=0;t.keys.left=t.keys.right=0;
+   ok(ahead===0,'nobody passes the safety car');ok(passed===0,'rivals keep their grid order under the safety car');
+   ok(exitSeen,'the safety car pulls off the road before lap 2');
+   ok(greenT!=null&&t.fieldList().some(c=>c.s>=t.L-1),'green flag when the leader reaches the line (after '+(greenT||0).toFixed(1)+' s)');
+   ok(maxV*3.6<200,'under the safety car the pace stays low (max '+(maxV*3.6).toFixed(0)+' km/h)');
+   t.toMenu('course');ok(!t.scar,'leaving the race removes the safety car');
+   t.opts.sc=false;t.setMode('race');t.start();ok(!t.scar,'the safety car start can be switched off');t.toMenu('course');t.opts.sc=true;}
   // real weather: the course's live conditions drive the run (weather, time, cold tyres, wind)
   {const om=t.parseOpenMeteo([{current:{time:'2026-10-15T23:10',weather_code:63,cloud_cover:100,precipitation:2.1,temperature_2m:-5,wind_speed_10m:10,wind_direction_10m:0,wind_gusts_10m:16,is_day:0},daily:{sunrise:['2026-10-15T06:00'],sunset:['2026-10-15T17:20']}}]);
    ok(om.tsukimi&&om.tsukimi.wx==='rain'&&om.tsukimi.time==='night','Open-Meteo reply maps to rain / night');
