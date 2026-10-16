@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -98,6 +98,11 @@ setTimeout(async()=>{try{
    const ps=t.profPlayers();ok(ps[0].name==='T'&&ps.some(p=>p.name==='Rival'&&p.pts===420),'player list: me first, rivals with their points');
    try{t.openProf('U2\u0001Rival','title');t.renderProf();ok(true,'player record screen renders');}catch(e){ok(false,'player record screen renders: '+e.message);}
    t.toMenu('course');}
+  // course record news: nothing on the first look, a toast when someone takes a course's No.1
+  {t.crReset();t.crCheck();ok(!t.crShowing&&!t.crQ.length,'first look at the board only remembers the course records');
+   t.addBoard([{uid:'U9',name:'Speedy',course:t.COURSES[2].id,car:t.CARS[0].id,t:6.5,at:Date.now()}]);t.crCheck();
+   ok(t.crShowing,'a new course record by another player pops up');
+   t.crCheck();ok(!t.crQ.length,'the same record is not announced twice');}
   // car motion rig: every car has four sane hubs, and the spring/wheel update behaves
   {const bad=t.CARS.filter(c=>{const r=t.RIGS[c.id];if(!r||r.hubs.length!==4||!r.spin.length)return true;const h=r.hubs;
       return !h.every(x=>x[3]>0.22&&x[3]<0.45&&x[4]<x[5])||!(h[0][0]<0&&h[1][0]>0&&h[2][0]<0&&h[3][0]>0)||!(h[2][2]>h[0][2]&&h[3][2]>h[1][2]);});

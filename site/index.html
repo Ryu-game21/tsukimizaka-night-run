@@ -309,7 +309,15 @@ body:not(.mt) .pad.s{display:none}
 #achToast[data-tier="s"],.achs li[data-tier="s"]{--tc:#c9d1db}
 #achToast[data-tier="g"],.achs li[data-tier="g"]{--tc:#f0c75a}
 #achToast[data-tier="p"],.achs li[data-tier="p"]{--tc:#9fe3ff}
-@media (prefers-reduced-motion:reduce){#achToast{transition:none;transform:none}}
+/* course record news */
+#crToast{left:50%;top:calc(env(safe-area-inset-top,0px) + 96px);display:grid;gap:3px;justify-items:center;text-align:center;padding:10px 20px 11px;
+  width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;background:var(--panel);border:1px solid #f0c75a;border-top:3px solid #f0c75a;border-radius:4px;
+  transform:translate(-50%,-14px);opacity:0;transition:opacity .3s,transform .3s;z-index:8;text-shadow:none;pointer-events:none}
+#crToast.show{opacity:1;transform:translate(-50%,0)}
+#crToast span{font-size:11px;letter-spacing:.16em;color:#f0c75a;font-family:var(--f-dot);font-weight:700}
+#crToast b{font-family:var(--f-dot);font-weight:700;font-size:18px;color:var(--ink);overflow-wrap:anywhere}
+#crToast small{font-size:12px;color:var(--dim);overflow-wrap:anywhere}
+@media (prefers-reduced-motion:reduce){#achToast,#crToast{transition:none}#achToast{transform:none}#crToast{transform:translate(-50%,0)}}
 .achsum{font-size:13px;margin:10px 0 6px;color:var(--ink)}
 .achsum b{font-family:var(--f-dot);font-weight:700;font-size:17px;color:var(--lcd)}
 .achbar{height:5px;background:rgba(205,215,228,.15);border-radius:3px;overflow:hidden;margin-bottom:6px}
@@ -403,6 +411,7 @@ body:not(.mt) .pad.s{display:none}
 <div class="hud" id="showName" hidden></div>
 <div class="hud" id="revWarn" hidden aria-live="polite"></div>
 <div class="hud" id="achToast" aria-live="polite"><span id="achTT"></span><b id="achTN"></b></div>
+<div class="hud" id="crToast" aria-live="polite"><span id="crTT"></span><b id="crTN"></b><small id="crTS"></small></div>
 <div class="hud" id="rpHud" hidden><b>REPLAY</b><span id="rpInfo"></span><span id="rpTime"></span><span id="rpCamN"></span></div>
 <div class="hud" id="tut" hidden aria-live="polite"><p class="eyebrow">TUTORIAL <span id="tutN"></span></p><p id="tutT"></p><div class="tbar"><i id="tutBar"></i></div></div>
 <div class="hud" id="loading" hidden></div>
@@ -2398,7 +2407,7 @@ async function initShared(){
       board=all;PROFS=pf;if(mine)myDoc=mine;
       if(shared==='connecting')shared=UID?'on':'readonly';
       renderBoard();if(state==='finish')renderResultRank();
-      syncLocalToShared();achRecords();queueProf();if(step==='prof'&&!$('menu').hidden)renderProf();if(realOn)startReal();
+      syncLocalToShared();achRecords();queueProf();crCheck();if(step==='prof'&&!$('menu').hidden)renderProf();if(realOn)startReal();
     },err=>{shared=err&&err.code==='revoked'?'off':shared;if(err&&err.code==='unavailable'){setTimeout(initShared,4000);}renderBoard();});
   }catch(e){shared='off';}
   renderBoard();
@@ -3017,6 +3026,40 @@ function renderProf(){
 }
 $('pfPick').addEventListener('change',e=>{profKey=e.target.value;renderProf();});
 $('goProf').addEventListener('click',()=>openProf(selfKey(),'title'));
+
+/* ---------- course record news: when the overall No.1 of a course changes, everyone with the game open is told ----------
+   Each browser remembers the No.1 it last saw per course (fpr-crseen). Changes while the game is open pop up at once
+   (held back until the run ends); changes that happened while away are summed up once on the next visit. */
+var crSeen=null,crLive=false,crQ=[],crShowing=false;
+function crCheck(){
+  if(shared!=='on'&&shared!=='readonly')return;
+  if(crSeen==null){try{crSeen=JSON.parse(localStorage.getItem('fpr-crseen')||'null');}catch(e){crSeen=null;}}
+  const first=!crSeen||typeof crSeen!=='object',now={},news=[];
+  COURSES.forEach(c=>{const top=rankFor(c,CAR,'all')[0];if(!top)return;now[c.id]={k:PK(top.uid,top.name),t:top.t};
+    const was=!first&&crSeen[c.id];
+    if(!first&&(!was||top.t<was.t-1e-4))news.push({c,top,prev:was&&validT(was.t)?was.t:null});});
+  crSeen=now;try{localStorage.setItem('fpr-crseen',JSON.stringify(now));}catch(e){}
+  if(!news.length){crLive=true;return;}
+  if(crLive)news.forEach(n=>crQ.push(n));
+  else crQ.push({summary:news});   // what changed while this browser was away
+  crLive=true;crNext();
+}
+function crNext(){
+  if(crShowing)return;
+  if(state==='race'||state==='count'){setTimeout(crNext,1500);return;}   // never during a run
+  const n=crQ.shift(),el=$('crToast');if(!n){el.classList.remove('show');return;}
+  crShowing=true;
+  if(n.summary){const L=n.summary;
+    $('crTT').textContent='前回から '+L.length+' コースでコースレコード更新';
+    $('crTN').textContent=L.slice(0,3).map(x=>x.c.name+' '+(isMe(x.top)?'あなた':x.top.name)).join(' ・ ')+(L.length>3?' ほか':'');
+    $('crTS').textContent='プレイヤー記録やランキングで確かめよう';}
+  else{const car=CARS.find(c=>c.id===n.top.car),me=isMe(n.top);
+    $('crTT').textContent='NEW COURSE RECORD ・ コースレコード更新';
+    $('crTN').textContent=(me?'あなた':n.top.name+' さん')+'が '+n.c.name+' で '+fmt(n.top.t);
+    $('crTS').textContent=(car?car.maker+' '+car.name:'')+(n.prev!=null?'　（これまで '+fmt(n.prev)+'）':'');}
+  el.classList.add('show');chime('best');
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{crShowing=false;crNext();},400);},n.summary?6000:4800);
+}
 
 /* ---------- update ---------- */
 const tmp={};
