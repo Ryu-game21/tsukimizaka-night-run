@@ -1976,12 +1976,13 @@ function realWarn(){
 }
 function renderRealInfo(){
   const box=document.getElementById('realInfo');if(!box)return;
+  // time of day: picked by hand unless the live conditions for this course are known (then it is the local time there)
+  {const t=document.getElementById('times');if(t)t.classList.toggle('dis',realOn&&!!realFor(COURSES[sel].id));}
   box.hidden=!realOn;if(!realOn)return;
   const id=COURSES[sel].id,line=realLine(id),w=realWarn();
   $('realLine').textContent=line||('このコースの天候データはまだありません。');
   $('realAge').textContent=REAL&&REAL.at?'取得 '+new Date(REAL.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})+'（'+ago(Date.now()-REAL.at)+'）・ '+(REAL.src==='shared'?'1時間ごとに更新':'15分ごとに更新'):'';
   $('realWarn').textContent=w;$('realWarn').hidden=!w;
-  const t=document.getElementById('times');if(t)t.classList.toggle('dis',realOn);
 }
 function windHud(){
   if(!realOn||!wind.ms)return '';
