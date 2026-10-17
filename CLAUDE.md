@@ -131,6 +131,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
    - `tools/inspect_tiles.py model.glb course.json out road1,road2` … 1周分の上空タイル画像。黄が中心線、赤と青が道幅の端。目で全部見る。
    - `tools/wall_check.py course.json road.npy grid.json <runoff> write <上限>` … 見えている舗装より手前に壁が来る所を検出し、`rw` 配列を出す（ゲームは `RW=max(HW+runoff, rw)`）。
    - `tools/holes.py`（路面の穴）、`tools/sightlines.py`（視界を遮る物）。
+   - `tools/route_audit.py model.glb course.json` … 中心線が本コース以外の道（ピット入口・側道・旧レイアウト）を通っていないか。コースの路面（タイヤ跡など）が中心から消えて横にある区間を出す。当たった所は上からの描画で必ず目で確かめる（ハンガロリンク最終コーナーで実際にあった）。
 10. `node tests/run.js`（全コースが組み上がるか）。
 
 過去にあった失敗: 本線から外れて支線やエスケープ路を通ってしまう（経由点で修正）、ピットレーンに中心線が寄る
