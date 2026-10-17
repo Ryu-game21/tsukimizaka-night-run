@@ -488,7 +488,7 @@ body:not(.mt) .pad.s{display:none}
       <h1>変速の方式</h1>
       <div class="picks" id="tms">
         <button class="pick tmtog" type="button" data-tm="at"><b>AT オートマ</b><span>ギアは自動で切り替わります。アクセル・ブレーキ・ハンドルに集中できます。</span></button>
-        <button class="pick tmtog" type="button" data-tm="mt"><b>MT マニュアル</b><span><kbd>E</kbd> でシフトアップ、<kbd>Q</kbd> でシフトダウン（スマホは ▲▼）。回しすぎるとリミッターが効き、ギアが高すぎると加速が鈍ります。</span></button>
+        <button class="pick tmtog" type="button" data-tm="mt"><b>MT マニュアル</b><span><kbd>E</kbd> でシフトアップ、<kbd>Q</kbd> でシフトダウン（スマホは ▲▼）。1速から下げるとニュートラル（N）で、空ぶかしでリミッターに当てられます。回しすぎるとリミッターが効き、ギアが高すぎると加速が鈍ります。</span></button>
       </div>
       <p class="tmnote" id="tmNote"></p>
     </section>
@@ -1815,9 +1815,9 @@ function updateRevWarn(dt){
 }
 function shiftGear(d){
   if(!isMT()||(state!=='race'&&state!=='count'))return;
-  const ng=pl.gear+d;if(ng<1||ng>CAR.gears)return;
+  const ng=pl.gear+d;if(ng<0||ng>CAR.gears)return;   // 0 = neutral (below 1st)
   // refuse a downshift that would over-rev the engine
-  if(d<0&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:CAR.gearTop[ng-1],t:2.5};updateRevWarn(0);return;}
+  if(d<0&&ng>=1&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:CAR.gearTop[ng-1],t:2.5};updateRevWarn(0);return;}
   pl.gear=ng;
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
@@ -2042,7 +2042,7 @@ $('viewBtn').addEventListener('click',()=>{if(state==='replay')nextRpCam();else 
 var ac=null,A=null;let sigBuf=null,sigLoading=false,SIG=[0.016,1.062,2.102,3.148];let muted=false,vol=.8,ambOn=true,bgmOn=true,bgmBuf=null,bgmSrc=null,bgmLoading=false;
 try{if(localStorage.getItem('fpr-bgm')==='0')bgmOn=false;}catch(e){}
 try{const v=parseFloat(localStorage.getItem('fpr-vol'));if(v>=0&&v<=1)vol=v;if(localStorage.getItem('fpr-amb')==='0')ambOn=false;}catch(e){}
-let rpmS=900,thrS=0,boost=0,lastGear=1,bfT=0,menuRevT=0,freeRev=950,birdT=3,sqAmt=0,offAmt=0,scrapeAmt=0,ambNodes=[];
+let rpmS=900,thrS=0,boost=0,lastGear=1,bfT=0,menuRevT=0,freeRev=950,nRev=950,revCut=0,birdT=3,sqAmt=0,offAmt=0,scrapeAmt=0,ambNodes=[];
 // firing order per crank revolution, and a tone profile per engine layout
 const ORDER={3:1.5,4:2,6:3,8:4,v8x:4,10:5,12:6,rotary:2,flat6:3,ev:6};
 const PROF={
@@ -2340,7 +2340,7 @@ function setListener(){
 function audioFrame(dt,rpmT,gear){
   if(!A)return;
   const t=ac.currentTime,fp=state==='replay'?rpCamId()==='cockpit':state!=='menu'&&VIEWS[view].fp,live=state==='race'||state==='finish'||state==='replay';
-  const thr=(state==='race'||state==='count')?(keys.up?1:0):state==='replay'?rpThr:state==='menu'?(menuRevT>.55?1:.3):0;
+  const thr=(state==='race'||state==='count')?(keys.up&&revCut<=0?1:0):state==='replay'?rpThr:state==='menu'?(menuRevT>.55?1:.3):0;
   thrS+=(thr-thrS)*Math.min(1,dt*12);
   rpmS+=(rpmT-rpmS)*Math.min(1,dt*(rpmT<rpmS?8:14));
   if((state==='race'||state==='replay')&&typeof gear==='number'&&gear!==lastGear&&pl.v>3){
@@ -3651,17 +3651,17 @@ function updatePlayer(dt,canDrive){
   // traction: rear/mid drive spins up a little off the line, 4WD bites
   const trac=tractionOf(CAR,sp);
   // turbo lag: early single-turbo cars wait for boost after the throttle opens
-  const kmhP=sp*3.6,gA=gearOf(kmhP),gU=isMT()?pl.gear:gA,gt=CAR.gearTop[gU-1],rr=kmhP/gt;
+  const kmhP=sp*3.6,gA=gearOf(kmhP),gU=isMT()?Math.max(1,pl.gear):gA,gt=CAR.gearTop[gU-1],neutral=isMT()&&pl.gear===0,rr=kmhP/gt;
   // MT: rev limiter cuts drive, a gear too tall pulls weakly (less multiplication, low rpm)
-  let mtK=1;if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,CAR.gearTop[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
+  let mtK=1;if(neutral)mtK=0;else if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,CAR.gearTop[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
-  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):22;
+  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):(neutral?0:22);
   if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
     let eb=1.4;
-    if(v>0.5)eb=0.9+(CAR.ev||CAR.cvt?1.8*Math.min(1,kmhP/70):2.2*Math.min(1.05,rr)*Math.sqrt(CAR.gearTop[CAR.gears-1]/gt));
+    if(v>0.5)eb=neutral?0.9:0.9+(CAR.ev||CAR.cvt?1.8*Math.min(1,kmhP/70):2.2*Math.min(1.05,rr)*Math.sqrt(CAR.gearTop[CAR.gears-1]/gt));
     pl.eb=eb-1.4;a-=eb*Math.sign(v);
   }else pl.eb=0;
   // wind: drag works on the airspeed (head/tail wind along the heading); crosswind pushes the car sideways a little
@@ -3677,7 +3677,7 @@ function updatePlayer(dt,canDrive){
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
-  tyreUpdate(dt,sp,pl.steer*k*sp*Math.sign(pl.v),thr,brk,trac);
+  tyreUpdate(dt,sp,pl.steer*k*sp*Math.sign(pl.v),thr&&!neutral,brk,trac);
   sqAmt=Math.abs(pl.off)>HW[pl.idx]||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
   offAmt=Math.abs(pl.off)>HW[pl.idx]?1:0;scrapeAmt=0;
   pl.th+=pl.steer*k*Math.sign(pl.v)*dt;
@@ -3974,7 +3974,7 @@ function frame(now){
   if(splitT>0){splitT-=dt;if(splitT<=0)$('split').classList.remove('show');}
   if(state==='replay')updateReplayCam(dt);else updateCamera(dt);
   updateWeatherFx(dt);
-  const kmh=Math.abs(pl.v)*3.6,gear=pl.v<-0.3?'R':(CAR.cvt||CAR.ev)?'D':state==='replay'?rpGear:isMT()?pl.gear:gearOf(kmh),g=typeof gear==='number'?gear:1;
+  const kmh=Math.abs(pl.v)*3.6,gear=pl.v<-0.3?'R':(CAR.cvt||CAR.ev)?'D':state==='replay'?rpGear:isMT()?(pl.gear||'N'):gearOf(kmh),g=typeof gear==='number'?gear:1;
   let rpm=Math.max(950,CAR.red*kmh/CAR.gearTop[g-1]);
   // MT rev limiter: the needle bounces just under the red line
   if((isMT()||state==='replay')&&rpm>=CAR.red*.99)rpm=CAR.red*(.975+.025*Math.abs(Math.sin(performance.now()/28)));
@@ -3983,6 +3983,12 @@ function frame(now){
   if(CAR.cvt)rpm=Math.min(CAR.red*.93,1200+Math.min(1,kmh/25+.25)*((keys.up&&state==='race')?3900:1500)+kmh*9);
   // free revving on the grid (空吹かし) and the showroom blip when a car is picked
   if(!CAR.ev&&(state==='count'||(state==='race'&&kmh<4&&keys.up))){freeRev+=((keys.up?CAR.red*.82:950)-freeRev)*Math.min(1,dt*(keys.up?4.5:2.5));rpm=Math.max(rpm,freeRev);}else freeRev=rpm;
+  // neutral (MT): the engine is free, so holding the throttle hits the rev limiter: fuel cut, a drop, again (バババッ)
+  if(isMT()&&pl.gear===0&&!CAR.ev&&(state==='race'||state==='count')){
+    const on=keys.up&&revCut<=0;nRev+=((on?CAR.red*1.04:950)-nRev)*Math.min(1,dt*(on?5.5:1.6));
+    if(nRev>=CAR.red*.995){nRev=CAR.red*(.955+Math.random()*.015);revCut=.055+Math.random()*.02;}
+    revCut=Math.max(0,revCut-dt);rpm=nRev;
+  }else{nRev=Math.max(950,rpm);revCut=0;}
   if(state==='menu'){rpm=Math.max(rpm*0.9,menuRevT>.55?CAR.red*.9:0);menuRevT=Math.max(0,menuRevT-dt);}
   audioFrame(dt,rpm,gear);
   if(state!=='menu'){

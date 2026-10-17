@@ -63,6 +63,10 @@ setTimeout(async()=>{try{
   t.pl.gear=6;t.pl.v=150/3.6;t.shiftGear(-1);t.shiftGear(-1);t.shiftGear(-1);t.shiftGear(-1);
   {const w=t.revWarn,g=t.pl.gear;ok(g===3&&w&&w.g===2&&Math.abs(w.lim-t.CAR.gearTop[1])<1e-9,`refused downshift sets notice (gear ${g}, wants ${w&&w.g}, ${w&&w.lim.toFixed(0)} km/h)`);}
   t.pl.v=(t.CAR.gearTop[1]-5)/3.6;step(2);ok(!t.revWarn,'notice clears once slow enough');t.shiftGear(-1);ok(t.pl.gear===2,'downshift goes in after slowing');
+  // MT neutral: below 1st; the throttle revs the engine but does not drive the car
+  t.pl.v=0;t.pl.gear=1;t.shiftGear(-1);ok(t.pl.gear===0,'shifting down from 1st selects neutral');
+  t.keys.up=1;step(90);t.keys.up=0;ok(Math.abs(t.pl.v)<0.05,'throttle in neutral does not move the car ('+t.pl.v.toFixed(2)+' m/s)');
+  t.shiftGear(-1);ok(t.pl.gear===0,'nothing below neutral');t.shiftGear(1);ok(t.pl.gear===1,'neutral -> 1st');
   t.setTM('at');
   // shared ghosts: encode/decode round trip, the No.1 ghost of another player, and uploading your own best
   {const d=[];let x=10,z=-5,h=0.3;for(let i=0;i<2400;i++){x+=Math.sin(h)*2;z+=Math.cos(h)*2;h+=0.01*Math.sin(i/50);d.push(+x.toFixed(2),+(1+Math.sin(i/90)).toFixed(2),+z.toFixed(2),+h.toFixed(3));}
