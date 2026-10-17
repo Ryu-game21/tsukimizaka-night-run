@@ -61,6 +61,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
   MT は 1速の下にニュートラル（`pl.gear===0`、表示 N）：駆動もエンジンブレーキもなく、アクセルで空ぶかししてリミッター（`nRev`/`revCut`）に当たる。
+- `AILV` / `aiBuild`（設定 `opts.ai`、スタート準備の「AIの強さ」）… レースのAIの難易度。やさしい・ふつう（従来どおり）・むずかしい・エキスパート。コーナーのグリップ `g`・ブレーキ `b`・最高速の上限 `cap`・ペース `s`・加速 `a` を変えた走行ライン `vcD` をスタート時に作る。エキスパートはゴールドタイム前後のペース。やさしいでの優勝は実績・チャレンジに数えない。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・

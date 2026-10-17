@@ -528,6 +528,8 @@ body:not(.mt) .pad.s{display:none}
       <p class="eyebrow">STEP 6 ・ READY</p>
       <h1>スタート準備</h1>
       <dl class="summary" id="summary"></dl>
+      <div class="opts" id="aiRow"><span class="ol">AIの強さ</span><div class="grp" id="aiLvs"></div>
+        <span class="tmnote" id="aiNote"></span></div>
       <div class="opts" id="scRow"><span class="ol">スタート</span><div class="grp"><button class="tog" type="button" id="tgSC" aria-pressed="true">セーフティカー先導 ON</button></div>
         <span class="tmnote">レースの前にセーフティカーの後ろを隊列で1周（追い越し禁止・周回数には入らない）。セーフティカーが抜け、ラインを越えたらレース開始。</span></div>
       <div class="opts" id="ghostRow"><span class="ol">ゴースト</span><div class="grp"><button class="tog" type="button" id="tgGhost" aria-pressed="true">ゴースト ON</button></div>
@@ -626,7 +628,7 @@ body:not(.mt) .pad.s{display:none}
 <script>
 (()=>{
 const $=id=>document.getElementById(id);
-let N=1200;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
+let N=1200,RC=null,vcD=null;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
 
 /* ---------- machines: real cars with downloaded 3D models, catalogue specs; 0-100 and top speed fitted to published/test figures ---------- */
 // Cornering and braking use real lateral/braking G multiplied by GAME_G so the arcade feel survives.
@@ -1212,7 +1214,7 @@ function computeTrack(c){
       HW[i]=c.hw[k]*(1-f)+c.hw[k2]*f;BK[i]=c.bank[k]*(1-f)+c.bank[k2]*f;RW[i]=HW[i]+(c.runoff||9);if(c.rw)RW[i]=Math.max(RW[i],c.rw[k]*(1-f)+c.rw[k2]*f);}}
   else{HW.fill(HALF);RW.fill(RAIL);}
   const CW=c.pts?Math.max(6,Math.round(30/ds)):6;
-  const R=new Float32Array(N),step=new Float32Array(N);
+  const R=new Float32Array(N),step=new Float32Array(N);RC=R;
   vc=new Float32Array(N);const vP=new Float32Array(N);vT=new Float32Array(N);
   for(let i=0;i<N;i++){
     const a=T[(i-CW+N)%N],b=T[(i+CW)%N];
@@ -1858,13 +1860,16 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal'};
+const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
+  {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
+const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
 const GSTEP=0.05;let mode='race',ghost=null,ownGhost=null,ghostInfo=null,rec=[],recT=0;
 try{if(localStorage.getItem('fpr-mode')==='free')mode='free';}catch(e){}
 function setMode(m){
   mode=m;try{localStorage.setItem('fpr-mode',m);}catch(e){}
   document.querySelectorAll('.mtog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
-  $('ghostRow').hidden=m!=='free';$('scRow').hidden=m==='free';if(m==='race')SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));
+  $('ghostRow').hidden=m!=='free';$('scRow').hidden=m==='free';$('aiRow').hidden=m==='free';if(m==='race')SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));
   $('startBtn').textContent=m==='free'?'フリー走行を始める':'レースを始める';
 }
 let timeSel='night',view=0,camTh=0;
@@ -1893,7 +1898,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.radio===false)opts.radio=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.radio===false)opts.radio=false;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -2067,6 +2072,11 @@ VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog 
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
 $('tgSC').addEventListener('click',()=>setOpt('sc',!opts.sc));
+const AI_NOTE={easy:'ライバルはゆっくり走ります。ここでの優勝は実績・チャレンジに数えません。',normal:'いつもの強さ。',hard:'コーナーもブレーキも速く、ガイドの速度では勝てません。',expert:'ゴールドタイム級のペースで走ります。全部の道幅とタイヤの温まりを使い切ろう。'};
+function setAI(id){opts.ai=id;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
+  document.querySelectorAll('#aiLvs .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ai===id));$('aiNote').textContent=AI_NOTE[id];try{if(step==='go')renderSummary();}catch(e){}}
+AILV.forEach(L=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.ai=L.id;b.textContent=L.n;b.addEventListener('click',()=>setAI(L.id));$('aiLvs').appendChild(b);});
+setAI(opts.ai);
 $('endBtn').addEventListener('click',()=>{if(state==='replay')endReplay();else if(tut)endTutorial(false);else endSession();});
 {const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w='real';b.textContent='リアル（現地の今）';b.addEventListener('click',()=>setWeather('real'));$('weathers').appendChild(b);}
 Object.keys(WEATHERS).forEach(w=>{const b=document.createElement('button');b.className='tog';b.type='button';b.dataset.w=w;b.textContent=WEATHERS[w].n;b.addEventListener('click',()=>setWeather(w));$('weathers').appendChild(b);});
@@ -2828,7 +2838,7 @@ function nextStep(){const k=STEPS.indexOf(step);if(step==='title')showStep('mode
 function prevStep(){if(step==='opts'){showStep(optsBack);return;}if(step==='prof'){showStep(profBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
 function renderSummary(){
   const c=COURSES[sel];
-  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':'レース（'+c.laps+'周・4台）'],['マシン',CAR.maker+' '+CAR.name],['コース',c.name],
+  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':'レース（'+c.laps+'周・4台・AI '+aiLv().n+'）'],['マシン',CAR.maker+' '+CAR.name],['コース',c.name],
     ['変速',TM==='mt'?(canMT()?'MT マニュアル':'MT（この車は変速なしのため自動）'):'AT オートマ'],['時間帯',TIMES[timeSel].n+(realOn?'（現地）':'')],['天候',WEATHERS[wxSel].n]]
     .map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
 }
@@ -2865,7 +2875,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();tyreReset();radioReset();scStart();SCL=scar?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  aiBuild();resetRace();tyreReset();radioReset();scStart();SCL=scar?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -2901,7 +2911,7 @@ function pop(t,cls){const p=$('pop');p.textContent=t;p.className='hud show '+cls
 function finish(){
   liveWrite('');state='finish';
   finishRank=1+AI.filter(a=>a.fin).length;
-  $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name;
+  $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name+' ・ AI '+aiLv().n;
   $('rPos').innerHTML=finishRank+'<span>位 / 4台</span>';
   const bl=Math.min(...laps);
   $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===bl?'best':''}">${fmt(t)}</td></tr>`).join('')
@@ -3117,6 +3127,9 @@ AD('run','wins100','g','100勝','レースで通算100回優勝する',S=>S.wins
 AD('run','races100','s','皆勤賞','レースに通算100回出走する',S=>S.races>=100,S=>[S.races,100]);
 // 新しい要素（タイヤ・セーフティカー・リアル天候・MT・排気・運転席）
 AD('tech','tyre90','s','タイヤマネジメント','タイヤの適温率 90% 以上で、3周以上のレースを完走する',S=>!!S.f.tyre90);
+AD('win','win_hard','s','本気のライバル','AIの強さ「むずかしい」以上でレースに優勝する',S=>!!S.f.win_hard);
+AD('win','win_expert','g','エキスパート撃破','AIの強さ「エキスパート」でレースに優勝する',S=>!!S.f.win_expert);
+AD('win','expert5','p','無敵','AIの強さ「エキスパート」で5つのコースに優勝する',S=>cnt(S.xw)>=5,S=>[cnt(S.xw),5]);
 AD('tech','sc_win','b','隊列からの勝利','セーフティカー先導のレースで優勝する',S=>!!S.f.sc_win);
 AD('tech','sc_last','g','最後尾からの逆転','セーフティカー明け（または スタート）で4位から、レースに優勝する',S=>!!S.f.sc_last);
 AD('tech','pass3','s','ごぼう抜き','1回のレースでライバルを3台抜く',S=>!!S.f.pass3);
@@ -3151,7 +3164,7 @@ let ACHS=null,achDirty=false,achSaveT=0;
 const achKey=()=>pkey('fpr-ach');
 function achBlank(){return {u:{},f:{},laps:0,lapsMT:0,races:0,wins:0,winsMT:0,clean:0,greats:0,maxGreatRace:0,pbs:0,km:0,revKm:0,top:0,
   cl:{},cw:{},car:{},cwin:{},combo:{},gold:{},perf:{},rec:{},views:{},rpc:{},
-  cp:0,dly:{},wk:{},stk:{n:0,b:0,last:''},titles:{},title:'',cos:{},dlyN:0,dlyAll:0,wkN:0,revHits:0,flames:0,cabLaps:0,realLaps:0,passes:0};}
+  cp:0,dly:{},wk:{},xw:{},stk:{n:0,b:0,last:''},titles:{},title:'',cos:{},dlyN:0,dlyAll:0,wkN:0,revHits:0,flames:0,cabLaps:0,realLaps:0,passes:0};}
 function achLoad(){
   ACHS=achBlank();
   try{const o=JSON.parse(localStorage.getItem(achKey())||'null');if(o&&typeof o==='object')for(const k in ACHS)if(o[k]!=null&&typeof o[k]===typeof ACHS[k])ACHS[k]=o[k];}catch(e){}
@@ -3207,7 +3220,8 @@ function achRaceStart(){raceGreat=0;raceContacts=0;achLapStart();chRaceStart();c
 function achFinish(rank){
   if(!ACHS)return;const S=ACHS;S.races++;
   S.maxGreatRace=Math.max(S.maxGreatRace,raceGreat);
-  if(rank===1){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;
+  const easyWin=rank===1&&opts.ai==='easy';if(rank===1&&!easyWin){if(opts.ai==='hard'||opts.ai==='expert')S.f.win_hard=1;if(opts.ai==='expert'){S.f.win_expert=1;S.xw=Object.assign({},S.xw,{[C.id]:1});}}
+  if(rank===1&&!easyWin){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;
     if(SCL>0)S.f.sc_win=1;if(chGreenPos===4)S.f.sc_last=1;if(realOn&&realFor(C.id)&&tempC!=null&&tempC<=5)S.f.coldwin=1;
     chEv('win',{car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0,region:chRegion(CAR),drive:CAR.drive,newCarWk:chRaceNewCar});}
   if(tyreStat.n>20&&tyreStat.ok/tyreStat.n>=.9&&LAPS>=3)S.f.tyre90=1;if(chRaceP>=3)S.f.pass3=1;chEv('race');
@@ -3976,6 +3990,13 @@ function updateGhost(){
   ghostCar.position.set(d[a]+(d[b]-d[a])*t,d[a+1]+(d[b+1]-d[a+1])*t+0.02,d[a+2]+(d[b+2]-d[a+2])*t);
   ghostCar.rotation.set(0,d[a+3]+dth*t,0);ghostCar.visible=true;
 }
+/* AI difficulty (race mode): cornering grip, braking and top-speed cap of the rivals' racing line, and their pace.
+   ふつう is the original AI. Wins on やさしい do not count for achievements / challenges. */
+function aiBuild(){
+  const D=aiLv();if(!RC){vcD=vc;return;}vcD=new Float32Array(N);
+  for(let i=0;i<N;i++)vcD[i]=Math.min(VMAX*D.cap,Math.sqrt(GAI*D.g*RC[i]));
+  for(let pass=0;pass<2;pass++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;vcD[i]=Math.min(vcD[i],Math.sqrt(vcD[j]*vcD[j]+2*BR_AI*D.b*ds));}
+}
 function updateAI(dt,active){
   const hide=mode==='free'&&state!=='menu';
   AI.forEach(a=>a.mesh.visible=!hide);
@@ -3984,13 +4005,13 @@ function updateAI(dt,active){
   for(const a of AI){
     if(!active){sample(a.s,a.lane,tmp);place(a,tmp);continue;}
     const i=Math.floor(wrap(a.s)/ds)%N;
-    let target=vc[i]*a.skillC;lmax=HW[i]-2;
+    const race=state!=='menu'&&vcD,DL=race?aiLv():AILV[1];let target=(race?vcD[i]*DL.s:vc[i])*a.skillC;lmax=HW[i]-2;
     const gap=pprog-a.s,lat=Math.abs(pl.off-a.lane);
     if(state!=='menu'&&gap>0&&gap<14&&lat<2.4){target=Math.min(target,pl.v*0.97+2);a.laneT=pl.off>0?-lmax:lmax;}
     for(const b of AI){if(b===a)continue;const g2=b.s-a.s;if(g2>0&&g2<10&&Math.abs(b.lane-a.lane)<2.2){target=Math.min(target,b.v+1);a.laneT=b.lane>0?-lmax*0.9:lmax*0.9;}}
     if(scOn()){target=scAITarget(a,target);a.laneT=a.lane;}
     a.thr=a.v<target-0.5?.85:.2;
-    if(a.v<target)a.v=Math.min(target,a.v+Math.max(0.6,CAR.acc*0.95*(1-Math.pow(a.v/CAR.vmax,2))-CAR.k*a.v*a.v)*dt);else a.v=Math.max(target,a.v-CAR.brake*WEATHERS[wxSel].brake*0.8*dt);
+    if(a.v<target)a.v=Math.min(target,a.v+Math.max(0.6,CAR.acc*DL.a*(1-Math.pow(a.v/CAR.vmax,2))-CAR.k*a.v*a.v)*dt);else a.v=Math.max(target,a.v-CAR.brake*WEATHERS[wxSel].brake*0.8*dt);
     a.lane+=(a.laneT-a.lane)*Math.min(1,dt*0.9);
     a.s+=a.v*dt;
     if(state!=='menu'&&!a.fin&&a.s>=(LAPS+SCL)*L)a.fin=raceT;
