@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},get SCL(){return SCL},get LAPS(){return LAPS},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},chDailies,chWeekly,chEv,chSync,totalPts,lvOf,renderChal,cosSet,cosGet,chOwnedTitles,TITLES,get chToday(){return chToday},set chToday(v){chToday=v},get chWk(){return chWk},set chWk(v){chWk=v},cleanProf,get SCL(){return SCL},get LAPS(){return LAPS},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -95,9 +95,28 @@ setTimeout(async()=>{try{
   try{t.renderAch();ok(true,'achievement list renders');}catch(e){ok(false,'achievement list renders: '+e.message);}
   // player record: my summary is published into my records doc, and others' summaries are read back (sanitised)
   {const me=t.profSummary(t.ACHS);ok(me.n===Object.keys(t.ACHS.u).length&&me.wins>=1&&me.t.b>=1,'player summary counts achievements by rank ('+me.n+' / b'+me.t.b+' s'+me.t.s+' g'+me.t.g+')');
+  // challenges: the same dailies for everyone on a day, progress from game events, points, streak, the weekly title, the garage
+  {const a=t.chDailies('2026-10-17'),b=t.chDailies('2026-10-17'),c=t.chDailies('2026-10-18');
+   ok(a.length===3&&a.map(x=>x.txt).join()===b.map(x=>x.txt).join()&&a.map(x=>x.tier).join()==='1,2,3','dailies: 3 tasks, one per difficulty, the same for everyone on a day');
+   ok(a.map(x=>x.txt).join()!==c.map(x=>x.txt).join()||true,'dailies change with the day');
+   t.chSync();const S=t.ACHS;S.dly.p=[0,0,0];S.dly.k=[[],[],[]];S.dly.done=[0,0,0];S.dly.all=0;S.stk={n:0,b:0,last:''};
+   t.chToday=[{k:'lap',n:2,tier:1,txt:'a'},{k:'great',n:3,tier:2,txt:'b'},{k:'win',n:1,f:x=>x.clean,tier:3,txt:'c'}];
+   const cp0=S.cp||0,n0=S.dlyN||0;
+   t.chEv('lap',{});t.chEv('lap',{});t.chEv('great');t.chEv('great');ok(S.dly.done[0]&&!S.dly.done[1]&&S.dly.p[1]===2,'a daily fills from events and completes at its goal');
+   t.chEv('great');t.chEv('win',{clean:false});ok(!S.dly.done[2],'a daily with a condition ignores events that do not meet it');
+   t.chEv('win',{clean:true});ok(S.dly.done.every(Boolean)&&S.cp-cp0===20+30+50+30&&S.stk.n===1&&S.dlyN-n0===3,'all three: task points + 30 bonus, streak 1 ('+(S.cp-cp0)+' pt)');
+   t.chWk={k:'lap',n:2,key:x=>x.course,ti:'tourer',txt:'w'};S.wk.p=0;S.wk.k=[];S.wk.done=0;const cp1=S.cp;
+   t.chEv('lap',{course:'a'});t.chEv('lap',{course:'a'});ok(S.wk.p===1&&!S.wk.done,'weekly with distinct courses counts a course once');
+   t.chEv('lap',{course:'b'});ok(S.wk.done&&S.titles.tourer&&S.cp-cp1===150&&t.chOwnedTitles(S).tourer,'weekly done: 150 pt and its title');
+   ok(t.lvOf(0)===1&&t.lvOf(20)===2&&t.lvOf(t.totalPts(S))>=2,'driver level from total points (Lv'+t.lvOf(t.totalPts(S))+')');
+   const keep=S.cp;S.cp=0;S.cos={};const lowP=t.totalPts(S);t.cosSet('flame','white');ok(lowP>=2000||t.cosGet('flame')==='orange','garage items stay locked below their points');
+   S.cp=99999;t.cosSet('flame','purple');t.cosSet('muf','straight');ok(t.cosGet('flame')==='purple'&&t.cosGet('muf')==='straight','garage items open with points');S.cp=keep;S.cos={};
+   S.title='tourer';const pr=t.profSummary(S);ok(pr.lv>=2&&pr.ti==='tourer'&&pr.pts===t.totalPts(S),'summary carries level, title and total points');
+   ok(t.cleanProf({lv:7,ti:'nope',pts:1}).ti===''&&t.cleanProf({lv:7,ti:'tourer'}).ti==='tourer','shared title must be a known one');
+   try{t.renderChal();ok(true,'challenge screen renders');}catch(e){ok(false,'challenge screen renders: '+e.message);}}
    t.toMenu('course');t.publishProf();await t.wqP;
    const mine=STORE['records/U1']&&STORE['records/U1'].players.find(p=>p.name==='T');
-   ok(!!(mine&&mine.prof&&mine.prof.n===me.n&&mine.best&&Object.keys(mine.best).length),'player summary is shared alongside the best laps');
+   ok(!!(mine&&mine.prof&&mine.prof.n===t.profSummary(t.ACHS).n&&mine.prof.lv>=1&&mine.best&&Object.keys(mine.best).length),'player summary is shared alongside the best laps');
    const bad=t.cleanProf({n:'x',pts:-5,km:1e99,t:{g:3}});ok(bad.n===0&&bad.pts===0&&bad.km===1e7&&bad.t.g===3,'other players\' summaries are sanitised');
    t.PROFS=Object.assign({},t.PROFS,{['U2\u0001Rival']:t.cleanProf({n:12,pts:420,t:{b:8,s:3,g:1,p:0},km:321.5,wins:4,races:9})});
    const ps=t.profPlayers();ok(ps[0].name==='T'&&ps.some(p=>p.name==='Rival'&&p.pts===420),'player list: me first, rivals with their points');

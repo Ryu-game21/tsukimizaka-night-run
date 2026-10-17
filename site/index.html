@@ -376,6 +376,23 @@ body:not(.mt) .pad.s{display:none}
 .pfrec td.c{color:var(--dim);font-size:12px}
 .pfrec tr.none td{opacity:.45}
 .pfnote{font-size:12px;color:var(--dim);line-height:1.6;margin:8px 0 0}
+/* challenges */
+.chh{margin:18px 0 6px;font-size:15px}.chh small{font-size:11px;color:var(--dim);font-weight:400;margin-left:6px}
+.chhead{display:flex;gap:14px;align-items:center;margin:8px 0 4px}
+.chlv{display:grid;place-items:center;min-width:78px;padding:6px 8px;border:2px solid var(--lcd);border-radius:6px}
+.chlv small{font-size:10px;color:var(--dim);letter-spacing:.08em}.chlv b{font-family:var(--f-dot);font-style:italic;font-size:26px;color:var(--lcd)}
+.chinfo{flex:1;min-width:0;display:grid;gap:5px}.chinfo small{font-size:11px;color:var(--dim)}.chname{font-size:14px;color:var(--ink);overflow-wrap:anywhere}
+.chinfo .achbar{margin:0}
+.achs li em{font-style:normal;font-size:11px;color:var(--dim);display:block;margin-top:2px}
+.tog.sw::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--sw);margin-right:6px;vertical-align:-1px;box-shadow:0 0 6px var(--sw)}
+.tog:disabled{opacity:.45;cursor:not-allowed}
+.chtitles{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}
+.chtitles li{padding:6px 9px;border:1px solid var(--line);border-radius:3px;opacity:.55}.chtitles li.got{opacity:1;border-color:var(--lcd)}
+.chtitles b{display:block;font-size:13px}.chtitles span{display:block;font-size:11px;color:var(--dim);line-height:1.45}
+.lvchip{font-style:normal;font-family:var(--f-dot);font-weight:700;font-size:10px;padding:1px 5px;border-radius:3px;margin-right:5px;border:1px solid var(--line);color:var(--dim);vertical-align:1px}
+.lvchip.lvb{border-color:#c98b55;color:#e0a777}.lvchip.lvs{border-color:#c9d1db;color:#dfe5ec}.lvchip.lvg{border-color:#f0c75a;color:#f0c75a}.lvchip.lvp{border-color:#9fe3ff;color:#9fe3ff;box-shadow:0 0 6px rgba(159,227,255,.5)}
+.bti{font-size:10px;color:var(--dim);margin-left:6px;font-style:normal}
+.pftitle{font-size:13px;color:var(--lcd)}
 .blist li[data-pk]{cursor:pointer}
 .blist li[data-pk]:hover{background:rgba(205,215,228,.08)}
 @media (max-width:520px){.tiers{grid-template-columns:repeat(2,minmax(0,1fr))}.pfrec .c{display:none}}
@@ -443,6 +460,7 @@ body:not(.mt) .pad.s{display:none}
       <div class="tmenu">
         <button class="btn" type="button" id="goStart">ゲームスタート</button>
         <button class="btn sub" type="button" id="goTut">チュートリアル</button>
+        <button class="btn sub" type="button" id="goChal">チャレンジ</button>
         <button class="btn sub" type="button" id="goAch">実績</button>
         <button class="btn sub" type="button" id="goProf">プレイヤー記録</button>
         <button class="btn sub" type="button" id="goOpts">設定</button>
@@ -522,6 +540,21 @@ body:not(.mt) .pad.s{display:none}
       </div>
       <div class="btns"><button class="btn" id="startBtn">レースを始める</button></div>
       <p class="press"><button class="linkbtn" type="button" id="goOpts2">サウンドやガイドの設定</button></p>
+    </section>
+
+    <section class="step" data-s="chal" hidden>
+      <p class="eyebrow">CHALLENGES</p>
+      <h1>チャレンジ</h1>
+      <div class="chhead" id="chHead"></div>
+      <h3 class="chh">デイリー <small id="chDay"></small></h3>
+      <ul class="achs" id="chDaily"></ul>
+      <p class="pfnote" id="chStreak"></p>
+      <h3 class="chh">ウィークリー <small id="chWeek"></small></h3>
+      <ul class="achs" id="chWeekly"></ul>
+      <h3 class="chh">ガレージ <small>合計ポイントで開きます（ポイントは減りません）</small></h3>
+      <div id="chCustom"></div>
+      <h3 class="chh">称号</h3>
+      <div id="chTitles"></div>
     </section>
 
     <section class="step" data-s="ach" hidden>
@@ -2224,13 +2257,14 @@ const S2EV={pop:evPop,crackle:evCrackle,burble:evBurble,bang:evBang};
 function s2Flutter(b,t){let w=t;for(let k=0;k<11;k++){burstAt(w,.03,950-k*35,'bandpass',.42*b*(1-k/13),2.2);w+=s2R(.032,.046);}}
 function s2Duck(up){const P=s2P(),isr=P.shift==='isr',dct=P.shift==='dct'||P.shift==='seq';return{v:isr&&up?.06:up?.25:.6,d:isr?.2:dct?.06:.15};}
 function s2Shift(up,t){
-  const P=s2P(),bark=P.bark!=null?P.bark:A.v.p.bark,style=P.style||'pop',isr=P.shift==='isr',dct=P.shift==='dct'||P.shift==='seq';
+  const P=s2P(),bark=Math.min(1.6,(P.bark!=null?P.bark:A.v.p.bark)*(ACHS?cosOpt('muf').k:1)),style=P.style||'pop',isr=P.shift==='isr',dct=P.shift==='dct'||P.shift==='seq';
   if(up){if(isr)evBang(.85,t+.03);else if(dct)S2EV[style==='burble'?'burble':'crackle'](.6,t+.01);else burst(.07,170,'lowpass',.4,1,A.sfx);}
   else{if(!dct&&!isr)burst(.07,170,'lowpass',.4,1,A.sfx);if(bark>.4&&Math.random()<.8)S2EV[style](Math.min(1,.5*bark+.2),t+.07);}
 }
 // called from audioFrame after setVoice; replaces the old turbo / supercharger / backfire block
 function s2Frame(dt,t,thr,rpmS,thrS,fp,live){
-  const v=A.v,P=s2P(),r=rpmS/CAR.red,f=rpmS/60*ORDER[CAR.cyl],bark=P.bark!=null?P.bark:v.p.bark,style=P.style||'pop';
+  const v=A.v,P=s2P(),r=rpmS/CAR.red,f=rpmS/60*ORDER[CAR.cyl],MUF=ACHS?cosOpt('muf'):{k:1,g:1},bark=Math.min(1.6,(P.bark!=null?P.bark:v.p.bark)*MUF.k),style=P.style||'pop';
+  if(A.pop)A.pop.gain.setTargetAtTime(1.9*MUF.g,t,.1);
   const L=S2.lv;
   if(L){const fc=Math.max(15,f*.5),m=.16+.16*thrS*Math.max(0,1-r*1.3)+.06*(rpmS<1200?1:0);
     L.rlp.frequency.setTargetAtTime(fc,t,.03);L.rg.gain.setTargetAtTime(m*148/Math.sqrt(fc),t,.05);
@@ -2252,7 +2286,7 @@ function s2Frame(dt,t,thr,rpmS,thrS,fp,live){
   if(CAR.turbo&&v.tw){
     const tgt=als?.75:thrS>.5?Math.min(1,Math.max(0,(r-.35)*1.8)):0,prev=S2.boost;
     S2.boost+=(tgt-S2.boost)*Math.min(1,dt*(tgt>S2.boost?1.5:6));
-    if(prev>.45&&thr===0&&!S2.bovLock&&!als){S2.bovLock=true;if(P.flutter)s2Flutter(prev,t);const k2=P.bov!=null?P.bov:1;if(k2>0)burstAt(t,.55,3200,'bandpass',.3*prev*k2,1.3,A.eng,1400);}
+    if(prev>.45&&thr===0&&!S2.bovLock&&!als){S2.bovLock=true;if(P.flutter)s2Flutter(prev,t);const k2=ACHS&&cosGet('bov')==='open'?Math.max(1.7,P.bov||0):(P.bov!=null?P.bov:1);if(k2>0)burstAt(t,.55,3200,'bandpass',.3*prev*k2,1.3,A.eng,1400);}
     if(thr>0)S2.bovLock=false;
     v.tw.frequency.setTargetAtTime(1400+S2.boost*4400,t,.05);v.tg.gain.setTargetAtTime(S2.boost*.02*(.3+.7*thrS),t,.05);
   }
@@ -2274,11 +2308,12 @@ function s2Off(t){const c=S2.cab;if(!c)return;c.out.gain.setTargetAtTime(0,t,.06
 
 /* exhaust flames: a few additive sprites along each tip's axis, plus one warm point light; they ride on the rig body */
 let flameTex=null;const FX=[];
-function flameTexture(){
-  if(flameTex)return flameTex;const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
-  const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,240,1)');r.addColorStop(.18,'rgba(170,210,255,.95)');
-  r.addColorStop(.38,'rgba(255,190,80,.85)');r.addColorStop(.7,'rgba(255,90,20,.35)');r.addColorStop(1,'rgba(255,60,0,0)');
-  g.fillStyle=r;g.fillRect(0,0,64,64);flameTex=new THREE.CanvasTexture(c);return flameTex;
+const flameTexs={};
+function flameTexture(kind){
+  kind=kind||(typeof cosGet==='function'&&ACHS?cosGet('flame'):'orange');if(flameTexs[kind])return flameTexs[kind];
+  const col=(COS.flame.o[kind]||COS.flame.o.orange).c,c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+  const r=g.createRadialGradient(32,32,0,32,32,32);[[0,1],[.18,.95],[.38,.85],[.7,.35],[1,0]].forEach(([o,a],i)=>r.addColorStop(o,'rgba('+col[i]+','+a+')'));
+  g.fillStyle=r;g.fillRect(0,0,64,64);return flameTexs[kind]=new THREE.CanvasTexture(c);
 }
 function exhRig(){
   const tips=EXH[CAR.id];if(!tips||!playerCar)return null;
@@ -2304,7 +2339,10 @@ function fxTick(dt){
     const sz=(.16+.34*e.s)*(1-k*.25)*(.8+.4*u);s.scale.set(sz,sz,1);s.position.copy(j.p).addScaledVector(j.dir,.04+k*(.09+.16*e.s)*(1.2-u*.4));}));
   e.light.intensity=e.life>0?3.2*e.s*u*fl:0;
 }
-function fxFire(s){const e=exhRig();if(!e)return;s=Math.min(1.2,s);if(e.life>0&&s<e.s*.6)return;e.s=Math.max(s,e.life>0?e.s*.8:0);e.max=e.life=.05+.11*e.s+Math.random()*.03;}
+function fxFire(s){const e=exhRig();if(!e)return;
+  if(state==='race'||state==='count'){if(ACHS)ACHS.flames=(ACHS.flames||0)+1;chEv('flame');}
+  {const k=ACHS?cosGet('flame'):'orange';if(e.kind!==k){e.kind=k;const tx=flameTexture(k);e.jets.forEach(j=>j.sp.forEach(sp=>{sp.material.map=tx;sp.material.needsUpdate=true;}));e.light.color.setHex(COS.flame.o[k].l);}}
+  s*=ACHS?cosOpt('muf').f:1;s=Math.min(1.2,s);if(e.life>0&&s<e.s*.6)return;e.s=Math.max(s,e.life>0?e.s*.8:0);e.max=e.life=.05+.11*e.s+Math.random()*.03;}
 function setAmbient(){
   if(!A||!C)return;
   ambNodes.forEach(n=>{try{n.stop&&n.stop();}catch(e){}try{n.disconnect();}catch(e){}});ambNodes=[];
@@ -2551,7 +2589,9 @@ function renderBoard(){
   show.forEach(r=>{
     const li=document.createElement('li');if(isMe(r))li.className='me';li.dataset.pk=keyOf(r);li.title=r.name+' の記録を見る';li.addEventListener('click',()=>openProf(li.dataset.pk,'course'));
     const car=CARS.find(x=>x.id===r.car);
+    const pf=profData({k:keyOf(r),name:r.name,uid:r.uid});
     [['rk',(rows.indexOf(r)+1)+''],['nm',r.name],['cr',[boardScope==='all'&&car?car.short||car.name:'',(r.real?'リアル':'')+(r.w&&r.w!=='clear'?(r.real?'・':'')+WEATHERS[r.w].n:'')].filter(Boolean).join(' ・ ')],['tm',fmt(r.t)]].forEach(([cl,t])=>{const e=document.createElement('span');e.className=cl;e.textContent=t;li.appendChild(e);});
+    if(pf){const nm=li.querySelector('.nm');if(pf.lv){const c=document.createElement('i');c.className='lvchip lv'+lvTier(pf.lv);c.textContent='Lv'+pf.lv;nm.prepend(c);}if(pf.ti){const t2=document.createElement('small');t2.className='bti';t2.textContent=TITLES[pf.ti];nm.append(t2);}}
     list.appendChild(li);
   });
   const what=boardScope==='all'?'このコース（全車）':'このコース × '+(CAR.short||CAR.name);
@@ -2715,8 +2755,10 @@ let step='title',optsBack='title';
 function showStep(s){
   step=s;document.querySelectorAll('#mcard .step').forEach(e=>e.hidden=e.dataset.s!==s);
   const k=STEPS.indexOf(s),bar=$('stepBar');
-  bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof';
+  bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof'||s==='chal';
   if(s==='ach')renderAch();
+  if(s==='chal')renderChal();
+  if(s==='title')chTitleBtn();
   if(s==='prof')renderProf();
   $('backBtn').textContent=s==='mode'?'タイトルへ':'戻る';
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
@@ -2757,6 +2799,7 @@ function menuKey(e){
 $('goStart').addEventListener('click',()=>showStep('mode'));
 $('goTut').addEventListener('click',startTutorial);
 $('goAch').addEventListener('click',()=>showStep('ach'));
+$('goChal').addEventListener('click',()=>showStep('chal'));
 $('goOpts').addEventListener('click',()=>{optsBack='title';showStep('opts');});
 $('goOpts2').addEventListener('click',()=>{optsBack='go';showStep('opts');});
 $('backBtn').addEventListener('click',prevStep);
@@ -2947,9 +2990,9 @@ function updateTut(dt){
   renderTut();
 }
 
-/* ---------- achievements: 98 goals, kept per player in this browser ---------- */
+/* ---------- achievements: 123 goals, kept per player in this browser ---------- */
 const ACH_TIER={b:{n:'ブロンズ',p:10},s:{n:'シルバー',p:30},g:{n:'ゴールド',p:80},p:{n:'プラチナ',p:200}};
-const ACH_CAT=[['start','はじめの一歩'],['cond','天候と時間帯'],['win','サーキット制覇'],['gold','ゴールドタイム'],['garage','ガレージ'],['tech','テクニック'],['run','走り込み'],['secret','隠し実績']];
+const ACH_CAT=[['start','はじめの一歩'],['cond','天候と時間帯'],['win','サーキット制覇'],['gold','ゴールドタイム'],['garage','ガレージ'],['tech','テクニック'],['run','走り込み'],['ch','チャレンジとレベル'],['secret','隠し実績']];
 const ACH_TIMES={day:'昼',dusk:'夕方',night:'夜'};
 const cnt=o=>o?Object.keys(o).length:0;
 const ACH=[];
@@ -3019,7 +3062,32 @@ AD('run','wins10','b','10勝','レースで通算10回優勝する',S=>S.wins>=1
 AD('run','wins50','s','50勝','レースで通算50回優勝する',S=>S.wins>=50,S=>[S.wins,50]);
 AD('run','wins100','g','100勝','レースで通算100回優勝する',S=>S.wins>=100,S=>[S.wins,100]);
 AD('run','races100','s','皆勤賞','レースに通算100回出走する',S=>S.races>=100,S=>[S.races,100]);
+// 新しい要素（タイヤ・セーフティカー・リアル天候・MT・排気・運転席）
+AD('tech','tyre90','s','タイヤマネジメント','タイヤの適温率 90% 以上で、3周以上のレースを完走する',S=>!!S.f.tyre90);
+AD('tech','sc_win','b','隊列からの勝利','セーフティカー先導のレースで優勝する',S=>!!S.f.sc_win);
+AD('tech','sc_last','g','最後尾からの逆転','セーフティカー明け（または スタート）で4位から、レースに優勝する',S=>!!S.f.sc_last);
+AD('tech','pass3','s','ごぼう抜き','1回のレースでライバルを3台抜く',S=>!!S.f.pass3);
+AD('tech','rev100','b','レブリミッター職人','MT のニュートラルで、レブリミッターに通算100回当てる',S=>(S.revHits||0)>=100,S=>[S.revHits||0,100]);
+AD('tech','flame1000','s','火吹き','アフターファイヤーを通算1,000回出す',S=>(S.flames||0)>=1000,S=>[S.flames||0,1000]);
+AD('tech','cab50','s','ドライバーズシート','運転席視点で通算50周する',S=>(S.cabLaps||0)>=50,S=>[S.cabLaps||0,50]);
+AD('cond','real10','s','現地の空気','天候「リアル（現地の今）」で10周する',S=>(S.realLaps||0)>=10,S=>[S.realLaps||0,10]);
+AD('cond','wind10','g','強風注意','風速 10m/s 以上のリアル天候で1周する',S=>!!S.f.wind10);
+AD('cond','coldwin','g','冷えたタイヤで','気温 5°C 以下のリアル天候でレースに優勝する',S=>!!S.f.coldwin);
+AD('garage','custom','b','ガレージいじり','チャレンジ画面で、炎の色・マフラー・ブローオフのどれかを変える',S=>!!S.f.custom);
+// チャレンジとレベル
+AD('ch','daily1','b','今日のノルマ','デイリーチャレンジを1つ達成する',S=>(S.dlyN||0)>=1);
+AD('ch','daily_all','b','パーフェクトデイ','1日でデイリーチャレンジを3つ全部達成する',S=>(S.dlyAll||0)>=1);
+AD('ch','daily50','s','日課','デイリーチャレンジを通算50個達成する',S=>(S.dlyN||0)>=50,S=>[S.dlyN||0,50]);
+AD('ch','streak7','g','1週間皆勤','デイリーチャレンジ全達成を7日続ける',S=>((S.stk&&S.stk.b)||0)>=7,S=>[(S.stk&&S.stk.b)||0,7]);
+AD('ch','streak30','p','毎日がレース','デイリーチャレンジ全達成を30日続ける',S=>((S.stk&&S.stk.b)||0)>=30,S=>[(S.stk&&S.stk.b)||0,30]);
+AD('ch','weekly1','s','週間チャレンジャー','ウィークリーチャレンジを達成する',S=>(S.wkN||0)>=1);
+AD('ch','weekly10','g','シーズンを通して','ウィークリーチャレンジを10回達成する',S=>(S.wkN||0)>=10,S=>[S.wkN||0,10]);
+AD('ch','lv10','s','レベル10','ドライバーレベル10になる',S=>lvOf(totalPts(S))>=10,S=>[lvOf(totalPts(S)),10]);
+AD('ch','lv25','g','レベル25','ドライバーレベル25になる',S=>lvOf(totalPts(S))>=25,S=>[lvOf(totalPts(S)),25]);
+AD('ch','lv50','p','レベル50','ドライバーレベル50になる',S=>lvOf(totalPts(S))>=50,S=>[lvOf(totalPts(S)),50]);
 // 隠し
+AD('secret','vtec','b','VTEC 入った','VTEC の車で1周する',S=>!!S.f.vtec,null,true);
+AD('secret','rev_count','b','空ぶかし','カウントダウン中にレブリミッターに当てる',S=>!!S.f.rev_count,null,true);
 AD('secret','reverse','b','逆走注意','コースを逆向きに1km走る',S=>S.revKm>=1,null,true);
 AD('secret','views','b','カメラマン','6つの視点をすべて使う',S=>cnt(S.views)>=6,S=>[cnt(S.views),6],true);
 AD('secret','director','b','ディレクター','リプレイで6つのカメラをすべて使う',S=>cnt(S.rpc)>=6,S=>[cnt(S.rpc),6],true);
@@ -3029,7 +3097,8 @@ AD('secret','legend','p','レジェンド','ほかの実績をすべて解除す
 let ACHS=null,achDirty=false,achSaveT=0;
 const achKey=()=>pkey('fpr-ach');
 function achBlank(){return {u:{},f:{},laps:0,lapsMT:0,races:0,wins:0,winsMT:0,clean:0,greats:0,maxGreatRace:0,pbs:0,km:0,revKm:0,top:0,
-  cl:{},cw:{},car:{},cwin:{},combo:{},gold:{},perf:{},rec:{},views:{},rpc:{}};}
+  cl:{},cw:{},car:{},cwin:{},combo:{},gold:{},perf:{},rec:{},views:{},rpc:{},
+  cp:0,dly:{},wk:{},stk:{n:0,b:0,last:''},titles:{},title:'',cos:{},dlyN:0,dlyAll:0,wkN:0,revHits:0,flames:0,cabLaps:0,realLaps:0,passes:0};}
 function achLoad(){
   ACHS=achBlank();
   try{const o=JSON.parse(localStorage.getItem(achKey())||'null');if(o&&typeof o==='object')for(const k in ACHS)if(o[k]!=null&&typeof o[k]===typeof ACHS[k])ACHS[k]=o[k];}catch(e){}
@@ -3051,16 +3120,16 @@ function achToast(a){achQ.push(a);if(!achShowing)achNext();}
 function achNext(){
   const a=achQ.shift(),el=$('achToast');if(!a){achShowing=false;el.classList.remove('show');return;}
   achShowing=true;el.dataset.tier=a.tier;
-  $('achTN').textContent=a.name;$('achTT').textContent='実績解除 ・ '+ACH_TIER[a.tier].n+' '+ACH_TIER[a.tier].p+'pt';
+  $('achTN').textContent=a.name;$('achTT').textContent=a.label||('実績解除 ・ '+ACH_TIER[a.tier].n+' '+ACH_TIER[a.tier].p+'pt');
   el.classList.add('show');chime('best');
   setTimeout(()=>{el.classList.remove('show');setTimeout(achNext,350);},3200);
 }
 // --- events ---
 let lapGreat=0,lapJudged=0,lapFast=0,raceGreat=0,raceContacts=0,achKmAcc=0;
 function achLapStart(){lapGreat=0;lapJudged=0;lapFast=0;}
-function achCorner(great){lapJudged++;if(great){lapGreat++;raceGreat++;ACHS&&(ACHS.greats++);}}
+function achCorner(great){lapJudged++;if(great){lapGreat++;raceGreat++;ACHS&&(ACHS.greats++);chEv('great');}}
 function achContact(){if(state==='race')raceContacts++;}
-function achDrive(dt,sp,rev){if(!ACHS||state!=='race')return;const d=sp*dt/1000;ACHS.km+=d;if(rev)ACHS.revKm+=d;if(sp*3.6>ACHS.top)ACHS.top=sp*3.6;achKmAcc+=d;if(achKmAcc>0.5){achKmAcc=0;achDirty=true;achCheck();}}
+function achDrive(dt,sp,rev){if(!ACHS||state!=='race')return;const d=sp*dt/1000;ACHS.km+=d;if(rev)ACHS.revKm+=d;if(sp*3.6>ACHS.top)ACHS.top=sp*3.6;achKmAcc+=d;chEv('km',{n:d});if(sp*3.6>=250)chEv('speed',{kmh:sp*3.6});if(achKmAcc>0.5){achKmAcc=0;achDirty=true;achCheck();}}
 function achLap(lt,pb){
   if(!ACHS)return;const S=ACHS;
   S.laps++;if(isMT())S.lapsMT++;if(pb)S.pbs++;
@@ -3068,18 +3137,25 @@ function achLap(lt,pb){
   const judged=corners.filter(c=>c.grade>=2).length;
   if(judged>=3&&lapJudged>=judged&&lapGreat>=judged)S.perf[C.id]=1;
   if(lapFast>=4)S.f.purple=1;
-  if(lt<=goldTime())S.gold[C.id]=1;
+  const gold=lt<=goldTime();if(gold)S.gold[C.id]=1;
+  const cab=!!VIEWS[view].fp,real=realOn&&!!realFor(C.id);
+  if(cab)S.cabLaps=(S.cabLaps||0)+1;if(real){S.realLaps=(S.realLaps||0)+1;if(wind.ms>=10)S.f.wind10=1;}
+  if(S2CFG[CAR.id]&&S2CFG[CAR.id].vtec)S.f.vtec=1;
+  const x={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),cab,real};chEv('lap',x);if(pb)chEv('pb',x);if(gold)chEv('gold',x);
   achLapStart();achDirty=true;achCheck();
 }
 // gold target: the lap the speed guide would drive (this car, this weather), scaled per course type so the best
 // players of the shared board sit right around it: scanned circuits 4% slower, the road courses (where the full road
 // width lets you beat the guide's corner speeds) 10% faster
 function goldTime(){let s=0;for(let i=0;i<N;i++)s+=ds/Math.max(vT[i],1);return s*(C.model?1.04:0.90);}
-function achRaceStart(){raceGreat=0;raceContacts=0;achLapStart();}
+function achRaceStart(){raceGreat=0;raceContacts=0;achLapStart();chRaceStart();}
 function achFinish(rank){
   if(!ACHS)return;const S=ACHS;S.races++;
   S.maxGreatRace=Math.max(S.maxGreatRace,raceGreat);
-  if(rank===1){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;}
+  if(rank===1){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;
+    if(SCL>0)S.f.sc_win=1;if(chGreenPos===4)S.f.sc_last=1;if(realOn&&realFor(C.id)&&tempC!=null&&tempC<=5)S.f.coldwin=1;
+    chEv('win',{car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0});}
+  if(tyreStat.n>20&&tyreStat.ok/tyreStat.n>=.9&&LAPS>=3)S.f.tyre90=1;if(chRaceP>=3)S.f.pass3=1;chEv('race');
   achDirty=true;achCheck();
 }
 function achFlag(k){if(!ACHS||ACHS.f[k])return;ACHS.f[k]=1;achDirty=true;achCheck();}
@@ -3089,6 +3165,186 @@ function achRecords(){   // course records on the shared board (any car)
   COURSES.forEach(c=>{const top=rankFor(c,CAR,'all')[0];if(top&&isMe(top)&&!ACHS.rec[c.id]){ACHS.rec[c.id]=1;ch=true;}});
   if(ch){achDirty=true;achCheck();}
 }
+/* ---------- challenges: 3 dailies, 1 weekly, driver level, titles and garage customisation ----------
+   Everyone gets the same tasks: they are drawn from the Japan date (dailies change at 0:00 JST, the weekly on Monday).
+   Points: achievements + challenge points (ACHS.cp) = total; the total is never spent, it raises the driver level and
+   opens customisation (flame colour, muffler, blow-off). Weekly tasks give a title; levels and some achievements too. */
+const CH_TIER={1:{t:'b',p:20,n:'かんたん'},2:{t:'s',p:30,n:'ふつう'},3:{t:'g',p:50,n:'むずかしい'}};
+const TIMES_JA={day:'昼',dusk:'夕方',night:'夜'};
+// a task: k = event, n = goal, f = filter on the event, key = count distinct values instead of events
+const CH_POOL={
+  1:[
+    ()=>({k:'lap',n:3,txt:'好きなコースで3周する'}),
+    r=>{const c=chPickCar(r);return {k:'lap',n:1,f:x=>x.car===c.id,txt:(c.short||c.name)+' で1周する'};},
+    r=>{const c=COURSES[Math.floor(r()*COURSES.length)];return {k:'lap',n:1,f:x=>x.course===c.id,txt:c.name+' を1周する'};},
+    ()=>({k:'great',n:10,txt:'コーナーで GREAT を10回取る'}),
+    ()=>({k:'km',n:10,txt:'合計10km走る'}),
+    ()=>({k:'rev',n:10,txt:'MT のニュートラルでレブリミッターに10回当てる'}),
+    ()=>({k:'flame',n:30,txt:'マフラーからアフターファイヤーを30回出す'}),
+    ()=>({k:'lap',n:1,f:x=>x.cab,txt:'運転席視点で1周する'}),
+    r=>{const t=['day','dusk','night'][Math.floor(r()*3)];return {k:'lap',n:2,f:x=>x.time===t,txt:TIMES_JA[t]+'に2周する'};},
+  ],
+  2:[
+    ()=>({k:'win',n:1,txt:'レースで1回優勝する'}),
+    ()=>({k:'lap',n:2,f:x=>x.wx==='rain',txt:'雨の中で2周する'}),
+    ()=>({k:'lap',n:2,f:x=>x.wx==='fog',txt:'霧の中で2周する'}),
+    ()=>({k:'lap',n:3,f:x=>x.mt,txt:'MT（マニュアル）で3周する'}),
+    ()=>({k:'great',n:25,txt:'コーナーで GREAT を25回取る'}),
+    ()=>({k:'pb',n:1,txt:'どこかで自己ベストを更新する'}),
+    ()=>({k:'km',n:30,txt:'合計30km走る'}),
+    ()=>({k:'pass',n:3,txt:'レースで合計3台抜く'}),
+    ()=>({k:'speed',n:1,f:x=>x.kmh>=250,txt:'250km/h を出す'}),
+  ],
+  3:[
+    ()=>({k:'win',n:1,f:x=>x.clean,txt:'壁にも車にも当たらずにレースで優勝する'}),
+    r=>{const c=chPickCar(r);return {k:'win',n:1,f:x=>x.car===c.id,txt:(c.short||c.name)+' でレースに優勝する'};},
+    r=>{const c=COURSES[Math.floor(r()*COURSES.length)];return {k:'win',n:1,f:x=>x.course===c.id,txt:c.name+' のレースで優勝する'};},
+    ()=>({k:'gold',n:1,txt:'どこかのコースでゴールドタイムを切る'}),
+    ()=>({k:'win',n:1,f:x=>x.wx==='rain',txt:'雨のレースで優勝する'}),
+    ()=>({k:'sector',n:4,txt:'セクターの自己ベストを4回出す'}),
+    ()=>({k:'win',n:1,f:x=>x.mt,txt:'MT（マニュアル）でレースに優勝する'}),
+  ],
+};
+const CH_WEEKLY=[
+  {id:'tour',k:'lap',n:5,key:x=>x.course,txt:'5つのコースでそれぞれ1周する',ti:'tourer'},
+  {id:'wins',k:'win',n:5,txt:'レースで5回優勝する',ti:'winner'},
+  {id:'km',k:'km',n:100,txt:'合計100km走る',ti:'ironman'},
+  {id:'gold',k:'gold',n:3,key:x=>x.course,txt:'3つのコースでゴールドタイムを切る',ti:'goldhunter'},
+  {id:'wx',k:'lap',n:4,key:x=>x.wx,txt:'4種類の天候（晴れ・曇り・雨・霧）でそれぞれ1周する',ti:'allweather'},
+  {id:'great',k:'great',n:150,txt:'コーナーで GREAT を150回取る',ti:'cornerist'},
+  {id:'cars',k:'win',n:4,key:x=>x.car,txt:'違う車4台でそれぞれレースに優勝する',ti:'multi'},
+  {id:'clean',k:'win',n:3,f:x=>x.clean,txt:'壁にも車にも当たらずにレースで3回優勝する',ti:'gentleman'},
+];
+const CH_WEEK_PTS=150;
+const TITLES={
+  tourer:'旅するドライバー',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
+  lv5:'ルーキー',lv10:'走り屋',lv20:'エース',lv30:'トップドライバー',lv50:'生ける伝説',
+  streak7:'皆勤賞',record:'レコードホルダー',legend:'レジェンド',grandslam:'グランドスラマー',perfect:'完璧主義者',revking:'レブリミッター職人',fire:'火吹き',
+};
+const TITLE_HOW={lv5:'Lv5',lv10:'Lv10',lv20:'Lv20',lv30:'Lv30',lv50:'Lv50',streak7:'実績「1週間皆勤」',record:'実績「レコードホルダー」',legend:'実績「レジェンド」',
+  grandslam:'実績「グランドスラム」',perfect:'実績「完璧主義者」',revking:'実績「レブリミッター職人」',fire:'実績「火吹き」'};
+CH_WEEKLY.forEach(w=>TITLE_HOW[w.ti]='ウィークリー「'+w.txt+'」');
+const TITLE_ACH={streak7:'streak7',record:'record5',legend:'legend',grandslam:'win_all',perfect:'perfect5',revking:'rev100',fire:'flame1000'};
+// customisation, opened by total points
+const COS={
+  flame:{n:'炎の色',o:{orange:{n:'オレンジ',need:0,c:['255,255,240','170,210,255','255,190,80','255,90,20','255,60,0'],l:0xff7a2a},
+    blue:{n:'青',need:250,c:['240,250,255','150,220,255','80,160,255','40,90,255','20,40,255'],l:0x4a90ff},
+    green:{n:'緑',need:500,c:['245,255,240','190,255,200','90,255,140','30,200,90','10,140,60'],l:0x44ff88},
+    purple:{n:'紫',need:1000,c:['255,245,255','230,190,255','190,110,255','140,50,255','90,20,200'],l:0xb060ff},
+    white:{n:'白',need:2000,c:['255,255,255','255,255,250','250,245,235','230,225,215','200,195,190'],l:0xfff4e0}}},
+  muf:{n:'マフラー',o:{stock:{n:'純正',need:0,k:1,f:1,g:1},sport:{n:'スポーツ',need:150,k:1.5,f:1.25,g:1.15},straight:{n:'ストレート',need:600,k:2.2,f:1.6,g:1.3}}},
+  bov:{n:'ブローオフ',o:{stock:{n:'純正',need:0},open:{n:'大気開放',need:300}}},
+};
+const COS_NOTE={flame:'アフターファイヤー（破裂音に合わせてマフラーから出る炎）の色。',muf:'アクセルオフの破裂音と炎の量・大きさ（速さは変わりません）。',bov:'ターボ車でアクセルを抜いた時の「プシュー」。大気開放にすると全ターボ車で大きく鳴ります。'};
+function chHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function chRng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function chPickCar(r){const list=CARS.filter(c=>!c.hide);return list[Math.floor(r()*list.length)];}
+const jstNow=()=>Date.now()+9*36e5;
+function chDay(){return new Date(jstNow()).toISOString().slice(0,10);}
+function chWeek(){return 'w'+Math.floor((Math.floor(jstNow()/864e5)+3)/7);}
+function chPrevDay(d){return new Date(Date.parse(d+'T00:00:00Z')-864e5).toISOString().slice(0,10);}
+function chDailies(day){
+  const r=chRng(chHash('daily:'+day)),out=[];
+  [1,2,3].forEach(t=>{const pool=CH_POOL[t];const task=pool[Math.floor(r()*pool.length)](r);task.tier=t;out.push(task);});
+  return out;
+}
+function chWeekly(wk){return CH_WEEKLY[chHash('weekly:'+wk)%CH_WEEKLY.length];}
+let chToday=null,chTodayKey='',chWk=null,chWkKey='';
+// roll the saved progress over when the day / week changes
+function chSync(){
+  if(!ACHS)return;const d=chDay(),w=chWeek();
+  if(chTodayKey!==d){chTodayKey=d;chToday=chDailies(d);}
+  if(chWkKey!==w){chWkKey=w;chWk=chWeekly(w);}
+  if(!ACHS.dly||ACHS.dly.d!==d){ACHS.dly={d,p:[0,0,0],k:[[],[],[]],done:[0,0,0],all:0};achDirty=true;}
+  if(!ACHS.wk||ACHS.wk.w!==w){ACHS.wk={w,p:0,k:[],done:0};achDirty=true;}
+}
+const chFmtN=(n,goal)=>Math.min(goal,Math.floor(n+1e-9)).toLocaleString();
+function totalPts(S){let p=0;for(const a of ACH)if(S.u&&S.u[a.id])p+=ACH_TIER[a.tier].p;return p+(S.cp||0);}
+const lvTier=lv=>lv>=50?'p':lv>=25?'g':lv>=10?'s':lv>=5?'b':'0';
+const lvOf=p=>Math.min(99,Math.floor(Math.sqrt(Math.max(0,p)/20))+1);
+const lvPts=lv=>20*(lv-1)*(lv-1);
+function chOwnedTitles(S){
+  const own={};for(const k in (S.titles||{}))if(TITLES[k])own[k]=1;
+  const lv=lvOf(totalPts(S));[5,10,20,30,50].forEach(l=>{if(lv>=l)own['lv'+l]=1;});
+  for(const t in TITLE_ACH)if(S.u&&S.u[TITLE_ACH[t]])own[t]=1;
+  return own;
+}
+function cosGet(k){const v=ACHS&&ACHS.cos&&ACHS.cos[k];return COS[k].o[v]?v:Object.keys(COS[k].o)[0];}
+function cosOpt(k){return COS[k].o[cosGet(k)];}
+function cosSet(k,v){if(!ACHS||!COS[k].o[v]||totalPts(ACHS)<COS[k].o[v].need)return;ACHS.cos=Object.assign({},ACHS.cos,{[k]:v});achDirty=true;achFlag('custom');renderChal();}
+// an event from the game: type, context; adds to today's tasks and the weekly
+function chEv(type,x){
+  if(!ACHS||!PLAYER||tut)return;chSync();x=x||{};const add=x.n!=null?x.n:1,D=ACHS.dly,W=ACHS.wk;let ch=false;
+  chToday.forEach((t,i)=>{if(D.done[i]||t.k!==type||(t.f&&!t.f(x)))return;
+    if(t.key){const v=t.key(x);if(D.k[i].includes(v))return;D.k[i].push(v);D.p[i]=D.k[i].length;}else D.p[i]+=add;ch=true;
+    if(D.p[i]>=t.n){D.done[i]=Date.now();chAward(CH_TIER[t.tier].p,'デイリー達成',t.txt,CH_TIER[t.tier].t);ACHS.dlyN=(ACHS.dlyN||0)+1;
+      if(D.done.every(Boolean)&&!D.all){D.all=1;const st=ACHS.stk||{n:0,b:0,last:''};st.n=st.last===chPrevDay(D.d)?st.n+1:1;st.last=D.d;st.b=Math.max(st.b||0,st.n);ACHS.stk=st;
+        ACHS.dlyAll=(ACHS.dlyAll||0)+1;const bonus=30+Math.min(50,10*(st.n-1));chAward(bonus,'デイリー全達成',st.n>1?st.n+'日連続ボーナス':'3つ全部クリア','g');}}});
+  const w=chWk;
+  if(!W.done&&w.k===type&&!(w.f&&!w.f(x))){
+    if(w.key){const v=w.key(x);if(!W.k.includes(v)){W.k.push(v);W.p=W.k.length;ch=true;}}else{W.p+=add;ch=true;}
+    if(W.p>=w.n){W.done=Date.now();ACHS.wkN=(ACHS.wkN||0)+1;ACHS.titles=Object.assign({},ACHS.titles,{[w.ti]:Date.now()});
+      chAward(CH_WEEK_PTS,'ウィークリー達成','称号「'+TITLES[w.ti]+'」','p');}}
+  if(ch){achDirty=true;if(type!=='km'&&type!=='flame')achCheck();}
+}
+function chAward(p,head,text,tier){const lv0=lvOf(totalPts(ACHS));ACHS.cp=(ACHS.cp||0)+p;achToast({name:text,tier,label:head+' ・ +'+p+'pt'});
+  const lv1=lvOf(totalPts(ACHS));if(lv1>lv0)achToast({name:'ドライバーレベル '+lv1,tier:'p',label:'レベルアップ'});achDirty=true;achCheck();}
+// position gains in a race (after the green flag), and the place the race started from
+let chPos=null,chRaceP=0,chGreenPos=null,chTickT=0;
+function chRaceStart(){chPos=null;chRaceP=0;chGreenPos=null;chTickT=0;}
+function chTick(dt){
+  if(state!=='race'||mode!=='race'||tut)return;chTickT+=dt;if(chTickT<.25)return;chTickT=0;
+  if(typeof scOn==='function'&&scOn())return;
+  const f=rdField();if(chGreenPos==null)chGreenPos=f.pos;
+  if(chPos!=null&&f.pos<chPos){const n=chPos-f.pos;chRaceP+=n;ACHS&&(ACHS.passes=(ACHS.passes||0)+n);chEv('pass',{n});}
+  chPos=f.pos;
+}
+// ---- the challenge screen ----
+function renderChal(){
+  if(!ACHS)return;chSync();const S=ACHS,P=totalPts(S),lv=lvOf(P),el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
+  // level
+  const hd=$('chHead');hd.textContent='';
+  const nx=lvPts(lv+1),pv=lvPts(lv),badge=el('div','chlv');badge.append(el('small',null,'ドライバーレベル'),el('b',null,'Lv'+lv));
+  const info=el('div','chinfo');const own=chOwnedTitles(S),ti=S.title&&own[S.title]?TITLES[S.title]:'';
+  info.append(el('span','chname',(PLAYER||'名前未設定')+(ti?'　「'+ti+'」':'')));
+  const bar=el('div','achbar'),bi=el('i');bi.style.width=(lv>=99?100:Math.min(100,(P-pv)/(nx-pv)*100)).toFixed(1)+'%';bar.append(bi);
+  info.append(bar,el('small',null,'合計 '+P.toLocaleString()+' pt（実績 '+(P-(S.cp||0)).toLocaleString()+' ・ チャレンジ '+(S.cp||0).toLocaleString()+'）'+(lv<99?'　次のレベルまで '+(nx-P).toLocaleString()+' pt':'')));
+  hd.append(badge,info);
+  if(!PLAYER)hd.append(el('p','pfnote','名前を決めて走ると、チャレンジが進みます。'));
+  // dailies
+  const left=864e5-(jstNow()%864e5),hh=Math.floor(left/36e5),mm=Math.floor(left%36e5/6e4);
+  $('chDay').textContent=chTodayKey.replace(/-/g,'/')+' ・ あと '+hh+'時間'+mm+'分で入れ替わり';
+  const ul=$('chDaily');ul.textContent='';
+  const row=(tier,name,desc,p,goal,done,right)=>{const li=el('li',done?'got':'');li.dataset.tier=tier;const t=el('i','tier',tier.toUpperCase());
+    const body=el('div');body.append(el('b',null,name),el('span',null,desc));
+    if(!done){const pr=el('span','prog'),b2=el('i');b2.style.width=Math.min(100,p/goal*100)+'%';pr.append(b2);const n=el('em',null,chFmtN(p,goal)+' / '+goal.toLocaleString());body.append(pr,n);}
+    li.append(t,body,el('small',null,right));return li;};
+  chToday.forEach((t,i)=>ul.append(row(CH_TIER[t.tier].t,t.txt,CH_TIER[t.tier].n,S.dly.p[i],t.n,!!S.dly.done[i],S.dly.done[i]?'達成 +'+CH_TIER[t.tier].p+'pt':'+'+CH_TIER[t.tier].p+'pt')));
+  const st=S.stk||{n:0,b:0,last:''},alive=st.last===chTodayKey||st.last===chPrevDay(chTodayKey);
+  $('chStreak').textContent='3つ全部クリアで +30pt、続けた日数に応じてさらに最大 +50pt。'+(alive&&st.n?'　いま '+st.n+'日連続':'')+(st.b?'（最長 '+st.b+'日）':'');
+  // weekly
+  const wl=$('chWeekly');wl.textContent='';const wend=7*864e5-((jstNow()+3*864e5)%(7*864e5)),wd=Math.floor(wend/864e5);
+  $('chWeek').textContent='月曜 0時に入れ替わり（あと'+(wd?wd+'日':Math.ceil(wend/36e5)+'時間')+'）';
+  wl.append(row('p',chWk.txt,'報酬：称号「'+TITLES[chWk.ti]+'」'+(S.titles&&S.titles[chWk.ti]&&!S.wk.done?'（持っている称号）':''),S.wk.p,chWk.n,!!S.wk.done,S.wk.done?'達成 +'+CH_WEEK_PTS+'pt':'+'+CH_WEEK_PTS+'pt'));
+  // customisation
+  const cb=$('chCustom');cb.textContent='';
+  for(const k in COS){const box=el('div','opts');box.append(el('span','ol',COS[k].n));const g=el('div','grp');
+    for(const v in COS[k].o){const o=COS[k].o[v],b=el('button','tog'+(k==='flame'?' sw':''));b.type='button';b.id='cos_'+k+'_'+v;const ok=P>=o.need;
+      b.textContent=ok?o.n:o.n+'　🔒'+o.need.toLocaleString()+'pt';b.disabled=!ok;b.setAttribute('aria-pressed',cosGet(k)===v);
+      if(k==='flame')b.style.setProperty('--sw','rgb('+o.c[2]+')');
+      b.addEventListener('click',()=>cosSet(k,v));g.append(b);}
+    box.append(g,el('span','tmnote',COS_NOTE[k]));cb.append(box);}
+  // titles
+  const tb=$('chTitles');tb.textContent='';const owned=Object.keys(TITLES).filter(k=>own[k]);
+  const sel=el('select');sel.id='chTitleSel';const o0=el('option',null,'（称号なし）');o0.value='';sel.append(o0);
+  owned.forEach(k=>{const o=el('option',null,TITLES[k]);o.value=k;sel.append(o);});sel.value=S.title&&own[S.title]?S.title:'';
+  sel.addEventListener('change',()=>{ACHS.title=sel.value;achDirty=true;achSave();renderChal();});
+  const wrap=el('div','pfsel');const lab=el('label','ol','称号');lab.htmlFor='chTitleSel';wrap.append(lab,sel);tb.append(wrap);
+  const ul2=el('ul','chtitles');Object.keys(TITLES).forEach(k=>{const li=el('li',own[k]?'got':'');li.append(el('b',null,own[k]?TITLES[k]:'？？？'),el('span',null,TITLE_HOW[k]||''));ul2.append(li);});
+  tb.append(el('p','pfnote','持っている称号 '+owned.length+' / '+Object.keys(TITLES).length+'。選んだ称号とレベルは、ランキングとプレイヤー記録でほかのプレイヤーにも見えます。'),ul2);
+}
+function chTitleBtn(){const b=$('goChal');if(!b||!ACHS)return;chSync();const n=ACHS.dly.done.filter(Boolean).length;b.textContent='チャレンジ（今日 '+n+' / 3）';}
+
 // --- list screen ---
 function renderAch(){
   if(!ACHS)return;const S=ACHS,box=$('achList');box.textContent='';
@@ -3124,7 +3380,8 @@ function profSummary(S){
   const t={b:0,s:0,g:0,p:0};let n=0,pts=0;
   for(const a of ACH)if(S.u&&S.u[a.id]){n++;t[a.tier]++;pts+=ACH_TIER[a.tier].p;}
   const num=v=>typeof v==='number'&&isFinite(v)?v:0;
-  return {v:1,n,pts,t,km:Math.round(num(S.km)*10)/10,laps:num(S.laps),races:num(S.races),wins:num(S.wins),winsMT:num(S.winsMT),clean:num(S.clean),
+  const P=pts+(typeof S.cp==='number'?S.cp:0),ti=typeof S.title==='string'&&chOwnedTitles(S)[S.title]?S.title:'';
+  return {v:1,n,pts:P,lv:lvOf(P),ti,dn:num(S.dlyN),sk:num(S.stk&&S.stk.b),t,km:Math.round(num(S.km)*10)/10,laps:num(S.laps),races:num(S.races),wins:num(S.wins),winsMT:num(S.winsMT),clean:num(S.clean),
     top:Math.round(num(S.top)),greats:num(S.greats),cars:cnt(S.car),courses:cnt(S.cl),golds:cnt(S.gold),recs:cnt(S.rec)};
 }
 // someone else's summary from the shared store: numbers only, clamped
@@ -3133,7 +3390,7 @@ function cleanProf(o){
   const n=(v,max)=>typeof v==='number'&&isFinite(v)&&v>=0?Math.min(v,max):0,t=o.t&&typeof o.t==='object'?o.t:{};
   return {n:n(o.n,999),pts:n(o.pts,1e6),t:{b:n(t.b,999),s:n(t.s,999),g:n(t.g,999),p:n(t.p,999)},km:n(o.km,1e7),laps:n(o.laps,1e7),races:n(o.races,1e7),
     wins:n(o.wins,1e7),winsMT:n(o.winsMT,1e7),clean:n(o.clean,1e7),top:n(o.top,999),greats:n(o.greats,1e8),cars:n(o.cars,999),courses:n(o.courses,999),
-    golds:n(o.golds,999),recs:n(o.recs,999),at:n(o.at,9e15)};
+    golds:n(o.golds,999),recs:n(o.recs,999),at:n(o.at,9e15),lv:Math.max(1,Math.round(n(o.lv,99))),ti:typeof o.ti==='string'&&TITLES[o.ti]?o.ti:'',dn:n(o.dn,1e6),sk:n(o.sk,1e5)};
 }
 function parseProfs(id,d,out){
   if(!d||!Array.isArray(d.players))return;
@@ -3186,7 +3443,7 @@ function renderProf(){
   const P=players.find(p=>p.k===profKey),D=profData(P),me=P.k===selfKey();
   box.textContent='';
   const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;};
-  const head=el('div','pfhead');head.append(el('b',null,P.name));if(me)head.append(el('em',null,'あなた'));
+  const head=el('div','pfhead');if(D&&D.lv)head.append(el('i','lvchip lv'+lvTier(D.lv),'Lv'+D.lv));head.append(el('b',null,P.name));if(D&&D.ti)head.append(el('span','pftitle','「'+TITLES[D.ti]+'」'));if(me)head.append(el('em',null,'あなた'));
   if(!me&&D&&D.at)head.append(el('small',null,'最終更新 '+new Date(D.at).toLocaleDateString('ja-JP')));
   box.append(head);
   // achievements
@@ -3217,6 +3474,7 @@ function renderProf(){
     stat('走った車',D.cars+' / '+CARS.length,'台');
     stat('走ったコース',D.courses+' / '+COURSES.length);
     stat('ゴールドタイム',D.golds+' / '+COURSES.length,'コース');
+    stat('デイリー達成',(D.dn||0).toLocaleString(),'個'+(D.sk?'（最長 '+D.sk+'日連続）':''));
   }
   stat('コースレコード（全車1位）',String(tops),'コース');
   stat('記録した組み合わせ',String(combos),'コース×車');
@@ -3591,7 +3849,7 @@ function sectorHit(k){
   while(curSplits.length<k-1)curSplits.push(null);  // a missed marker (e.g. after R) leaves a gap
   curSplits[k-1]=t;
   const ref=bestSplits?bestSplits[k-1]:null,d=ref!=null?t-ref:null;
-  {const sec=t-(k>1&&curSplits[k-2]!=null?curSplits[k-2]:0),bs=bestSec(k-1);if(bs!=null&&(k===1||curSplits[k-2]!=null)&&sec<bs)lapFast++;}
+  {const sec=t-(k>1&&curSplits[k-2]!=null?curSplits[k-2]:0),bs=bestSec(k-1);if(bs!=null&&(k===1||curSplits[k-2]!=null)&&sec<bs){lapFast++;chEv('sector');}}
   $('splitN').textContent=k<4?'SECTOR '+k:'LAP';$('splitT').textContent=fmt(t);
   const e=$('splitD');e.textContent=d==null?'':fmtD(d);e.className=d==null?'':d<=0?'fast':'slow';
   $('split').classList.add('show');splitT=2.4;radioSector(k,t);
@@ -3961,7 +4219,7 @@ function frame(now){
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);updateTut(dt);updateRevWarn(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);chTick(dt);updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       const wrongWay=(fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3;
@@ -3986,7 +4244,7 @@ function frame(now){
   // neutral (MT): the engine is free, so holding the throttle hits the rev limiter: fuel cut, a drop, again (バババッ)
   if(isMT()&&pl.gear===0&&!CAR.ev&&(state==='race'||state==='count')){
     const on=keys.up&&revCut<=0;nRev+=((on?CAR.red*1.04:950)-nRev)*Math.min(1,dt*(on?5.5:1.6));
-    if(nRev>=CAR.red*.995){nRev=CAR.red*(.955+Math.random()*.015);revCut=.055+Math.random()*.02;}
+    if(nRev>=CAR.red*.995){nRev=CAR.red*(.955+Math.random()*.015);revCut=.055+Math.random()*.02;if(ACHS){ACHS.revHits=(ACHS.revHits||0)+1;if(state==='count')achFlag('rev_count');}chEv('rev');}
     revCut=Math.max(0,revCut-dt);rpm=nRev;
   }else{nRev=Math.max(950,rpm);revCut=0;}
   if(state==='menu'){rpm=Math.max(rpm*0.9,menuRevT>.55?CAR.red*.9:0);menuRevT=Math.max(0,menuRevT-dt);}
@@ -4025,7 +4283,7 @@ setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);set
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');
-renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();
+renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();chTitleBtn();
 requestAnimationFrame(frame);
 })();
 </script>

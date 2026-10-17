@@ -63,6 +63,11 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   破裂音に合わせて `rig_body` に付けた炎のスプライトと点光源が出る（`fxFlame`）。車を追加したら後ろからの描画でマフラー位置を確かめて `EXH` に入れる（モデルにマフラーがない GR ヤリス・GT-R GT3・S2000 は推定）。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
+- `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。
+  デイリー3つ（かんたん20・ふつう30・むずかしい50pt、全部で +30＋連続日数ボーナス最大 +50）は日本時間の日付から `chDailies` で決まり全員共通、
+  ウィークリー1つ（`CH_WEEKLY`、月曜0時、150pt＋称号）。進み具合はゲームのイベント（`chEv('lap'|'win'|'great'|'km'|'pb'|'gold'|'sector'|'pass'|'rev'|'flame'|'speed'|'race')`）で増える。
+  合計ポイント（実績＋チャレンジ、`totalPts`）は減らず、ドライバーレベル（`lvOf`）と `COS`（炎の色・マフラー・ブローオフ）の解放に使う。称号 `TITLES` はウィークリー・レベル・一部の実績で手に入り、
+  レベルと選んだ称号は `prof`（lv, ti）に載ってランキングとプレイヤー記録に出る。
 - `player record`（`renderProf`）… プレイヤー記録の画面。自分の実績の集計（`profSummary`：解除数・ランク別の数・走行距離など、
   数だけ）を `records/<uid>` の各プレイヤーに `prof` として載せ（`publishProf`、走行中は送らない）、全員の分を読んで表示する。
 - `safety car start`（`scStart`/`scUpdate`、状態は `scar`）… レースの前にセーフティカー先導の1周（ヴァンテージか SLS、`SCCARS` は選べない車）。
