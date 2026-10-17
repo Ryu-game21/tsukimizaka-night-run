@@ -311,6 +311,18 @@ body:not(.mt) .pad.s{display:none}
 #achToast[data-tier="s"],.achs li[data-tier="s"]{--tc:#c9d1db}
 #achToast[data-tier="g"],.achs li[data-tier="g"]{--tc:#f0c75a}
 #achToast[data-tier="p"],.achs li[data-tier="p"]{--tc:#9fe3ff}
+/* team radio */
+#radio{left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 64px);max-width:min(440px,calc(100% - 32px));box-sizing:border-box;
+  padding:8px 14px 10px;background:rgba(10,14,26,.86);border:1px solid rgba(205,215,228,.28);border-left:3px solid #6ad88a;border-radius:4px 14px 14px 4px;
+  text-shadow:none;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;z-index:6}
+#radio.show{opacity:1;transform:none}
+#radio.warn{border-left-color:#ffb347}#radio.alert{border-left-color:#ff5a46}#radio.good{border-left-color:#9fe3ff}
+#radio .rl{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+#radio .rl i{width:7px;height:7px;border-radius:50%;background:#6ad88a;animation:rdBlink .5s steps(2) infinite}
+@keyframes rdBlink{50%{opacity:.25}}
+#radio p{margin:3px 0 0;font-family:"M PLUS 1",sans-serif;font-weight:700;font-size:16px;line-height:1.45;color:#f2efe6;letter-spacing:.02em}
+@media (max-width:700px){#radio{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}#radio p{font-size:14px}}
+@media (prefers-reduced-motion:reduce){#radio{transition:none;transform:none}#radio .rl i{animation:none}}
 /* course record news */
 #crToast{left:50%;top:calc(env(safe-area-inset-top,0px) + 96px);display:grid;gap:3px;justify-items:center;text-align:center;padding:10px 20px 11px;
   width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;background:var(--panel);border:1px solid #f0c75a;border-top:3px solid #f0c75a;border-radius:4px;
@@ -414,6 +426,7 @@ body:not(.mt) .pad.s{display:none}
 <div class="hud" id="showName" hidden></div>
 <div class="hud" id="revWarn" hidden aria-live="polite"></div>
 <div class="hud" id="achToast" aria-live="polite"><span id="achTT"></span><b id="achTN"></b></div>
+<div class="hud" id="radio" aria-live="polite" hidden><span class="rl"><i></i>TEAM RADIO ・ 無線</span><p id="radioT"></p></div>
 <div class="hud" id="crToast" aria-live="polite"><span id="crTT"></span><b id="crTN"></b><small id="crTS"></small></div>
 <div class="hud" id="rpHud" hidden><b>REPLAY</b><span id="rpInfo"></span><span id="rpTime"></span><span id="rpCamN"></span></div>
 <div class="hud" id="tut" hidden aria-live="polite"><p class="eyebrow">TUTORIAL <span id="tutN"></span></p><p id="tutT"></p><div class="tbar"><i id="tutBar"></i></div></div>
@@ -537,6 +550,10 @@ body:not(.mt) .pad.s{display:none}
         <span class="ol">速度ガイド</span>
         <button class="tog" id="tgLine" aria-pressed="true">ガイドライン ON</button>
         <button class="tog" id="tgCall" aria-pressed="true">コーナー予告 ON</button>
+      </div>
+      <div class="opts">
+        <span class="ol">無線</span>
+        <button class="tog" id="tgRadio" aria-pressed="true">チーム無線 ON</button>
       </div>
     </section>
 
@@ -1805,7 +1822,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true};
 const GSTEP=0.05;let mode='race',ghost=null,ownGhost=null,ghostInfo=null,rec=[],recT=0;
 try{if(localStorage.getItem('fpr-mode')==='free')mode='free';}catch(e){}
 function setMode(m){
@@ -1840,7 +1857,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.radio===false)opts.radio=false;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -2003,11 +2020,12 @@ document.querySelectorAll('.pad button[data-k]').forEach(b=>{
 });
 function setOpt(k,v){
   opts[k]=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
-  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 '}[k]+(v?'ON':'OFF');
+  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 '}[k]+(v?'ON':'OFF');
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
 $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
 $('tgCall').addEventListener('click',()=>setOpt('call',!opts.call));
+$('tgRadio').addEventListener('click',()=>setOpt('radio',!opts.radio));
 VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog vtog';b.type='button';b.dataset.i=i;b.textContent=v.n;b.addEventListener('click',()=>setView(i));$('views').appendChild(b);});
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
@@ -2605,7 +2623,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();tyreReset();scStart();achRaceStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  resetRace();tyreReset();radioReset();scStart();achRaceStart();radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -2627,7 +2645,7 @@ function endSession(){
 function toMenu(to){
   if(tut){tutRestore();to='title';}
   state='menu';$('rpHud').hidden=true;$('result').hidden=true;$('menu').hidden=false;setHud(false);$('split').classList.remove('show');showMsg('');ghostCar.visible=false;applyOffset();camera.updateProjectionMatrix();$('showName').hidden=false;
-  renderCourseCards();renderBoard();resetRace();scStop();AI.forEach(a=>a.v=VAI*0.55);
+  renderCourseCards();renderBoard();resetRace();scStop();radioReset();AI.forEach(a=>a.v=VAI*0.55);
   showStep(typeof to==='string'?to:'course');
 }
 $('startBtn').addEventListener('click',start);
@@ -2647,7 +2665,7 @@ function finish(){
     +`<tr><td>TOTAL</td><td>${fmt(raceT)}</td></tr><tr><td>タイヤ</td><td>${tyreStat.n>1?'平均 '+Math.round(tyreStat.sum/tyreStat.n)+'°C ・ 適温 '+Math.round(tyreStat.ok/tyreStat.n*100)+'%':'—'}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   renderResultRank();$('rpBtn').hidden=!sessRp;
   setTimeout(()=>{if(state==='finish'){$('result').hidden=false;$('retryBtn').focus();}},1400);
-  showMsg(finishRank===1?'優勝':'FINISH',false,1.4);chime('finish');achFinish(finishRank);
+  showMsg(finishRank===1?'優勝':'FINISH',false,1.4);chime('finish');achFinish(finishRank);radioFinish(finishRank);
 }
 
 /* ---------- best-lap replay ---------- */
@@ -3221,8 +3239,9 @@ function tyreUpdate(dt,sp,aLat,thr,brk,trac){
   tyreCalc();
   if(state==='race'){const w=tyreWin(),avg=(tyreT[0]+tyreT[1]+tyreT[2]+tyreT[3])/4;tyreStat.n+=dt;tyreStat.sum+=avg*dt;if(tyreK>0.985)tyreStat.ok+=dt;
     tyreMsgT-=dt;
-    if(!tyreWarm&&tyreK>0.985&&tyreStat.n>3){tyreWarm=true;if(!scOn())showMsg('タイヤ 適温',true,1.4);}
-    else if(tyreMsgT<=0&&Math.max(...tyreT)>w[1]+12){tyreMsgT=12;showMsg('タイヤ オーバーヒート',true,1.6);}}
+    if(!tyreWarm&&tyreK>0.985&&tyreStat.n>3){tyreWarm=true;if(!scOn())radioTyres('warm');}
+    else if(tyreMsgT<=0&&Math.max(...tyreT)>w[1]+12){tyreMsgT=12;radioTyres('hot',Math.max(tyreT[0],tyreT[1])>=Math.max(tyreT[2],tyreT[3]));}
+    else if(tyreWarm&&tyreK<0.93&&avg<w[0]){radioTyres('cold');}}
 }
 function tyreColor(t,w){
   const st=[[w[0]-35,[70,140,255]],[w[0]-8,[90,190,255]],[w[0],[100,215,130]],[w[1],[100,215,130]],[w[1]+10,[255,210,74]],[w[1]+25,[255,90,70]]];
@@ -3256,6 +3275,153 @@ function drawTyres(){
 }
 const recNow=v=>v*Math.sqrt(tyreK);
 
+/* ---------- team radio: an engineer's short calls in a speech bubble (race: to win, free run: to go faster) ----------
+   radioSay(key,lines,prio,cls): picks one of the lines (string or function), at most one call every ~8 s (a higher
+   priority call may cut in after 2.5 s), the same key not again for its own cooldown. Everything it says comes from
+   numbers the game already has: gaps, positions, tyre temperatures, sector times, the ghost, corner judgements. */
+var RD={busy:0,shown:0,prio:0,last:{},t:0,hideT:0},rdLap=null,rdRace=null;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const sec1=v=>Math.abs(v).toFixed(1),sec3=v=>Math.abs(v).toFixed(3);
+function radioReset(){RD.q=[];RD.busy=0;RD.prio=0;RD.last={};RD.t=0;RD.hideT=0;$('radio').classList.remove('show');$('radio').hidden=true;
+  rdLap={over:0,slow:0,dirt:0,centre:0,centreN:0,worst:[null,null,null,null],said:{}};
+  rdRace={pos:null,ahead:[],behindClose:false,tick:0,finalSaid:false,winSaid:false,coldSaid:false,greenSaid:false};}
+function radioSay(key,lines,prio,cls,cd){
+  if(!opts.radio||state==='menu'||state==='replay'||tut)return false;
+  prio=prio||1;const now=RD.t;
+  if(RD.last[key]!=null&&now-RD.last[key]<(cd||40))return false;
+  if(now<RD.busy&&!(prio>RD.prio&&now-RD.shown>2.5))return false;
+  let line=Array.isArray(lines)?pick(lines):lines;if(typeof line==='function')line=line();if(!line)return false;
+  RD.last[key]=now;RD.shown=now;(RD.log=RD.log||[]).push(key+': '+line);if(RD.log.length>60)RD.log.shift();RD.prio=prio;RD.busy=now+Math.max(8,line.length*0.22+5);RD.hideT=now+Math.max(3,line.length*0.13+1.6);
+  const el=$('radio');$('radioT').textContent=line;el.className='hud show '+(cls||'');el.hidden=false;
+  if(A&&ac){burst(.09,2400,'bandpass',.22,2.5);burst(.05,1200,'bandpass',.12,3);tone(1900,.05,'square',.03,0);}
+  return true;
+}
+function rdLater(sec,fn){(RD.q=RD.q||[]).push({at:RD.t+sec,fn});}
+function radioTick(dt){
+  RD.t+=dt;
+  if(RD.q&&RD.q.length){const due=RD.q.filter(x=>x.at<=RD.t);RD.q=RD.q.filter(x=>x.at>RD.t);due.forEach(x=>{try{x.fn();}catch(e){}});}
+  if(RD.hideT&&RD.t>RD.hideT){RD.hideT=0;$('radio').classList.remove('show');}
+  if(!opts.radio||state!=='race'||tut||!rdRace)return;
+  // what the lap is made of (free run advice)
+  if(mode==='free'&&pl.lap>=1){const hw=HW[pl.idx];
+    if(Math.abs(pl.off)>hw)rdLap.dirt+=dt;
+    if(cornerAt[pl.idx]>=0&&pl.v>8){rdLap.centre+=Math.abs(pl.off)/Math.max(hw,1)*dt;rdLap.centreN+=dt;}}
+  rdRace.tick+=dt;if(rdRace.tick<0.25)return;const tk=rdRace.tick;rdRace.tick=0;
+  if(mode==='race')radioRace(tk);
+}
+// ---------- race ----------
+function rdField(){
+  const me=(pl.lap-1)*L+pl.idx*ds+(pl.x-P[pl.idx].x)*T[pl.idx].x+(pl.z-P[pl.idx].z)*T[pl.idx].z;
+  let ahead=null,behind=null;for(const a of AI){if(a.fin)continue;if(a.s>me&&(!ahead||a.s<ahead.s))ahead=a;if(a.s<me&&(!behind||a.s>behind.s))behind=a;}
+  const pos=1+AI.filter(a=>a.s>me||a.fin).length,v=Math.max(Math.abs(pl.v),10);
+  return {me,pos,ahead,behind,gapA:ahead?(ahead.s-me)/Math.max(ahead.v,10):null,gapB:behind?(me-behind.s)/v:null,lead:Math.max(me,...AI.map(a=>a.s))};
+}
+const carShort=a=>a&&a.car?(a.car.short||a.car.name):'前の車';
+function radioRace(tk){
+  const R=rdRace,f=rdField(),sc=scOn();
+  if(sc){
+    if(!R.coldSaid&&tyreK<0.93&&RD.t>4){R.coldSaid=true;radioSay('sc_cold',['タイヤがまだ冷えてる。左右に振って温めよう','セーフティカーの間にタイヤを温めておけ。ウィービングしていいぞ','タイヤ温度が低い。ブレーキも軽く当てて温めよう'],2);}
+    else if(RD.t>2&&RD.t<3)radioSay('sc_start',['セーフティカースタートだ。1周目は追い越し禁止','落ち着いていこう。今はセーフティカーの後ろで隊列だ','SC先導。間隔を詰めすぎるなよ'],1);
+    if(scar&&scar.phase==='exit')radioSay('sc_in',['セーフティカーは今周で入る。リスタートに備えろ','SCイン。ラインを越えたらグリーンだ、準備しろ','セーフティカーが抜ける。前との間隔をはかっておけ'],3,'warn',999);
+    R.pos=f.pos;return;
+  }
+  if(scar&&scar.green&&!R.greenSaid){R.greenSaid=true;radioSay('green',['グリーン！ 行け行け！','グリーンフラッグ！ プッシュだ！','レース開始！ 全開でいけ！'],4,'good',999);R.pos=f.pos;return;}
+  // position changes
+  if(R.pos!=null&&f.pos!==R.pos){
+    if(f.pos<R.pos)radioSay('gain'+f.pos,[()=>'ナイスオーバーテイク！ P'+f.pos+'だ',()=>'よし、抜いた！ これでP'+f.pos,()=>f.pos===1?'トップに立った！ ここから引き離せ':'P'+f.pos+'！ 次の車も狙えるぞ',()=>'いい動きだ、P'+f.pos+'。そのまま行け'],4,'good',6);
+    else radioSay('lose'+f.pos,[()=>'抜かれた、P'+f.pos+'。まだ周回はある、焦るな',()=>'P'+f.pos+'に下がった。すぐに抜き返せる、落ち着いて',()=>'今のはしかたない。P'+f.pos+'、リズムを取り戻そう'],4,'alert',6);
+    R.ahead=[];R.pos=f.pos;return;}
+  R.pos=f.pos;
+  // closing on the car ahead: gap history over ~10 s
+  if(f.gapA!=null){R.ahead.push([RD.t,f.gapA]);while(R.ahead.length&&RD.t-R.ahead[0][0]>12)R.ahead.shift();
+    const g=f.gapA,old=R.ahead.length>20?R.ahead[0]:null,rate=old?(old[1]-g)/(RD.t-old[0]):0,lapT=L/Math.max(Math.abs(pl.v),20);
+    if(g<0.5)radioSay('chance',[()=>'差が0.5秒を切った。次の直線がチャンスだ',()=>carShort(f.ahead)+'の真後ろだ。ブレーキで並べ！',()=>'射程圏内だ。インを狙え','スリップに入ってる。立ち上がりを決めろ'],3,'',20);
+    else if(g<3&&rate>0.03){const laps=g/(rate*lapT);
+      if(laps<LAPS-pl.lap+1.5)radioSay('closing',[()=>carShort(f.ahead)+'まで'+sec1(g)+'秒。このペースなら'+Math.max(1,Math.ceil(laps))+'周で追いつける',()=>'前との差が縮まってる。'+sec1(g)+'秒、このまま攻めろ',()=>'いいペースだ。前まで'+sec1(g)+'秒、毎周詰めてるぞ'],2,'',35);}
+    else if(g>1&&g<6&&rate<-0.05)radioSay('dropping',[()=>'前との差が開いてる、'+sec1(g)+'秒。コーナーの立ち上がりを丁寧に',()=>carShort(f.ahead)+'のペースが上がってる。ミスを減らしていこう'],1,'',45);}
+  // defending
+  if(f.gapB!=null){
+    if(f.gapB<1){if(!R.behindClose){R.behindClose=true;radioSay('defend',[()=>'後ろの'+carShort(f.behind)+'が'+sec1(f.gapB)+'秒差。ラインを守れ',()=>'後ろが迫ってる。ブレーキを遅らせすぎるな、ミスを待たれてるぞ',()=>'背後に'+carShort(f.behind)+'。インを締めておけ','プレッシャーをかけられてる。自分の走りに集中しろ'],3,'warn',30);}}
+    else if(R.behindClose&&f.gapB>2.5){R.behindClose=false;radioSay('relief',[()=>'後ろとの差は'+sec1(f.gapB)+'秒に広がった。落ち着いていこう','よく守った。後ろは離れたぞ','いいぞ、後ろを引き離した'],2,'good',40);}}
+  // final lap
+  if(pl.lap===LAPS&&LAPS>1){
+    if(!R.finalSaid){R.finalSaid=true;const top=f.pos===1;
+      radioSay('final',top?[()=>'ファイナルラップ。後ろとは'+(f.gapB!=null?sec1(f.gapB)+'秒':'十分')+'、ミスだけはするな','最終周、トップだ。きれいに持ち帰ろう']
+        :[()=>'ファイナルラップ。'+(f.gapA!=null?'前まで'+sec1(f.gapA)+'秒、':'')+'全部出し切れ！',()=>'最終周だ！ P'+f.pos+'、まだ上がれるぞ'],4,'warn',999);}
+    else if(!R.winSaid&&f.pos===1&&pl.idx>N*0.7){R.winSaid=true;radioSay('win_soon',['このまま行けば優勝だ。ミスだけはするな','あと少し。最終コーナーまで集中','勝利は目の前だ、落ち着いていけ'],3,'good',999);}}
+}
+function radioFinish(rank){
+  if(mode!=='race')return;
+  const L1={1:['P1！ やったぞ、優勝だ！','優勝！ 完璧なレースだった！','チェッカー！ P1だ、おめでとう！'],2:['P2でフィニッシュ。あと一歩だった','P2！ いいレースだった、次は勝とう'],3:['P3でフィニッシュ。表彰台だ、よくやった','P3、表彰台だ。ナイスドライブ'],4:['P4でフィニッシュ。次は表彰台を狙おう','P4。ペースは悪くない、次につなげよう']};
+  RD.busy=0;radioSay('finish',L1[rank]||L1[4],5,rank===1?'good':'',999);
+}
+function radioContact(kind){
+  if(kind==='car')radioSay('hit_car',['接触はダメージになる。クリーンにいこう','当たったぞ、大丈夫か？ 落ち着いて','今のは危なかった。少し間隔をあけよう'],2,'alert',20);
+  else radioSay('hit_wall',['壁に当たった。立て直していこう','ウォールヒット。リズムを取り戻せ','今のは痛い。次のコーナーから取り返そう'],2,'alert',25);
+}
+function radioTyres(ev,front){
+  if(ev==='warm')radioSay('ty_warm',mode==='free'?['タイヤ適温。ここからアタックラップだ','タイヤが温まった。プッシュしていいぞ','グリップは十分だ。攻めていこう']:['タイヤは適温。プッシュしていい','タイヤOK、攻めていけ','温まったな。ここからペースを上げよう'],2,'good',999);
+  else if(ev==='hot')radioSay('ty_hot_'+(front?'f':'r'),front?['フロントが熱い。コーナーで無理に曲げすぎてる','フロントタイヤがオーバーヒート。進入を少し抑えろ','前のタイヤが悲鳴を上げてる。曲げすぎだ']
+      :['リアがオーバーヒート気味。立ち上がりでアクセルを丁寧に','後ろのタイヤが熱い。ホイールスピンを抑えろ','リアが熱い。踏むのを少し待とう'],3,'warn',30);
+  else if(ev==='cold')radioSay('ty_cold',['タイヤが冷えてきた。グリップが落ちてるぞ','タイヤ温度が下がってる。ブレーキに気をつけろ'],2,'warn',60);
+}
+// ---------- free run ----------
+// ghost's time at each track index (built once per ghost) for live comparisons
+let rdGhostA=null,rdGhostRef=null;
+function rdGhostAt(i){
+  if(!ghost||!ghost.d)return null;
+  if(rdGhostRef!==ghost){rdGhostRef=ghost;rdGhostA=new Float32Array(N).fill(-1);const d=ghost.d,n=d.length/4,st=ghost.step||GSTEP;let prev=-1;
+    for(let k=0;k<n;k++){const x=d[k*4],z=d[k*4+2];let bi=0,bq=1e18;const lo=prev<0?0:-20,hi=prev<0?N:60;
+      for(let q=lo;q<hi;q++){const i2=prev<0?q:(prev+q+N)%N,dx=P[i2].x-x,dz=P[i2].z-z,dd=dx*dx+dz*dz;if(dd<bq){bq=dd;bi=i2;}}
+      if(rdGhostA[bi]<0)rdGhostA[bi]=k*st;prev=bi;}
+    for(let i2=1;i2<N;i2++)if(rdGhostA[i2]<0)rdGhostA[i2]=rdGhostA[i2-1];}
+  return rdGhostA[i];
+}
+function cornerName(c){return (c.dir<0?'左':'右')+GRADES[c.grade].n;}
+// corner judgement feed (free run): remember the worst corner of each sector
+function radioCorner(c,diff){
+  if(!rdLap)return;const k=Math.min(3,Math.floor(((c.apex%N)/N)*4));
+  if(diff>12)rdLap.over++;else if(diff<-15)rdLap.slow++;
+  const w=rdLap.worst[k];if(Math.abs(diff)>12&&(!w||Math.abs(diff)>Math.abs(w.diff)))rdLap.worst[k]={c,diff};
+  if(mode==='free'&&pl.lap>=1){
+    if(rdLap.over>=3&&!rdLap.said.over){rdLap.said.over=1;radioSay('over',[()=>'オーバースピードが'+rdLap.over+'回続いてる。手前で一度しっかり減速を','突っ込みすぎだ。ブレーキを少し早めに','進入が速すぎる。脱出速度を優先しよう'],2,'warn',60);}
+    else if(rdLap.slow>=3&&!rdLap.said.slow){rdLap.said.slow=1;radioSay('slow',[()=>'ブレーキが早すぎる。推奨速度より'+Math.round(-diff)+'km/hも落としてる','コーナーで減速しすぎだ。もっとスピードを持ち込める','慎重すぎるぞ。ブレーキを我慢してみよう'],2,'',60);}}
+}
+function radioSector(k,t){
+  if(mode!=='free'||pl.lap<1||!rdLap)return;
+  const sec=t-(k>1&&curSplits[k-2]!=null?curSplits[k-2]:0),bs=bestSec(k-1),idx=Math.floor(N*k/4)%N;
+  // against the ghost first (the No.1 or your own best lap)
+  const ga=k<4?rdGhostAt(idx):null;
+  if(ga!=null&&ghostInfo&&ghostInfo.t!=null&&k>=2){const d=t-ga,top=ghostInfo.name!==PLAYER;
+    if(d<0&&top&&radioSay('ghost_ahead',[()=>'1位のゴーストより'+sec1(d)+'秒速い！ コースレコードが見えてきた',()=>'ゴーストを上回ってる、'+sec1(d)+'秒リード。このまま行け'],3,'good',50))return;
+    if(d>0.25&&radioSay('ghost_behind',[()=>'ゴーストに'+sec1(d)+'秒負けてる。'+(rdLap.worst[k-1]?cornerName(rdLap.worst[k-1].c)+'で差がついた':'この区間で差がついた'),()=>(top?'1位':'ベスト')+'のゴーストまで'+sec1(d)+'秒。まだ取り返せる'],2,'',50))return;}
+  if(bs==null)return;
+  const d=sec-bs;
+  if(k===3&&curSplits.slice(0,3).every((v,i)=>v!=null&&v-(i?curSplits[i-1]:0)<=bestSec(i)))
+    {radioSay('allbest',['全セクター自己ベストペース！ このまま行け','ここまで全部ベストだ！ 最後まで集中','完璧なペースだ。最終セクターを決めろ'],3,'good',60);return;}
+  if(d<-0.05)radioSay('sec_fast'+k,[()=>'セクター'+k+'、自己ベストより'+sec3(d)+'秒速い。いいぞ',()=>'S'+k+' ベスト更新、'+sec3(d)+'秒',()=>'いい区間だ。セクター'+k+'で'+sec3(d)+'秒稼いだ'],1,'good',30);
+  else if(d>0.3){const w=rdLap.worst[k-1];
+    radioSay('sec_slow'+k,[()=>'セクター'+k+'で'+sec1(d)+'秒ロス。'+(w?cornerName(w.c)+(w.diff>0?'の進入が速すぎてる':'で減速しすぎてる'):'ラインを見直そう'),()=>'S'+k+'は'+sec1(d)+'秒遅れ。'+(w?cornerName(w.c)+'を丁寧に':'ブレーキポイントを見直そう')],1,'',30);}
+}
+function radioLap(lt,prevBest){
+  if(mode!=='free'||!rdLap)return;
+  const pb=prevBest==null||lt<prevBest,g=goldTime(),hasGold=ACHS&&ACHS.gold&&ACHS.gold[C.id];
+  RD.busy=Math.min(RD.busy,RD.t+1);
+  if(pb&&prevBest!=null)radioSay('pb',[()=>fmt(lt)+'、自己ベスト更新！ '+sec3(prevBest-lt)+'秒縮めた',()=>'ベスト更新！ '+fmt(lt)+'だ、ナイスラップ',()=>'速い！ '+fmt(lt)+'、'+sec3(prevBest-lt)+'秒の更新だ'],4,'good',0.1);
+  else if(pb)radioSay('pb',[()=>'最初のタイムは'+fmt(lt)+'。ここから削っていこう'],3,'',0.1);
+  else{const ws=lapSectors.length?lapSectors[lapSectors.length-1]:null;let wk=-1,wd=0;
+    if(ws&&bestSplits)ws.forEach((v,i)=>{const b=bestSec(i);if(v!=null&&b!=null&&v-b>wd){wd=v-b;wk=i;}});
+    radioSay('lap',[()=>fmt(lt)+'、ベストまで'+sec1(lt-prevBest)+'秒。'+(wk>=0?'セクター'+(wk+1)+'を詰めればいける':'次で決めよう'),()=>'今の周は'+fmt(lt)+'。'+(wk>=0?'S'+(wk+1)+'で'+sec1(wd)+'秒落としてる':'リズムは悪くない')],3,'',0.1);}
+  if(!hasGold&&lt>g&&lt-g<4)rdLater(5.2,()=>radioSay('gold',[()=>'ゴールドタイムまであと'+sec1(lt-g)+'秒だ',()=>'ゴールドまで'+sec1(lt-g)+'秒。手が届くぞ'],2,'warn',90));
+  else if(lt<=g&&!hasGold)rdLater(5.2,()=>radioSay('gold_ok',['ゴールドタイム突破！ やったな','ゴールド達成だ！'],3,'good',999));
+  // habits of the lap that just ended
+  const dirt=rdLap.dirt,centre=rdLap.centreN>4?rdLap.centre/rdLap.centreN:1;
+  rdLater(10.5,()=>{if(dirt>2.5)radioSay('dirt',[()=>'ダートを'+dirt.toFixed(0)+'秒も踏んでる。そこでタイムが落ちてるぞ','コースの外に出すぎだ。舗装の上を走ろう'],2,'warn',80);
+    else if(centre<0.25)radioSay('width',['道幅をもっと使おう。外から入って、内をかすめて、外へ','ずっと真ん中を走ってる。アウト・イン・アウトを意識しろ','コーナーは大きく使え。そのほうが速く曲がれる'],2,'',120);});
+  rdLap={over:0,slow:0,dirt:0,centre:0,centreN:0,worst:[null,null,null,null],said:{}};
+}
+function radioFreeStart(){if(mode==='free')rdLater(2.5,()=>{if(state==='race'&&pl.lap<=1)radioSay('outlap',['アウトラップだ。タイヤを温めて、次の周からアタックしよう','まずはタイヤを温めよう。アタックは次の周からだ','アウトラップ。ブレーキとコーナーで熱を入れていけ'],2,'',999);});}
+
 /* ---------- update ---------- */
 const tmp={};
 /* sector (quarter-lap) split times */
@@ -3281,7 +3447,7 @@ function sectorHit(k){
   {const sec=t-(k>1&&curSplits[k-2]!=null?curSplits[k-2]:0),bs=bestSec(k-1);if(bs!=null&&(k===1||curSplits[k-2]!=null)&&sec<bs)lapFast++;}
   $('splitN').textContent=k<4?'SECTOR '+k:'LAP';$('splitT').textContent=fmt(t);
   const e=$('splitD');e.textContent=d==null?'':fmtD(d);e.className=d==null?'':d<=0?'fast':'slow';
-  $('split').classList.add('show');splitT=2.4;
+  $('split').classList.add('show');splitT=2.4;radioSector(k,t);
   if(k===4){lastSplits=curSplits.slice();lapSectors.push(lastSplits.map((v,i)=>v==null?null:v-(i&&lastSplits[i-1]!=null?lastSplits[i-1]:0)));curSplits=[];}
   renderSectors();
 }
@@ -3291,7 +3457,7 @@ function recordLap(lt,announce){
   if(best==null||lt<best){best=lt;try{localStorage.setItem(bestKey(C),String(lt));}catch(e){}
     if(lastSplits&&lastSplits.every(v=>v!=null)){bestSplits=lastSplits.slice();try{localStorage.setItem(splitKey(C),JSON.stringify(bestSplits));}catch(e){}}
     submitBest(C,CAR,lt,bestSplits);}
-  achLap(lt,prevBest==null||lt<prevBest);
+  achLap(lt,prevBest==null||lt<prevBest);radioLap(lt,prevBest);
   if(!announce)return;
   chime(prevBest==null||lt<prevBest?'best':'lap');
   if(prevBest==null||lt<prevBest)showMsg(prevBest==null?'BEST LAP':'BEST LAP  -'+(prevBest-lt).toFixed(3),true,2);
@@ -3380,7 +3546,7 @@ function updatePlayer(dt,canDrive){
     const s=Math.sign(pl.off),ex=Math.abs(pl.off)-lim;
     pl.x-=n.x*s*ex;pl.z-=n.z*s*ex;pl.off=s*lim;scrapeAmt=1;
     const fx=Math.sin(pl.th),fz=Math.cos(pl.th),into=(fx*n.x+fz*n.z)*s*pl.v;
-    if(into>0.5){pl.v-=Math.sign(pl.v)*Math.min(Math.abs(pl.v),into*0.9+1);if(into>3){shake=Math.min(1,into/15);thud(into);cornerHit=true;}}
+    if(into>0.5){pl.v-=Math.sign(pl.v)*Math.min(Math.abs(pl.v),into*0.9+1);if(into>3){shake=Math.min(1,into/15);thud(into);cornerHit=true;if(into>6)radioContact('wall');}}
     const tgt=(fx*T[pl.idx].x+fz*T[pl.idx].z)>=0?TH[pl.idx]:TH[pl.idx]+Math.PI;
     const d=((tgt-pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;pl.th+=d*Math.min(1,dt*4);
   }
@@ -3391,7 +3557,7 @@ function updatePlayer(dt,canDrive){
     if(cid>=0){const c=corners[cid];
       const was=(prev-c.start+N)%N,now=(pl.idx-c.start+N)%N,ap=(c.apex-c.start+N)%N;
       if(was<ap&&now>=ap&&now-was<20&&c.grade>=2&&pl.v>0){
-        score.total++;const kmh=pl.v*3.6,diff=kmh-recNow(c.rec);achCorner(!cornerHit&&Math.abs(diff)<=12);
+        score.total++;const kmh=pl.v*3.6,diff=kmh-recNow(c.rec);achCorner(!cornerHit&&Math.abs(diff)<=12);if(!cornerHit)radioCorner(c,diff);
         if(cornerHit)pop('接触','over');
         else if(Math.abs(diff)<=12){score.great++;pop('GREAT!','great');chime('great');}
         else if(diff<-12)pop('GOOD','good');
@@ -3458,7 +3624,7 @@ function updatePlayer(dt,canDrive){
       if(close>0){
         const j=close*0.6;                                 // e≈0.2 → each car takes 60% of the closing speed
         if(sS>0){c.v-=j;pl.v+=j*Math.sign(pl.v||1);}else{pl.v-=j*Math.sign(pl.v||1);c.v+=j;}
-        if(close>1.5){thud(close);shake=Math.min(1,shake+close/25);cornerHit=true;}
+        if(close>1.5){thud(close);radioContact('car');shake=Math.min(1,shake+close/25);cornerHit=true;}
       }
       if(sS>0){c.laneT=-Math.sign(pl.off||1)*(HW[pl.idx]-2);}   // a car that ran into the player's back looks for another line
     }
@@ -3646,7 +3812,7 @@ function frame(now){
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();updateTut(dt);updateRevWarn(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       const wrongWay=(fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3;
@@ -3700,7 +3866,7 @@ function frame(now){
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');

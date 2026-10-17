@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -131,6 +131,7 @@ setTimeout(async()=>{try{
    ok(exitSeen,'the safety car pulls off the road before lap 2');
    ok(greenT!=null&&t.fieldList().some(c=>c.s>=t.L-1),'green flag when the leader reaches the line (after '+(greenT||0).toFixed(1)+' s)');
    ok(maxV*3.6<200,'under the safety car the pace stays low (max '+(maxV*3.6).toFixed(0)+' km/h)');
+   {const keys=(t.RD.log||[]).map(x=>x.split(':')[0]);ok(keys.includes('sc_in')&&keys.includes('green'),'team radio calls the safety car in and the green flag ('+keys.join(',')+')');}
    t.toMenu('course');ok(!t.scar,'leaving the race removes the safety car');
    t.opts.sc=false;t.setMode('race');t.start();ok(!t.scar,'the safety car start can be switched off');t.toMenu('course');t.opts.sc=true;}
   // tyre temperature: cold at the start, warmed by cornering and braking, grip follows the temperature window
@@ -143,7 +144,9 @@ setTimeout(async()=>{try{
    t.keys.up=t.keys.down=t.keys.left=t.keys.right=0;
    ok(k0<0.9&&T0.every(x=>x<50),'tyres start cold (grip x'+k0.toFixed(2)+', '+T0.map(x=>x.toFixed(0)).join('/')+' °C)');
    ok(t.tyreT.every(x=>x>60)&&t.tyreK>0.95,'a lap at the guide pace warms them into the window ('+t.tyreT.map(x=>x.toFixed(0)).join('/')+' °C, grip x'+t.tyreK.toFixed(2)+')');
-   ok(t.tyreStat.n>10,'tyre stats are kept for the results');t.toMenu('course');}
+   ok(t.tyreStat.n>10,'tyre stats are kept for the results');
+   {const L=t.RD.log||[],keys=L.map(x=>x.split(':')[0]);ok(keys.includes('outlap')&&keys.includes('pb')&&L.every(x=>x.length<60&&!/undefined|NaN|null/.test(x)),'team radio in a free run: out lap, lap time ('+L.slice(-4).join(' / ')+')');}
+   t.toMenu('course');}
   // real weather: the course's live conditions drive the run (weather, time, cold tyres, wind)
   {const om=t.parseOpenMeteo([{current:{time:'2026-10-15T23:10',weather_code:63,cloud_cover:100,precipitation:2.1,temperature_2m:-5,wind_speed_10m:10,wind_direction_10m:0,wind_gusts_10m:16,is_day:0},daily:{sunrise:['2026-10-15T06:00'],sunset:['2026-10-15T17:20']}}]);
    ok(om.tsukimi&&om.tsukimi.wx==='rain'&&om.tsukimi.time==='night','Open-Meteo reply maps to rain / night');
