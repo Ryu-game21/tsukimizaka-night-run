@@ -3287,7 +3287,6 @@ function radioReset(){RD.q=[];RD.busy=0;RD.prio=0;RD.last={};RD.t=0;RD.hideT=0;$
   rdRace={pos:null,ahead:[],behindClose:false,tick:0,finalSaid:false,winSaid:false,coldSaid:false,greenSaid:false};}
 function radioSay(key,lines,prio,cls,cd){
   if(!opts.radio||state==='menu'||state==='replay'||tut)return false;
-  if(mode==='race'&&scOn())return false;   // nothing during the safety-car lap; the first call is the green flag
   prio=prio||1;const now=RD.t;
   if(RD.last[key]!=null&&now-RD.last[key]<(cd||40))return false;
   if(now<RD.busy&&!(prio>RD.prio&&now-RD.shown>2.5))return false;
@@ -3320,7 +3319,12 @@ function rdField(){
 const carShort=a=>a&&a.car?(a.car.short||a.car.name):'前の車';
 function radioRace(tk){
   const R=rdRace,f=rdField(),sc=scOn();
-  if(sc){R.pos=f.pos;return;}   // lap 1 behind the safety car: radio silence (see radioSay)
+  if(sc){
+    if(!R.coldSaid&&tyreK<0.93&&RD.t>4){R.coldSaid=true;radioSay('sc_cold',['タイヤがまだ冷えてる。左右に振って温めよう','セーフティカーの間にタイヤを温めておけ。ウィービングしていいぞ','タイヤ温度が低い。ブレーキも軽く当てて温めよう'],2);}
+    else if(RD.t>2&&RD.t<3)radioSay('sc_start',['セーフティカースタートだ。1周目は追い越し禁止','落ち着いていこう。今はセーフティカーの後ろで隊列だ','SC先導。間隔を詰めすぎるなよ'],1);
+    if(scar&&scar.phase==='exit')radioSay('sc_in',['セーフティカーは今周で入る。リスタートに備えろ','SCイン。ラインを越えたらグリーンだ、準備しろ','セーフティカーが抜ける。前との間隔をはかっておけ'],3,'warn',999);
+    R.pos=f.pos;return;
+  }
   if(scar&&scar.green&&!R.greenSaid){R.greenSaid=true;radioSay('green',['グリーン！ 行け行け！','グリーンフラッグ！ プッシュだ！','レース開始！ 全開でいけ！'],4,'good',999);R.pos=f.pos;return;}
   // position changes
   if(R.pos!=null&&f.pos!==R.pos){

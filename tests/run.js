@@ -131,7 +131,7 @@ setTimeout(async()=>{try{
    ok(exitSeen,'the safety car pulls off the road before lap 2');
    ok(greenT!=null&&t.fieldList().some(c=>c.s>=t.L-1),'green flag when the leader reaches the line (after '+(greenT||0).toFixed(1)+' s)');
    ok(maxV*3.6<200,'under the safety car the pace stays low (max '+(maxV*3.6).toFixed(0)+' km/h)');
-   {const keys=(t.RD.log||[]).map(x=>x.split(':')[0]);ok(keys[0]==='green'&&!keys.some(k=>/^sc_/.test(k)),'team radio is silent behind the safety car, first call is the green flag ('+keys.join(',')+')');}
+   {const keys=(t.RD.log||[]).map(x=>x.split(':')[0]);ok(keys.includes('sc_in')&&keys.includes('green'),'team radio calls the safety car in and the green flag ('+keys.join(',')+')');}
    t.toMenu('course');ok(!t.scar,'leaving the race removes the safety car');
    t.opts.sc=false;t.setMode('race');t.start();ok(!t.scar,'the safety car start can be switched off');t.toMenu('course');t.opts.sc=true;}
   // tyre temperature: cold at the start, warmed by cornering and braking, grip follows the temperature window
