@@ -2232,6 +2232,9 @@ function s2Frame(dt,t,thr,rpmS,thrS,fp,live){
     v.gs.gain.setTargetAtTime(v.p.sub*(.7+.9*thrS*Math.max(0,1-r)),t,.05);
     L.ml.frequency.setTargetAtTime(rpmS/120*Math.min(6,ORDER[CAR.cyl]),t,.03);L.mbp.frequency.setTargetAtTime(1300+rpmS*.12,t,.05);
     L.mg.gain.setTargetAtTime(.022*(.4+.6*r)*(CAR.cyl==='ev'?0:1),t,.05);}
+  // idling (on the grid, in the countdown, stopped): the engine ticks over audibly instead of fading to almost nothing
+  if(CAR.cyl!=='ev'){const idle=Math.max(0,1-(rpmS-950)/900)*(1-thrS);
+    if(idle>.01)v.out.gain.setTargetAtTime(.26*(v.k||1)*(.32+.68*thrS)*(.55+.45*r)*(1+1.7*idle),t,.05);}
   if(P.vtec&&S2.vt){const tk=Math.min(1,Math.max(0,(rpmS-P.vtec)/250));S2.vk+=(tk-S2.vk)*Math.min(1,dt*20);const vk=S2.vk;
     if(vk>.01){v.ikg.gain.setTargetAtTime(.26*.2*thrS*r*r*(1+2.4*vk),t,.03);v.lp.frequency.setTargetAtTime(v.p.lp[0]+rpmS*v.p.lp[1]*(.45+.55*thrS)+2200*vk*thrS,t,.03);
       v.out.gain.setTargetAtTime(.26*(v.k||1)*(.32+.68*thrS)*(.55+.45*r)*(1+.28*vk*thrS),t,.03);}
