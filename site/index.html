@@ -324,6 +324,8 @@ body:not(.mt) .pad.s{display:none}
 @media (max-width:700px){#radio{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}#radio p{font-size:14px}}
 @media (prefers-reduced-motion:reduce){#radio{transition:none;transform:none}#radio .rl i{animation:none}}
 /* course record news */
+#updNote{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 6px);z-index:60;width:max-content;max-width:min(560px,calc(100% - 32px));box-sizing:border-box;padding:5px 12px;border-radius:4px;font-size:12px;line-height:1.5;color:#121722;background:#ffd27a;box-shadow:0 2px 10px rgba(0,0,0,.35);text-align:center;pointer-events:none}
+#updNote.run{background:#9fe3ff}
 #crToast{left:50%;top:calc(env(safe-area-inset-top,0px) + 96px);display:grid;gap:3px;justify-items:center;text-align:center;padding:10px 20px 11px;
   width:max-content;max-width:calc(100% - 32px);box-sizing:border-box;background:var(--panel);border:1px solid #f0c75a;border-top:3px solid #f0c75a;border-radius:4px;
   transform:translate(-50%,-14px);opacity:0;transition:opacity .3s,transform .3s;z-index:8;text-shadow:none;pointer-events:none}
@@ -444,6 +446,7 @@ body:not(.mt) .pad.s{display:none}
 <div class="hud" id="revWarn" hidden aria-live="polite"></div>
 <div class="hud" id="achToast" aria-live="polite"><span id="achTT"></span><b id="achTN"></b></div>
 <div class="hud" id="radio" aria-live="polite" hidden><span class="rl"><i></i>TEAM RADIO ・ 無線</span><p id="radioT"></p></div>
+<div id="updNote" role="status" hidden></div>
 <div class="hud" id="crToast" aria-live="polite"><span id="crTT"></span><b id="crTN"></b><small id="crTS"></small></div>
 <div class="hud" id="rpHud" hidden><b>REPLAY</b><span id="rpInfo"></span><span id="rpTime"></span><span id="rpCamN"></span></div>
 <div class="hud" id="tut" hidden aria-live="polite"><p class="eyebrow">TUTORIAL <span id="tutN"></span></p><p id="tutT"></p><div class="tbar"><i id="tutBar"></i></div></div>
@@ -2643,7 +2646,7 @@ async function initShared(){
   try{user=window.claude&&window.claude.use?await window.claude.use('user'):null;}catch(e){user=null;}
   try{UID=user?await user.id():null;}catch(e){UID=null;}
   if(!db){shared='off';renderBoard();if(realOn)startReal();return;}
-  sdb=db;shared=UID?'on':'readonly';
+  sdb=db;shared=UID?'on':'readonly';updSubscribe();
   if(shared==='on'&&user&&user.can){try{if(user.can('data.write')===false)shared='readonly';}catch(e){}}
   try{
     db.collection('records').onSnapshot(snap=>{
@@ -2656,6 +2659,55 @@ async function initShared(){
     },err=>{shared=err&&err.code==='revoked'?'off':shared;if(err&&err.code==='unavailable'){setTimeout(initShared,4000);}renderBoard();});
   }catch(e){shared='off';}
   renderBoard();
+}
+
+/* ---------- game updates and running races (Claude build) ----------
+   A new version reaches every open page by itself and reloads it, which would throw a racer back to the title.
+   So: while racing, a page keeps live/<uid> = {racing:'race'|'free', eta, at} up to date (eta = expected end of the race);
+   before publishing, Claude reads live/*, writes notice/update = {status:'pending', eta} and publishes only after the
+   races have finished; the pages show that notice as a banner. If a page is reloaded during a run anyway, the next
+   load says so and opens the ready screen with the same settings (fpr-run). */
+var liveT=0,liveLast='',updNotice=null,updSub=false;
+function liveEta(){
+  if(mode!=='race')return 0;
+  const lapEst=goldTime()*1.12,left=Math.max(0,(LAPS+SCL)-Math.max(0,pl.lap-1)-pl.idx/N);
+  return Date.now()+Math.round((left*lapEst+(state==='count'?6:0)+20)*1000);
+}
+function liveWrite(racing){
+  try{localStorage.setItem('fpr-run',racing?JSON.stringify({at:Date.now(),mode}):'');}catch(e){}
+  if(shared!=='on'||!sdb||!UID)return;
+  const d={racing:racing||'',eta:racing==='race'?liveEta():0,at:Date.now()},sig=d.racing+'|'+Math.round(d.eta/30000);
+  if(sig===liveLast&&racing)return;liveLast=sig;
+  try{sdb.doc('live/'+UID).set(d).catch(()=>{});}catch(e){}
+}
+function liveTick(dt){
+  if(state!=='race'&&state!=='count')return;liveT+=dt;if(liveT<20)return;liveT=0;
+  try{localStorage.setItem('fpr-run',JSON.stringify({at:Date.now(),mode}));}catch(e){}
+  if(Date.now()-((liveWrite.lastFull)||0)>60000){liveWrite.lastFull=Date.now();liveLast='';}
+  liveWrite(tut?'':mode);
+}
+function updSubscribe(){
+  if(updSub||!sdb)return;updSub=true;
+  try{sdb.doc('notice/update').onSnapshot(d=>{const v=d&&d.exists?d.data():null;updNotice=v&&v.status==='pending'&&typeof v.eta==='number'?v:null;updRender();},()=>{});}catch(e){}
+}
+var updRestore=0;
+function updRender(){
+  const el=$('updNote');if(!el)return;const n=updNotice;
+  if(Date.now()<updRestore){el.classList.remove('run');el.textContent='ゲームが更新されたため、走行を中断しました。同じ設定のまま「'+$('startBtn').textContent+'」で再開できます';el.hidden=false;return;}
+  if(!n||Date.now()-(n.at||0)>3*3600e3){el.hidden=true;return;}
+  const mins=Math.max(1,Math.ceil((n.eta-Date.now())/60000)),run=state==='race'||state==='count';
+  el.classList.toggle('run',run);
+  el.textContent=run&&mode==='race'?'アップデート待ち：このレースのゴール後に適用されます':
+    run?'アップデート予定（あと約'+mins+'分）：適用時にフリー走行は中断されます':
+    'アップデート予定：レース中のプレイヤーのゴールを待っています（あと約'+mins+'分）';
+  el.hidden=false;
+}
+setInterval(updRender,15000);
+// a run cut short by a reload (a game update): tell the player and open the ready screen again
+function runRestoreNote(){
+  let r=null;try{r=JSON.parse(localStorage.getItem('fpr-run')||'null');localStorage.setItem('fpr-run','');}catch(e){}
+  if(!r||!r.at||Date.now()-r.at>90000)return;
+  setTimeout(()=>{if(state!=='menu')return;showStep('go');updRestore=Date.now()+9000;updRender();setTimeout(updRender,9100);},600);
 }
 /* shared ghosts: ghosts/<uid>/runs/<course>__<car>__<name hex>, readable by everyone, written by its owner.
    A lap is x,y,z,heading every 0.05 s, stored as int16 steps (cm, 1e-4 rad) after a float origin, base64. */
@@ -2813,7 +2865,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  resetRace();tyreReset();radioReset();scStart();SCL=scar?1:0;achRaceStart();radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  resetRace();tyreReset();radioReset();scStart();SCL=scar?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -2823,7 +2875,7 @@ function start(){
 function endSession(){
   if(state==='menu')return;
   if(mode!=='free'){toMenu('course');return;}
-  state='finish';ghostCar.visible=false;
+  liveWrite('');state='finish';ghostCar.visible=false;
   $('rCourse').textContent='フリー走行 ・ '+C.name+' ・ '+CAR.name;
   const sb=laps.length?Math.min(...laps):null;
   $('rPos').innerHTML=fmt(sb)+'<span>この回のベスト</span>';
@@ -2834,6 +2886,7 @@ function endSession(){
 }
 function toMenu(to){
   if(tut){tutRestore();to='title';}
+  if(state==='race'||state==='count')liveWrite('');
   state='menu';$('rpHud').hidden=true;$('result').hidden=true;$('menu').hidden=false;setHud(false);$('split').classList.remove('show');showMsg('');ghostCar.visible=false;applyOffset();camera.updateProjectionMatrix();$('showName').hidden=false;
   renderCourseCards();renderBoard();resetRace();scStop();radioReset();AI.forEach(a=>a.v=VAI*0.55);
   showStep(typeof to==='string'?to:'course');
@@ -2846,7 +2899,7 @@ $('rpMenu').addEventListener('click',()=>startReplay(loadRp(),'menu'));
 function showMsg(t,small,dur){const m=$('msg');m.textContent=t;m.classList.toggle('small',!!small);msgT=dur||0;}
 function pop(t,cls){const p=$('pop');p.textContent=t;p.className='hud show '+cls;popT=0.9;}
 function finish(){
-  state='finish';
+  liveWrite('');state='finish';
   finishRank=1+AI.filter(a=>a.fin).length;
   $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name;
   $('rPos').innerHTML=finishRank+'<span>位 / 4台</span>';
@@ -3141,20 +3194,22 @@ function achLap(lt,pb){
   const cab=!!VIEWS[view].fp,real=realOn&&!!realFor(C.id);
   if(cab)S.cabLaps=(S.cabLaps||0)+1;if(real){S.realLaps=(S.realLaps||0)+1;if(wind.ms>=10)S.f.wind10=1;}
   if(S2CFG[CAR.id]&&S2CFG[CAR.id].vtec)S.f.vtec=1;
-  const x={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),cab,real};chEv('lap',x);if(pb)chEv('pb',x);if(gold)chEv('gold',x);
+  chSync();const W=S.wk,newCarWk=!W.cars.includes(CAR.id),newCourseWk=!W.courses.includes(C.id);if(newCarWk)W.cars.push(CAR.id);if(newCourseWk)W.courses.push(C.id);
+  const x={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),cab,real,newCarWk,newCourseWk,region:chRegion(CAR),drive:CAR.drive};chEv('lap',x);if(pb)chEv('pb',x);if(gold)chEv('gold',x);
   achLapStart();achDirty=true;achCheck();
 }
 // gold target: the lap the speed guide would drive (this car, this weather), scaled per course type so the best
 // players of the shared board sit right around it: scanned circuits 4% slower, the road courses (where the full road
 // width lets you beat the guide's corner speeds) 10% faster
 function goldTime(){let s=0;for(let i=0;i<N;i++)s+=ds/Math.max(vT[i],1);return s*(C.model?1.04:0.90);}
-function achRaceStart(){raceGreat=0;raceContacts=0;achLapStart();chRaceStart();}
+var chRaceNewCar=false;
+function achRaceStart(){raceGreat=0;raceContacts=0;achLapStart();chRaceStart();chRaceNewCar=false;if(ACHS&&mode==='race'){chSync();chRaceNewCar=!ACHS.wk.cars.includes(CAR.id);}}
 function achFinish(rank){
   if(!ACHS)return;const S=ACHS;S.races++;
   S.maxGreatRace=Math.max(S.maxGreatRace,raceGreat);
   if(rank===1){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;
     if(SCL>0)S.f.sc_win=1;if(chGreenPos===4)S.f.sc_last=1;if(realOn&&realFor(C.id)&&tempC!=null&&tempC<=5)S.f.coldwin=1;
-    chEv('win',{car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0});}
+    chEv('win',{car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0,region:chRegion(CAR),drive:CAR.drive,newCarWk:chRaceNewCar});}
   if(tyreStat.n>20&&tyreStat.ok/tyreStat.n>=.9&&LAPS>=3)S.f.tyre90=1;if(chRaceP>=3)S.f.pass3=1;chEv('race');
   achDirty=true;achCheck();
 }
@@ -3217,13 +3272,14 @@ const CH_WEEKLY=[
 ];
 const CH_WEEK_PTS=150;
 const TITLES={
-  tourer:'旅するドライバー',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
+  tourer:'旅するドライバー',collector:'コレクター',conqueror:'サーキット制圧',international:'国際派',drivetrain:'駆動マスター',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
   lv5:'ルーキー',lv10:'走り屋',lv20:'エース',lv30:'トップドライバー',lv50:'生ける伝説',
   streak7:'皆勤賞',record:'レコードホルダー',legend:'レジェンド',grandslam:'グランドスラマー',perfect:'完璧主義者',revking:'レブリミッター職人',fire:'火吹き',
 };
 const TITLE_HOW={lv5:'Lv5',lv10:'Lv10',lv20:'Lv20',lv30:'Lv30',lv50:'Lv50',streak7:'実績「1週間皆勤」',record:'実績「レコードホルダー」',legend:'実績「レジェンド」',
   grandslam:'実績「グランドスラム」',perfect:'実績「完璧主義者」',revking:'実績「レブリミッター職人」',fire:'実績「火吹き」'};
 CH_WEEKLY.forEach(w=>TITLE_HOW[w.ti]='ウィークリー「'+w.txt+'」');
+Object.assign(TITLE_HOW,{collector:'ウィークリー（いろいろな車で走るお題）',conqueror:'ウィークリー「違うコース4つでそれぞれ優勝」',international:'ウィークリー「日本車・アメリカ車・ヨーロッパ車で優勝」',drivetrain:'ウィークリー「5つの駆動方式で1周」',tourer:'ウィークリー（いろいろなコースを走るお題）',multi:'ウィークリー「違う車4台でそれぞれ優勝」'});
 const TITLE_ACH={streak7:'streak7',record:'record5',legend:'legend',grandslam:'win_all',perfect:'perfect5',revking:'rev100',fire:'flame1000'};
 // customisation, opened by total points
 const COS={
@@ -3244,11 +3300,52 @@ function chDay(){return new Date(jstNow()).toISOString().slice(0,10);}
 function chWeek(){return 'w'+Math.floor((Math.floor(jstNow()/864e5)+3)/7);}
 function chPrevDay(d){return new Date(Date.parse(d+'T00:00:00Z')-864e5).toISOString().slice(0,10);}
 function chDailies(day){
+  if(day>=CH_V2_DAY)return chDailies2(day);
   const r=chRng(chHash('daily:'+day)),out=[];
   [1,2,3].forEach(t=>{const pool=CH_POOL[t];const task=pool[Math.floor(r()*pool.length)](r);task.tier=t;out.push(task);});
   return out;
 }
-function chWeekly(wk){return CH_WEEKLY[chHash('weekly:'+wk)%CH_WEEKLY.length];}
+function chWeekly(wk){if(+wk.slice(1)>=CH_V2_WEEK)return chWeekly2(+wk.slice(1));return CH_WEEKLY[chHash('weekly:'+wk)%CH_WEEKLY.length];}
+/* from 2026-10-19 (day and week): tasks that send everyone round the whole garage and every circuit.
+   Today's car and courses walk through fixed shuffles, so every car and every course comes up in turn;
+   "not yet this week" tasks follow each player's own week (ACHS.wk.cars / ACHS.wk.courses). */
+const CH_V2_DAY='2026-10-19',CH_V2_WEEK=Math.floor((Math.floor(Date.parse(CH_V2_DAY+'T00:00:00Z')/864e5)+3)/7);
+const chRegion=c=>['日産','トヨタ','ホンダ','三菱','レクサス'].includes(c.maker)?'日本車':['ダッジ','フォード','シボレー','テスラ'].includes(c.maker)?'アメリカ車':'ヨーロッパ車';
+function chShuffle(list,seed){const a=list.slice(),r=chRng(chHash(seed));for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function chRot(day){
+  const D=Math.floor(Date.parse(day+'T00:00:00Z')/864e5),cars=chShuffle(CARS.filter(c=>!c.hide),'cars-v2'),crs=chShuffle(COURSES,'courses-v2');
+  const at=(a,k)=>a[((k%a.length)+a.length)%a.length];
+  return {D,car1:at(cars,D),car2:at(cars,D+Math.floor(cars.length/2)),car3:at(cars,D+7),c1:at(crs,D),c2:at(crs,D+Math.floor(crs.length/2)),c3:at(crs,D+5)};
+}
+const cn=c=>c.short||c.name;
+function chDailies2(day){
+  const o=chRot(day),r=chRng(chHash('daily-v2:'+day)),pk=a=>a[Math.floor(r()*a.length)];
+  const easy={k:'lap',n:1,f:x=>x.car===o.car1.id&&x.course===o.c1.id,txt:'今日の組み合わせ：'+cn(o.car1)+' で '+o.c1.name+' を1周する'};
+  const mid=pk([
+    {k:'lap',n:2,f:x=>x.car===o.car2.id&&x.course===o.c2.id,txt:cn(o.car2)+' で '+o.c2.name+' を2周する'},
+    {k:'lap',n:2,key:x=>x.car,f:x=>x.newCarWk,txt:'今週まだ乗っていない車2台で、それぞれ1周する'},
+    {k:'lap',n:2,key:x=>x.course,f:x=>x.newCourseWk,txt:'今週まだ走っていないコース2つで、それぞれ1周する'},
+    {k:'lap',n:1,f:x=>x.course===o.c3.id&&x.region===chRegion(o.car3),txt:o.c3.name+' を'+chRegion(o.car3)+'で1周する'}]);
+  const hard=pk([
+    {k:'win',n:1,f:x=>x.course===o.c1.id,txt:'今日のコース '+o.c1.name+' のレースで優勝する'},
+    {k:'win',n:1,f:x=>x.car===o.car1.id,txt:'今日の車 '+cn(o.car1)+' でレースに優勝する'},
+    {k:'gold',n:1,f:x=>x.course===o.c2.id,txt:o.c2.name+' でゴールドタイムを切る'},
+    {k:'win',n:1,f:x=>x.newCarWk,txt:'今週まだ乗っていない車でレースに優勝する'}]);
+  return [easy,mid,hard].map((t,i)=>Object.assign(t,{tier:i+1}));
+}
+function chWeekly2(N){
+  const day=new Date((N*7-3)*864e5).toISOString().slice(0,10),o=chRot(day),cars=[o.car1,o.car2,o.car3],crs=[o.c1,o.c2,o.c3];
+  const L=[
+    {id:'v_cars8',k:'lap',n:8,key:x=>x.car,txt:'違う車8台で、それぞれ1周する',ti:'collector'},
+    {id:'v_crs8',k:'lap',n:8,key:x=>x.course,txt:'違うコース8つで、それぞれ1周する',ti:'tourer'},
+    {id:'v_carwin',k:'win',n:4,key:x=>x.car,txt:'違う車4台で、それぞれレースに優勝する',ti:'multi'},
+    {id:'v_crswin',k:'win',n:4,key:x=>x.course,txt:'違うコース4つで、それぞれレースに優勝する',ti:'conqueror'},
+    {id:'v_pick_c',k:'lap',n:3,key:x=>x.course,f:x=>crs.some(c=>c.id===x.course),txt:'今週のコース（'+crs.map(c=>c.name).join('・')+'）をそれぞれ1周する',ti:'tourer'},
+    {id:'v_pick_car',k:'lap',n:3,key:x=>x.car,f:x=>cars.some(c=>c.id===x.car),txt:'今週の車（'+cars.map(cn).join('・')+'）でそれぞれ1周する',ti:'collector'},
+    {id:'v_region',k:'win',n:3,key:x=>x.region,txt:'日本車・アメリカ車・ヨーロッパ車で、それぞれレースに優勝する',ti:'international'},
+    {id:'v_drive',k:'lap',n:5,key:x=>x.drive,txt:'FR・FF・MR・RR・4WD、5つの駆動方式の車でそれぞれ1周する',ti:'drivetrain'}];
+  return L[((N%L.length)+L.length)%L.length];
+}
 let chToday=null,chTodayKey='',chWk=null,chWkKey='';
 // roll the saved progress over when the day / week changes
 function chSync(){
@@ -3256,7 +3353,8 @@ function chSync(){
   if(chTodayKey!==d){chTodayKey=d;chToday=chDailies(d);}
   if(chWkKey!==w){chWkKey=w;chWk=chWeekly(w);}
   if(!ACHS.dly||ACHS.dly.d!==d){ACHS.dly={d,p:[0,0,0],k:[[],[],[]],done:[0,0,0],all:0};achDirty=true;}
-  if(!ACHS.wk||ACHS.wk.w!==w){ACHS.wk={w,p:0,k:[],done:0};achDirty=true;}
+  if(!ACHS.wk||ACHS.wk.w!==w){ACHS.wk={w,p:0,k:[],done:0,cars:[],courses:[]};achDirty=true;}
+  if(!Array.isArray(ACHS.wk.cars))ACHS.wk.cars=[];if(!Array.isArray(ACHS.wk.courses))ACHS.wk.courses=[];
 }
 const chFmtN=(n,goal)=>Math.min(goal,Math.floor(n+1e-9)).toLocaleString();
 function totalPts(S){let p=0;for(const a of ACH)if(S.u&&S.u[a.id])p+=ACH_TIER[a.tier].p;return p+(S.cp||0);}
@@ -4219,7 +4317,7 @@ function frame(now){
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);chTick(dt);updateTut(dt);updateRevWarn(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);chTick(dt);liveTick(dt);updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       const wrongWay=(fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3;
@@ -4283,7 +4381,7 @@ setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);set
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');
-renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();chTitleBtn();
+renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();chTitleBtn();runRestoreNote();
 requestAnimationFrame(frame);
 })();
 </script>

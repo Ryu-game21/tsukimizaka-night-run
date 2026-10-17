@@ -29,7 +29,7 @@ const LS={'fpr-player':'T'};global.localStorage={getItem:k=>k in LS?LS[k]:null,s
 global.innerWidth=1400;global.innerHeight=800;global.devicePixelRatio=1;global.navigator={};
 // fake shared database (same calls the game makes): one signed-in viewer U1 plus a rival U2 seeded below
 const STORE={'records/U2':{players:[{name:'Rival',best:{'tsukimi__s30z':{t:20.5,at:1}}}]}};console.warn=()=>{};
-const fakeDb={doc:p=>({set:async v=>{STORE[p]=JSON.parse(JSON.stringify(v));},get:async()=>({exists:p in STORE,data:()=>STORE[p]})}),
+const fakeDb={doc:p=>({set:async v=>{STORE[p]=JSON.parse(JSON.stringify(v));},get:async()=>({exists:p in STORE,data:()=>STORE[p]}),onSnapshot(cb){setTimeout(()=>cb({exists:p in STORE,data:()=>STORE[p]}),0);return()=>{};}}),
   collection:p=>({onSnapshot(cb){const docs=Object.keys(STORE).filter(k=>k.startsWith(p+'/')&&k.split('/').length===2).map(k=>({id:k.split('/')[1],data:()=>STORE[k]}));setTimeout(()=>cb({docs}),0);return()=>{};}})};
 global.fetch=async()=>({status:503,ok:false,json:async()=>({error:true,reason:'offline test'})});global.claude={use:async n=>n==='db'?fakeDb:n==='user'?{id:async()=>'U1',can:()=>true}:null};
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
@@ -85,6 +85,11 @@ setTimeout(async()=>{try{
    ok(mine.length===1&&g&&Math.abs(g.t-t.ownGhost.t)<0.002,'personal best lap uploaded as a shared ghost'+(g?` (${g.t.toFixed(2)} s, ${STORE[mine[0]].b.length} chars)`:''));
    ok(t.ghostInfo&&t.ghostInfo.car==='r34'&&t.ghostInfo.t<20.5,'beating the course record makes your lap the ghost to chase');}
   t.toMenu('course');t.selectCar(0);
+  // game updates: a racer keeps live/<uid> with the expected end of the race; the update notice shows as a banner
+  {t.setMode('race');t.start();step(5);await new Promise(r=>setTimeout(r,10));const L=STORE['live/U1'];
+   ok(L&&L.racing==='race'&&L.eta>Date.now()+20000,'a race in progress is announced in live/ with its expected end ('+(L&&Math.round((L.eta-Date.now())/1000))+' s)');
+   t.toMenu('course');await new Promise(r=>setTimeout(r,10));ok(STORE['live/U1'].racing==='','leaving the race clears it');
+   ok(__LS['fpr-run']==='','no run left marked as running');}
   // achievements: a won race unlocks the first-steps set and that course's win; the list renders
   ok(t.ACH.length>=95&&new Set(t.ACH.map(a=>a.id)).size===t.ACH.length,`${t.ACH.length} achievements with unique ids`);
   t.selectCar(3);t.selectCourse(0);t.setMode('race');t.setWeather('rain');t.start();step(260);t.AI.forEach(a=>a.skillC=0.02);
@@ -113,6 +118,16 @@ setTimeout(async()=>{try{
    S.cp=99999;t.cosSet('flame','purple');t.cosSet('muf','straight');ok(t.cosGet('flame')==='purple'&&t.cosGet('muf')==='straight','garage items open with points');S.cp=keep;S.cos={};
    S.title='tourer';const pr=t.profSummary(S);ok(pr.lv>=2&&pr.ti==='tourer'&&pr.pts===t.totalPts(S),'summary carries level, title and total points');
    ok(t.cleanProf({lv:7,ti:'nope',pts:1}).ti===''&&t.cleanProf({lv:7,ti:'tourer'}).ti==='tourer','shared title must be a known one');
+   // from 2026-10-19: tasks that rotate through every car and course
+   {const seen=new Set();for(let d=0;d<40;d++){const day=new Date(Date.parse('2026-10-19T00:00:00Z')+d*864e5).toISOString().slice(0,10);t.chDailies(day).forEach(x=>seen.add(x.txt));}
+    const txt=[...seen].join('|'),cs=t.COURSES.filter(c=>txt.includes(c.name)).length;
+    ok(cs===t.COURSES.length,'new dailies name every course within 40 days ('+cs+'/'+t.COURSES.length+')');
+    ok(!t.chDailies('2026-10-18').some(x=>x.txt.includes('今日の組み合わせ'))&&t.chDailies('2026-10-19')[0].txt.includes('今日の組み合わせ'),'old dailies until 10/18, new from 10/19');
+    const wk=new Set();for(let w=0;w<8;w++){const W=t.chWeekly('w'+(Math.floor((Math.floor(Date.parse('2026-10-19T00:00:00Z')/864e5)+3)/7)+w));wk.add(W.id);}
+    ok(wk.size===8&&[...wk].every(i=>i.startsWith('v_')),'new weeklies cycle through 8 variety tasks');
+    S.wk.cars=[];S.wk.courses=[];S.dly.done=[0,0,0];S.dly.p=[0,0,0];S.dly.k=[[],[],[]];
+    t.chToday=[{k:'lap',n:2,key:x=>x.car,f:x=>x.newCarWk,tier:2,txt:'n'},{k:'lap',n:99,tier:1,txt:'x'},{k:'lap',n:99,tier:3,txt:'y'}];
+    t.chEv('lap',{car:'a',newCarWk:true});t.chEv('lap',{car:'a',newCarWk:false});ok(S.dly.p[0]===1,'"not yet this week" counts a car only the first time');}
    try{t.renderChal();ok(true,'challenge screen renders');}catch(e){ok(false,'challenge screen renders: '+e.message);}}
    t.toMenu('course');t.publishProf();await t.wqP;
    const mine=STORE['records/U1']&&STORE['records/U1'].players.find(p=>p.name==='T');

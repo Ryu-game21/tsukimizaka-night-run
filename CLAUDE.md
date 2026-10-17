@@ -10,6 +10,12 @@ GLB モデルを変換して走らせている。UI と文章はすべて日本�
 | Netlify 版 | https://tsukimizaka-night-run.netlify.app | `main` に push すると自動デプロイ（`netlify.toml` で `site/` を公開） | 端末ごとの記録のみ |
 | Claude 版（アーティファクト） | https://claude.ai/artifact/D5QourP6E7TqL4C8Z7rRJZ | claude.ai のチャットから Artifact ツールで再公開 | Claude の共有DBで全員のランキング |
 
+- **Claude 版を publish するときはレース中の人を待つ**（新しい版は開いているページに自動で届いて再読み込みされ、走行が中断されるため）:
+  1. ArtifactData で `live` を list（各プレイヤーの `live/<uid>` = `{racing:'race'|'free'|'', eta, at}`）。`at` が3分以内で `racing:'race'` のものの最大 `eta` を出す。
+  2. いれば `notice/update` に `{status:'pending', eta:<その最大eta>, at:<今>}` を set（ゲームの上部に「アップデート予定（あと約N分）」と出る）。
+  3. その時刻まで待ち（最長15分、途中で live を読み直してよい）、publish したら `notice/update` を `{status:'done', at}` にする。フリー走行は待たない（バナーで予告だけ）。
+  4. publish のときは `capabilities` を省略して今の宣言を引き継ぐ（db の rules: records / ghosts / weather / live / notice、と user）。
+  それでも走行中に再読み込みされたページは、次に開いたときに「更新のため中断」と出してスタート準備の画面から再開できる（`fpr-run`、`runRestoreNote`）。
 - このリポジトリを直しても **Claude 版は変わらない**。Claude 版にも反映したいときはユーザーに伝える
   （Artifact ツールが使えるセッションなら `site/index.html` を読み直してから同じ URL に publish し、
   `cars/` `tracks/` `audio/` の新しいファイルは `files` で一緒に送る）。
@@ -68,6 +74,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   ウィークリー1つ（`CH_WEEKLY`、月曜0時、150pt＋称号）。進み具合はゲームのイベント（`chEv('lap'|'win'|'great'|'km'|'pb'|'gold'|'sector'|'pass'|'rev'|'flame'|'speed'|'race')`）で増える。
   合計ポイント（実績＋チャレンジ、`totalPts`）は減らず、ドライバーレベル（`lvOf`）と `COS`（炎の色・マフラー・ブローオフ）の解放に使う。称号 `TITLES` はウィークリー・レベル・一部の実績で手に入り、
   レベルと選んだ称号は `prof`（lv, ti）に載ってランキングとプレイヤー記録に出る。
+  2026-10-19 からのデイリー・ウィークリーは「いろいろな車・コースを走る」お題（`chDailies2`/`chWeekly2`）。今日の車とコースは固定のシャッフル順で毎日1つずつ進み（`chRot`）
+  全車・全コースが順番に出る。「今週まだ乗っていない車／走っていないコース」は各自の `ACHS.wk.cars` / `ACHS.wk.courses` で判定する。
 - `player record`（`renderProf`）… プレイヤー記録の画面。自分の実績の集計（`profSummary`：解除数・ランク別の数・走行距離など、
   数だけ）を `records/<uid>` の各プレイヤーに `prof` として載せ（`publishProf`、走行中は送らない）、全員の分を読んで表示する。
 - `safety car start`（`scStart`/`scUpdate`、状態は `scar`）… レースの前にセーフティカー先導の1周（ヴァンテージか SLS、`SCCARS` は選べない車）。
