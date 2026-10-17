@@ -9,7 +9,7 @@ let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
 src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
-get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
+get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},get SCL(){return SCL},get LAPS(){return LAPS},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ}};\n`+src.slice(end);
 function U(name='u'){const f=function(){};return new Proxy(f,{
   get(t,k){if(k===Symbol.toPrimitive)return()=>0;if(k==='then')return undefined;if(k==='length')return 0;if(k===Symbol.iterator)return function*(){};return U(name+'.'+String(k));},
   set(){return true;},apply(){return U(name+'()');},construct(){return U('new '+name);} });}
@@ -50,6 +50,7 @@ setTimeout(async()=>{try{
   t.selectCourse(0);t.setWeather('clear');const g0=t.GRIP,b0=t.BR_P;t.setWeather('rain');
   ok(Math.abs(t.GRIP/g0-0.8)<1e-6&&Math.abs(t.BR_P/b0-0.85)<1e-6,'rain grip 80% / brake 85%');t.setWeather('clear');
   // race lap -> replay
+  t.opts.sc=false;   // these runs test laps and achievements from a standing start (the safety-car start has its own test)
   t.setMode('race');t.start();step(260);drive(Math.floor(t.N*1.3),40);
   ok(t.laps.length>=1&&!!t.sessRp,'race lap recorded with replay');
   t.startReplay(t.sessRp,'result');step(120);ok(t.state==='replay'&&t.rpTime>1,'replay plays');t.endReplay();ok(t.state==='finish','replay returns to results');
@@ -131,7 +132,14 @@ setTimeout(async()=>{try{
    ok(exitSeen,'the safety car pulls off the road before lap 2');
    ok(greenT!=null&&t.fieldList().some(c=>c.s>=t.L-1),'green flag when the leader reaches the line (after '+(greenT||0).toFixed(1)+' s)');
    ok(maxV*3.6<200,'under the safety car the pace stays low (max '+(maxV*3.6).toFixed(0)+' km/h)');
-   {const keys=(t.RD.log||[]).map(x=>x.split(':')[0]);ok(keys.includes('sc_in')&&keys.includes('green'),'team radio calls the safety car in and the green flag ('+keys.join(',')+')');}
+   // the safety-car lap is not part of the race: lap 1 starts when the player crosses the line after the green flag
+   {ok(t.SCL===1,'the safety-car lap is an extra lap');const lap0=t.pl.lap;
+    for(let f=0;f<60*120&&t.pl.lap===lap0&&t.state==='race';f++){t.keys.up=1;const P=t.P,N=t.N;const k=(t.pl.idx+8)%N,des=Math.atan2(P[k].x-t.pl.x,P[k].z-t.pl.z);let d=((des-t.pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;t.keys.left=d>0.02?1:0;t.keys.right=d<-0.02?1:0;step(1);}
+    t.keys.up=0;t.keys.left=t.keys.right=0;
+    ok(t.pl.lap===2&&t.laps.length===0&&t.state==='race','crossing the line after the safety car records no lap time and starts race lap 1');
+    ok(t.AI.every(a=>!a.fin),'nobody has finished after the safety-car lap');}
+   step(120);
+   {const keys=(t.RD.log||[]).slice(-6).map(x=>x.split(':')[0]);ok(keys.includes('sc_in')&&keys.includes('green'),'team radio calls the safety car in and the green flag ('+keys.join(',')+')');}
    t.toMenu('course');ok(!t.scar,'leaving the race removes the safety car');
    t.opts.sc=false;t.setMode('race');t.start();ok(!t.scar,'the safety car start can be switched off');t.toMenu('course');t.opts.sc=true;}
   // tyre temperature: cold at the start, warmed by cornering and braking, grip follows the temperature window

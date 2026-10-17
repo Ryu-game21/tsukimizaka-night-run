@@ -59,8 +59,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `player record`（`renderProf`）… プレイヤー記録の画面。自分の実績の集計（`profSummary`：解除数・ランク別の数・走行距離など、
   数だけ）を `records/<uid>` の各プレイヤーに `prof` として載せ（`publishProf`、走行中は送らない）、全員の分を読んで表示する。
-- `safety car start`（`scStart`/`scUpdate`、状態は `scar`）… レースの1周目はセーフティカー先導（ヴァンテージか SLS、`SCCARS` は選べない車）。
-  1周目は追い越し禁止（AI は前の車の後ろに並び、プレイヤーは速度を抑える）、残り `SC_EXIT` m で道の外へ抜けて消え、先頭がラインを越えたら GREEN。設定 `opts.sc` で切れる。
+- `safety car start`（`scStart`/`scUpdate`、状態は `scar`）… レースの前にセーフティカー先導の1周（ヴァンテージか SLS、`SCCARS` は選べない車）。
+  この周は周回数・タイム・ラップ記録に入らない（`SCL`=1 のとき完走は `LAPS+SCL` 周、表示は `SC` → `1/LAPS`、TOTAL は `raceT-raceT0`）。追い越し禁止（AI は前の車の後ろに並び、プレイヤーは速度を抑える）、残り `SC_EXIT` m で道の外へ抜けて消え、先頭がラインを越えたら GREEN。設定 `opts.sc` で切れる。
 - `tyre temperature`（`tyreUpdate`、`tyreT` は 前左・前右・後左・後右、`tyreK` がグリップ倍率）… コーナーの横G・ブレーキ・ホイールスピンで温まり、
   風と気温で冷える（雨は冷えやすい）。適温は普通 70〜95°C、`gripG>=1.2` の車は 80〜105°C。冷えすぎ・熱すぎでグリップとブレーキが落ち、
   コーナー予告の推奨速度も `recNow` で下がる。右上のゲージ（`drawTyres`）と結果画面に表示。気温は `tempGrip` ではなくタイヤを通して効く。ライバル車には効かない。
