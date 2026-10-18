@@ -66,6 +66,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   ベストラップ（車は問わない、共有ゴースト `ghosts/<uid>/runs/…`）にする。ゴーストの1周はフライングラップなので、アウトラップ1周（`SCL`=1、セーフティカーなし、表示 OUT）のあと
   ラインを越えた瞬間に全員スタート（ローリング）。ゴーストは AI の枠（`a.gh`）に入り、各自の周をくり返す（完走 = 周回数×その人のベストラップ）。接触なし。ゴーストがない枠は `a.out`（台数から外す）。
   共有DBがない（Netlify 版）・ほかの人の記録がないときは AI 戦になる。優勝は実績・チャレンジの勝利に数える（AI の難易度の実績と SC の実績は除く、相手0台なら数えない）。`'race'`/`'win'` は `gr:true`、`ai:'ghost'`。
+- `position tower`（`towerTick`/`towerEntries`、`#tower`）… レース中、右上の順位の下に全員の順位・車の色・名前・トップとの差。並び替えは transform のアニメーション、上がった行は緑・下がった行は赤で光る。`#posN`/`#posT`（台数）もここで更新。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・

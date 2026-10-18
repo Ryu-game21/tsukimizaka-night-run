@@ -31,6 +31,21 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 #pos{display:flex;align-items:baseline;gap:4px}
 #pos b{font-weight:400;font-size:54px;line-height:1}
 #pos span{font-size:16px;color:var(--amber)}
+/* position tower: one row per car, moved by transform so a change of order slides into place */
+#tower{--rh:26px;list-style:none;margin:0;padding:0;position:relative;width:200px;font-size:14px;line-height:1}
+#tower li{position:absolute;left:0;right:0;top:0;height:calc(var(--rh) - 2px);display:grid;grid-template-columns:18px 5px minmax(0,1fr) auto;gap:6px;align-items:center;
+  padding:0 8px 0 6px;box-sizing:border-box;background:rgba(8,10,20,.62);border-radius:3px;transform:translateY(calc(var(--i,0) * var(--rh)));
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .35s}
+#tower li b{font-weight:700;text-align:right}
+#tower li i{height:14px;border-radius:1px}
+#tower li span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--fg,#ece8dc)}
+#tower li em{font-style:normal;font-size:12px;color:var(--dim)}
+#tower li.me{background:rgba(255,179,71,.24)}
+#tower li.me span{color:#fff;font-weight:700}
+#tower li.up{background:rgba(70,210,120,.45)}
+#tower li.dn{background:rgba(255,80,60,.42)}
+@media (max-width:700px){#tower{--rh:21px;width:150px;font-size:12px}#tower li em{font-size:10px}}
+@media (prefers-reduced-motion:reduce){#tower li{transition:none}}
 #map{width:150px;height:150px;opacity:.92}
 #tyres{width:150px;height:138px}
 #gauge{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 6px);width:320px;height:140px}
@@ -420,7 +435,8 @@ body:not(.mt) .pad.s{display:none}
   <div class="k">SECTOR</div><div class="secs" id="secs"></div>
 </div>
 <div class="hud" id="tr" hidden>
-  <div id="pos"><b id="posN">4</b><span>位 / 4</span></div>
+  <div id="pos"><b id="posN">4</b><span id="posT">位 / 4</span></div>
+  <ol id="tower" aria-label="順位" hidden></ol>
   <canvas id="map"></canvas>
   <canvas id="tyres" aria-label="タイヤの状態"></canvas>
 </div>
@@ -2957,7 +2973,7 @@ function start(){
   grEnd();aiBuild();resetRace();tyreReset();radioReset();grStart();scStart();SCL=scar||GR.on?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
-  $('pos').hidden=mode==='free';$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
+  $('pos').hidden=mode==='free';towerReset();$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
   sizeHud();
   $('best').textContent=fmt(best);$('cn').classList.remove('show');renderGhostTag();
 }
@@ -2989,7 +3005,7 @@ function showMsg(t,small,dur){const m=$('msg');m.textContent=t;m.classList.toggl
 function pop(t,cls){const p=$('pop');p.textContent=t;p.className='hud show '+cls;popT=0.9;}
 function finish(){
   liveWrite('');state='finish';
-  finishRank=1+AI.filter(a=>!a.out&&a.fin).length;
+  finishRank=1+AI.filter(a=>!a.out&&a.fin).length;plFin=raceT;
   $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name+' ・ '+(GR.on?'ゴースト対戦':'AI '+aiLv().n);
   $('rPos').innerHTML=finishRank+'<span>位 / '+(1+AI.filter(a=>!a.out).length)+'台</span>';
   const bl=Math.min(...laps);
@@ -4438,6 +4454,39 @@ function drawMap(){
   c.fillStyle='#ff5a46';c.beginPath();c.arc(ox+pl.x*sc,oz+pl.z*sc,4.5,0,7);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();
 }
 
+/* ---------- position tower (race): everyone's place and gap to the leader, live ---------- */
+let plFin=0,towerIds='',towerEls={},towerIdx={},towerPos=1;
+function towerReset(){plFin=0;towerIds='';towerEls={};towerIdx={};const t=$('tower');t.textContent='';t.hidden=true;}
+function towerEntries(){
+  const me=(pl.lap-1)*L+pl.idx*ds+(pl.x-P[pl.idx].x)*T[pl.idx].x+(pl.z-P[pl.idx].z)*T[pl.idx].z;
+  const list=[{id:'me',name:'あなた',color:CAR.body.color,s:me,fin:plFin,me:true}];
+  AI.forEach((a,k)=>{if(!a.out)list.push({id:'a'+k+(a.gh?'g':''),name:a.gh?a.name:(a.car?(a.car.short||a.car.name):'AI'),color:a.color||0x888888,s:a.s,fin:a.fin});});
+  // finished cars first, by finishing time; then by distance covered
+  list.sort((x,y)=>(x.fin&&y.fin)?x.fin-y.fin:x.fin?-1:y.fin?1:y.s-x.s);
+  return list;
+}
+function towerTick(){
+  const tw=$('tower'),off=state==='menu'||state==='replay'||grOut();
+  const list=off?[]:towerEntries(),pos=Math.max(1,list.findIndex(e=>e.me)+1);towerPos=pos;
+  const pn=state==='finish'?String(finishRank):grOut()?'–':String(pos),n=grOut()?'–':String(Math.max(1,list.length));
+  if($('posN').textContent!==pn)$('posN').textContent=pn;const pt='位 / '+n;if($('posT').textContent!==pt)$('posT').textContent=pt;
+  if(off||list.length<2){if(!tw.hidden)tw.hidden=true;return;}
+  const ids=list.map(e=>e.id+':'+e.name).sort().join('|');
+  if(ids!==towerIds){   // the field changed (start, ghosts joining): rebuild the rows
+    towerIds=ids;towerEls={};towerIdx={};tw.textContent='';
+    list.forEach(e=>{const li=document.createElement('li');if(e.me)li.className='me';const b=document.createElement('b'),c=document.createElement('i'),nm=document.createElement('span'),g=document.createElement('em');
+      c.style.background='#'+(e.color>>>0).toString(16).padStart(6,'0').slice(-6);nm.textContent=e.name;li.append(b,c,nm,g);tw.appendChild(li);towerEls[e.id]=li;});
+    tw.style.height='calc(var(--rh) * '+list.length+')';
+  }
+  tw.hidden=false;
+  const lead=list[0],vRef=L/Math.max(20,goldTime()),pre=preGreen();
+  list.forEach((e,i)=>{const li=towerEls[e.id];if(!li)return;
+    const was=towerIdx[e.id];if(was!==i){li.style.setProperty('--i',i);li.children[0].textContent=i+1;
+      if(was!=null){li.classList.remove('up','dn');void li.offsetWidth;li.classList.add(i<was?'up':'dn');clearTimeout(li._t);li._t=setTimeout(()=>li.classList.remove('up','dn'),1300);}
+      towerIdx[e.id]=i;}
+    const gap=i===0?(e.fin?'FINISH':pre?'':'トップ'):pre?'':e.fin&&lead.fin?'+'+(e.fin-lead.fin).toFixed(1):'+'+Math.max(0,(lead.s-e.s)/vRef).toFixed(1);
+    const g=li.children[3];if(g.textContent!==gap)g.textContent=gap;});
+}
 /* ---------- loop ---------- */
 let orbitA=0;
 function applyOffset(){
@@ -4511,7 +4560,7 @@ function frame(now){
       $('best').textContent=fmt(best);
       if(realOn&&!$('wxV').hidden){const r=realFor(C.id),wh=windHud();$('wxV').textContent=(r?WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':''):'')+(wh?' ・ '+wh:'');}
       const pprog=(pl.lap-1)*L+pl.idx*ds;
-      if(mode!=='free')$('posN').textContent=state==='finish'?finishRank:grOut()?'–':1+AI.filter(a=>!a.out&&a.s>pprog).length;
+      if(mode!=='free')towerTick();
       drawMap();drawTyres();
     }
   }
