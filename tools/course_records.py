@@ -8,9 +8,15 @@ them (<dump dir>/records/<uid>.json, each {"id":..,"data":{"players":[...]}} or 
 Prints one line per course whose No.1 time was set within the last <minutes>; nothing when there is none.
 Ranking rules follow the game (rankFor in site/index.html): valid times 5-3600 s, known course and car ids,
 fastest time first, earlier record wins a tie. Used by the hourly scheduled task that pushes a phone notification.
+
+Records re-sent by syncLocalToShared get a fresh "at" although the lap is old (pages before the rounding fix re-sent
+about half of a player's bests on every load). Such a re-send writes several bests of one player within a few
+seconds, which real laps never do (each lap takes over 5 s), so a best whose "at" is within BURST ms of another
+best of the same player is not treated as new.
 """
 import glob, json, os, re, sys, time
 
+BURST = 5000
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'site', 'index.html')
 
 
@@ -44,18 +50,20 @@ def main():
             name = str((p or {}).get('name') or '').strip()[:16]
             if not name or not isinstance(p.get('best'), dict):
                 continue
+            ats = sorted(r.get('at') or 0 for r in p['best'].values() if isinstance(r, dict) and r.get('at'))
             for k, r in p['best'].items():
                 if '__' not in k or not isinstance(r, dict):
                     continue
                 cid, car = k.split('__', 1); t = r.get('t'); at = r.get('at') or 0
                 if cid not in courses or car not in cars or not isinstance(t, (int, float)) or not 5 < t < 3600:
                     continue
+                resent = at and sum(abs(a - at) < BURST for a in ats) > 1
                 cur = best.get(cid)
                 if cur is None or (t, at) < (cur[0], cur[1]):
-                    best[cid] = (t, at, name, car)
+                    best[cid] = (t, at, name, car, resent)
     since = (time.time() - minutes * 60) * 1000
-    for cid, (t, at, name, car) in sorted(best.items(), key=lambda x: -x[1][1]):
-        if at >= since:
+    for cid, (t, at, name, car, resent) in sorted(best.items(), key=lambda x: -x[1][1]):
+        if at >= since and not resent:
             print('%s：%s さんが %s（%s）でコースレコード' % (courses[cid], name, fmt(t), cars[car]))
 
 
