@@ -2654,7 +2654,7 @@ function submitBest(c,car,t,splits){
     const d=myDoc&&Array.isArray(myDoc.players)?JSON.parse(JSON.stringify(myDoc)):{players:[]};
     let p=d.players.find(x=>x&&x.name===name);if(!p){p={name,best:{}};d.players.push(p);}
     if(!p.best||typeof p.best!=='object')p.best={};
-    const k=rkey(c,car),cur=p.best[k];if(cur&&validT(cur.t)&&cur.t<=t)return;
+    const k=rkey(c,car),cur=p.best[k];if(cur&&validT(cur.t)&&cur.t<=Math.round(t*1000)/1000)return;   // compare at the stored ms precision
     p.best[k]={w:wxSel,r:realOn?1:0,t:Math.round(t*1000)/1000,s:Array.isArray(splits)?splits.map(v=>v==null?null:Math.round(v*1000)/1000):null,at:Date.now()};
     d.updated=Date.now();
     const write=()=>sdb.doc('records/'+UID).set(d);
@@ -2875,13 +2875,13 @@ function oppRows(){
 }
 function setOpp(o){opts.opp=o;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}oppRows();try{if(step==='go')renderSummary();}catch(e){}}
 var synced=false;
-function syncLocalToShared(){  // personal bests set before sign-in / before this version get published once
+function syncLocalToShared(){  // personal bests set before sign-in / before this version get published once (local bests keep full precision, shared ones are rounded to ms: compare rounded, or about half of them are re-sent with a new 'at' on every load)
   if(synced||shared!=='on'||!PLAYER)return;synced=true;
   COURSES.forEach(c=>CARS.forEach(car=>{
     let t=null;try{t=parseFloat(localStorage.getItem(bestKey(c,car)));}catch(e){}
     if(!validT(t))return;
     const mine=board.find(r=>r.uid===UID&&r.name===PLAYER&&r.course===c.id&&r.car===car.id);
-    if(!mine||t<mine.t-1e-4){let s=null;try{s=JSON.parse(localStorage.getItem(pkey('fpr-split-'+c.id+'-'+car.id))||'null');}catch(e){}submitBest(c,car,t,s);}
+    if(!mine||Math.round(t*1000)/1000<mine.t-1e-4){let s=null;try{s=JSON.parse(localStorage.getItem(pkey('fpr-split-'+c.id+'-'+car.id))||'null');}catch(e){}submitBest(c,car,t,s);}
   }));
 }
 function renderPlayer(){$('pName').textContent=PLAYER||'—';}
