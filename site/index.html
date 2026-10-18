@@ -44,7 +44,8 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 #tower li.me span{color:#fff;font-weight:700}
 #tower li.up{background:rgba(70,210,120,.45)}
 #tower li.dn{background:rgba(255,80,60,.42)}
-@media (max-width:700px){#tower{--rh:21px;width:150px;font-size:12px}#tower li em{font-size:10px}}
+@media (max-width:700px){#tower{--rh:21px;width:150px;font-size:12px}#tower li em{font-size:10px}
+  body.racing #map{display:none}body.racing #cn{top:calc(env(safe-area-inset-top,0px) + 162px)}}
 @media (prefers-reduced-motion:reduce){#tower li{transition:none}}
 #map{width:150px;height:150px;opacity:.92}
 #tyres{width:150px;height:138px}
@@ -2973,7 +2974,7 @@ function start(){
   grEnd();aiBuild();resetRace();tyreReset();radioReset();grStart();scStart();SCL=scar||GR.on?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
-  $('pos').hidden=mode==='free';towerReset();$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
+  $('pos').hidden=mode==='free';towerReset();document.body.classList.toggle('racing',mode!=='free');$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
   sizeHud();
   $('best').textContent=fmt(best);$('cn').classList.remove('show');renderGhostTag();
 }
