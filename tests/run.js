@@ -131,7 +131,14 @@ setTimeout(async()=>{try{
     ok(wk.size===8&&[...wk].every(i=>i.startsWith('v_')),'new weeklies cycle through 8 variety tasks');
     S.wk.cars=[];S.wk.courses=[];S.dly.done=[0,0,0];S.dly.p=[0,0,0];S.dly.k=[[],[],[]];
     t.chToday=[{k:'lap',n:2,key:x=>x.car,f:x=>x.newCarWk,tier:2,txt:'n'},{k:'lap',n:99,tier:1,txt:'x'},{k:'lap',n:99,tier:3,txt:'y'}];
-    t.chEv('lap',{car:'a',newCarWk:true});t.chEv('lap',{car:'a',newCarWk:false});ok(S.dly.p[0]===1,'"not yet this week" counts a car only the first time');}
+    t.chEv('lap',{car:'a',newCarWk:true});t.chEv('lap',{car:'a',newCarWk:false});ok(S.dly.p[0]===1,'"not yet this week" counts a car only the first time');
+    // mid / hard tasks use the rest of the game: weather, time, views, MT, real weather, ghosts, replays, SC, AI levels, tyres
+    {const kinds=new Set(),wk2=new Set();for(let d=0;d<120;d++){const day=new Date(Date.parse('2026-10-19T00:00:00Z')+d*864e5).toISOString().slice(0,10);t.chDailies(day).slice(1).forEach(x=>kinds.add(x.txt.replace(/[「（].*$/,'').slice(0,6)));}
+     for(let w=0;w<14;w++)wk2.add(t.chWeekly('w'+(Math.floor((Math.floor(Date.parse('2026-10-19T00:00:00Z')/864e5)+3)/7)+w)).ti);
+     ok(kinds.size>=20&&wk2.size===14,'new dailies / weeklies spread over the game ('+kinds.size+' kinds of daily, '+wk2.size+' weekly titles)');}
+    // a win on やさしい counts for a task that names no level, not for one that does
+    t.chToday=[{k:'win',n:1,f:x=>x.wx==='rain',tier:3,txt:'r'},{k:'win',n:1,f:x=>x.ai==='hard'||x.ai==='expert',tier:3,txt:'h'},{k:'lap',n:99,tier:1,txt:'x'}];
+    S.dly.done=[0,0,0];S.dly.p=[0,0,0];S.dly.k=[[],[],[]];S.dly.all=0;t.chEv('win',{wx:'rain',ai:'easy'});ok(S.dly.done[0]&&!S.dly.done[1],'a rain win on やさしい counts; a "むずかしい以上" task waits');}
    try{t.renderChal();ok(true,'challenge screen renders');}catch(e){ok(false,'challenge screen renders: '+e.message);}}
    t.toMenu('course');t.publishProf();await t.wqP;
    const mine=STORE['records/U1']&&STORE['records/U1'].players.find(p=>p.name==='T');

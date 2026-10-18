@@ -2957,7 +2957,7 @@ function rpSample(t,jump){
 }
 function startReplay(r,back){
   if(!r||!r.d||r.d.length<60)return;
-  replay=r;rpBack=back;rpTime=0;achFlag('replay');achSet('rpc',RPCAMS[rpCam].id);rpAutoT=0;rpAutoK=0;tvCur=-1;
+  replay=r;rpBack=back;rpTime=0;achFlag('replay');chEv('replay');achSet('rpc',RPCAMS[rpCam].id);rpAutoT=0;rpAutoK=0;tvCur=-1;
   state='replay';initAudio();
   $('menu').hidden=true;$('result').hidden=true;setHud(false);$('tut').hidden=true;
   $('gauge').hidden=false;$('rpHud').hidden=false;$('viewBtn').hidden=false;$('endBtn').hidden=false;$('endBtn').textContent='リプレイ終了';$('viewBtn').textContent='カメラ';
@@ -3208,7 +3208,8 @@ function achLap(lt,pb){
   if(cab)S.cabLaps=(S.cabLaps||0)+1;if(real){S.realLaps=(S.realLaps||0)+1;if(wind.ms>=10)S.f.wind10=1;}
   if(S2CFG[CAR.id]&&S2CFG[CAR.id].vtec)S.f.vtec=1;
   chSync();const W=S.wk,newCarWk=!W.cars.includes(CAR.id),newCourseWk=!W.courses.includes(C.id);if(newCarWk)W.cars.push(CAR.id);if(newCourseWk)W.courses.push(C.id);
-  const x={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),cab,real,newCarWk,newCourseWk,region:chRegion(CAR),drive:CAR.drive};chEv('lap',x);if(pb)chEv('pb',x);if(gold)chEv('gold',x);
+  const gh=mode==='free'&&opts.ghost&&!!ghost&&ghost!==ownGhost&&!!ghostInfo&&ghostInfo.name!==PLAYER;
+  const x={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),cab,real,newCarWk,newCourseWk,region:chRegion(CAR),drive:CAR.drive,view:VIEWS[view].id,gh,mode};chEv('lap',x);if(pb)chEv('pb',x);if(gold)chEv('gold',x);
   achLapStart();achDirty=true;achCheck();
 }
 // gold target: the lap the speed guide would drive (this car, this weather), scaled per course type so the best
@@ -3223,8 +3224,13 @@ function achFinish(rank){
   const easyWin=rank===1&&opts.ai==='easy';if(rank===1&&!easyWin){if(opts.ai==='hard'||opts.ai==='expert')S.f.win_hard=1;if(opts.ai==='expert'){S.f.win_expert=1;S.xw=Object.assign({},S.xw,{[C.id]:1});}}
   if(rank===1&&!easyWin){S.wins++;if(isMT())S.winsMT++;S.cw[C.id]=1;S.cwin[CAR.id]=1;if(wxSel==='rain')S.f.win_rain=1;if(wxSel==='fog')S.f.win_fog=1;if(raceContacts===0)S.clean++;
     if(SCL>0)S.f.sc_win=1;if(chGreenPos===4)S.f.sc_last=1;if(realOn&&realFor(C.id)&&tempC!=null&&tempC<=5)S.f.coldwin=1;
-    chEv('win',{car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0,region:chRegion(CAR),drive:CAR.drive,newCarWk:chRaceNewCar});}
-  if(tyreStat.n>20&&tyreStat.ok/tyreStat.n>=.9&&LAPS>=3)S.f.tyre90=1;if(chRaceP>=3)S.f.pass3=1;chEv('race');
+  }
+  // challenges count every win, やさしい too: a task that needs a level says so in its text (x.ai)
+  const tyreOk=tyreStat.n>20&&tyreStat.ok/tyreStat.n>=.9;
+  const rx={car:CAR.id,course:C.id,wx:wxSel,time:timeSel,mt:isMT(),clean:raceContacts===0,region:chRegion(CAR),drive:CAR.drive,newCarWk:chRaceNewCar,
+    ai:opts.ai,sc:SCL>0,real:realOn&&!!realFor(C.id),cab:!!VIEWS[view].fp,rank,pass:chRaceP,laps:LAPS,tyreOk};
+  if(rank===1)chEv('win',rx);
+  if(tyreOk&&LAPS>=3)S.f.tyre90=1;if(chRaceP>=3)S.f.pass3=1;chEv('race',rx);
   achDirty=true;achCheck();
 }
 function achFlag(k){if(!ACHS||ACHS.f[k])return;ACHS.f[k]=1;achDirty=true;achCheck();}
@@ -3286,14 +3292,14 @@ const CH_WEEKLY=[
 ];
 const CH_WEEK_PTS=150;
 const TITLES={
-  tourer:'旅するドライバー',collector:'コレクター',conqueror:'サーキット制圧',international:'国際派',drivetrain:'駆動マスター',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
+  tourer:'旅するドライバー',collector:'コレクター',conqueror:'サーキット制圧',international:'国際派',drivetrain:'駆動マスター',director:'映像監督',challenger:'挑戦者',allday:'24時間ドライバー',ghostbuster:'ゴーストバスター',hardcharger:'ハードチャージャー',manual:'マニュアル派',tyreman:'タイヤマネージャー',restart:'リスタートの名手',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
   lv5:'ルーキー',lv10:'走り屋',lv20:'エース',lv30:'トップドライバー',lv50:'生ける伝説',
   streak7:'皆勤賞',record:'レコードホルダー',legend:'レジェンド',grandslam:'グランドスラマー',perfect:'完璧主義者',revking:'レブリミッター職人',fire:'火吹き',
 };
 const TITLE_HOW={lv5:'Lv5',lv10:'Lv10',lv20:'Lv20',lv30:'Lv30',lv50:'Lv50',streak7:'実績「1週間皆勤」',record:'実績「レコードホルダー」',legend:'実績「レジェンド」',
   grandslam:'実績「グランドスラム」',perfect:'実績「完璧主義者」',revking:'実績「レブリミッター職人」',fire:'実績「火吹き」'};
 CH_WEEKLY.forEach(w=>TITLE_HOW[w.ti]='ウィークリー「'+w.txt+'」');
-Object.assign(TITLE_HOW,{collector:'ウィークリー（いろいろな車で走るお題）',conqueror:'ウィークリー「違うコース4つでそれぞれ優勝」',international:'ウィークリー「日本車・アメリカ車・ヨーロッパ車で優勝」',drivetrain:'ウィークリー「5つの駆動方式で1周」',tourer:'ウィークリー（いろいろなコースを走るお題）',multi:'ウィークリー「違う車4台でそれぞれ優勝」'});
+Object.assign(TITLE_HOW,{multi:'ウィークリー「違う車4台でそれぞれ優勝」'});
 const TITLE_ACH={streak7:'streak7',record:'record5',legend:'legend',grandslam:'win_all',perfect:'perfect5',revking:'rev100',fire:'flame1000'};
 // customisation, opened by total points
 const COS={
@@ -3332,34 +3338,65 @@ function chRot(day){
   return {D,car1:at(cars,D),car2:at(cars,D+Math.floor(cars.length/2)),car3:at(cars,D+7),c1:at(crs,D),c2:at(crs,D+Math.floor(crs.length/2)),c3:at(crs,D+5)};
 }
 const cn=c=>c.short||c.name;
+// easy: today's car x course (every car and course comes up in turn); mid / hard: the rest of the game -
+// weather, time of day, views, MT, real weather, ghosts, replays, the safety car, AI levels, tyres, sectors.
+// A win task without a level in its text counts on やさしい too.
+const AI_UP=a=>a==='hard'||a==='expert',VIEW_N=id=>(VIEWS.find(v=>v.id===id)||{}).n||id;
 function chDailies2(day){
-  const o=chRot(day),r=chRng(chHash('daily-v2:'+day)),pk=a=>a[Math.floor(r()*a.length)];
+  const o=chRot(day),r=chRng(chHash('daily-v2b:'+day)),pk=a=>a[Math.floor(r()*a.length)];
+  const wx=pk(['rain','fog','cloudy']),tm=pk(['day','dusk','night']),vw=pk(['high','top','tv','chaseFar']);
   const easy={k:'lap',n:1,f:x=>x.car===o.car1.id&&x.course===o.c1.id,txt:'今日の組み合わせ：'+cn(o.car1)+' で '+o.c1.name+' を1周する'};
   const mid=pk([
-    {k:'lap',n:2,f:x=>x.car===o.car2.id&&x.course===o.c2.id,txt:cn(o.car2)+' で '+o.c2.name+' を2周する'},
+    {k:'lap',n:2,f:x=>x.wx===wx,txt:WEATHERS[wx].n+'の中で2周する'},
+    {k:'lap',n:2,f:x=>x.time===tm,txt:TIMES_JA[tm]+'の時間帯に2周する'},
+    {k:'lap',n:2,f:x=>x.cab,txt:'運転席視点で2周する'},
+    {k:'lap',n:1,f:x=>x.view===vw,txt:'「'+VIEW_N(vw)+'」の視点で1周する'},
+    {k:'lap',n:3,f:x=>x.mt,txt:'MT（マニュアル）で3周する'},
+    {k:'lap',n:1,f:x=>x.real,txt:'リアル天候をオンにして1周する'},
+    {k:'lap',n:2,f:x=>x.gh,txt:'フリー走行で、ほかの人のゴーストと一緒に2周する'},
+    {k:'replay',n:1,txt:'ベストラップのリプレイを見る'},
+    {k:'race',n:1,f:x=>x.sc,txt:'セーフティカー先導ありのレースを完走する'},
+    {k:'race',n:1,f:x=>AI_UP(x.ai),txt:'AI「むずかしい」以上のレースを完走する'},
+    {k:'race',n:1,f:x=>x.tyreOk,txt:'タイヤを適温に保ってレースを完走する（ゲージが緑の時間9割以上）'},
+    {k:'sector',n:3,txt:'セクターで自己ベストを3回更新する'},
+    {k:'rev',n:20,txt:'MT のニュートラルでレブリミッターに20回当てる'},
+    {k:'flame',n:50,txt:'マフラーからアフターファイヤーを50回出す'},
+    {k:'pass',n:3,txt:'レースで合計3台抜く'},
     {k:'lap',n:2,key:x=>x.car,f:x=>x.newCarWk,txt:'今週まだ乗っていない車2台で、それぞれ1周する'},
-    {k:'lap',n:2,key:x=>x.course,f:x=>x.newCourseWk,txt:'今週まだ走っていないコース2つで、それぞれ1周する'},
-    {k:'lap',n:1,f:x=>x.course===o.c3.id&&x.region===chRegion(o.car3),txt:o.c3.name+' を'+chRegion(o.car3)+'で1周する'}]);
+    {k:'lap',n:2,key:x=>x.course,f:x=>x.newCourseWk,txt:'今週まだ走っていないコース2つで、それぞれ1周する'}]);
   const hard=pk([
-    {k:'win',n:1,f:x=>x.course===o.c1.id,txt:'今日のコース '+o.c1.name+' のレースで優勝する'},
-    {k:'win',n:1,f:x=>x.car===o.car1.id,txt:'今日の車 '+cn(o.car1)+' でレースに優勝する'},
+    {k:'win',n:1,f:x=>AI_UP(x.ai),txt:'AI「むずかしい」以上のレースで優勝する'},
+    {k:'race',n:1,f:x=>x.ai==='expert'&&x.rank<=3,txt:'AI「エキスパート」のレースで3位以内に入る'},
+    {k:'win',n:1,f:x=>x.wx==='rain',txt:'雨のレースで優勝する'},
+    {k:'win',n:1,f:x=>x.time==='night'&&x.wx==='fog',txt:'夜・霧のレースで優勝する'},
+    {k:'win',n:1,f:x=>x.mt,txt:'MT（マニュアル）でレースに優勝する'},
+    {k:'win',n:1,f:x=>x.cab,txt:'運転席視点のままレースに優勝する'},
+    {k:'win',n:1,f:x=>x.clean,txt:'壁にも車にも当たらずにレースで優勝する'},
+    {k:'race',n:1,f:x=>x.sc&&x.pass>=3,txt:'セーフティカー先導のレースで、グリーン後に3台以上抜いて完走する'},
+    {k:'ghost',n:1,txt:'フリー走行で、ほかの人のゴーストより速く1周する'},
     {k:'gold',n:1,f:x=>x.course===o.c2.id,txt:o.c2.name+' でゴールドタイムを切る'},
-    {k:'win',n:1,f:x=>x.newCarWk,txt:'今週まだ乗っていない車でレースに優勝する'}]);
+    {k:'win',n:1,f:x=>x.car===o.car1.id,txt:'今日の車 '+cn(o.car1)+' でレースに優勝する'},
+    {k:'win',n:1,f:x=>x.course===o.c1.id,txt:'今日のコース '+o.c1.name+' のレースで優勝する'},
+    {k:'great',n:40,txt:'コーナーで GREAT を40回取る'}]);
   return [easy,mid,hard].map((t,i)=>Object.assign(t,{tier:i+1}));
 }
-function chWeekly2(N){
-  const day=new Date((N*7-3)*864e5).toISOString().slice(0,10),o=chRot(day),cars=[o.car1,o.car2,o.car3],crs=[o.c1,o.c2,o.c3];
-  const L=[
-    {id:'v_cars8',k:'lap',n:8,key:x=>x.car,txt:'違う車8台で、それぞれ1周する',ti:'collector'},
-    {id:'v_crs8',k:'lap',n:8,key:x=>x.course,txt:'違うコース8つで、それぞれ1周する',ti:'tourer'},
-    {id:'v_carwin',k:'win',n:4,key:x=>x.car,txt:'違う車4台で、それぞれレースに優勝する',ti:'multi'},
-    {id:'v_crswin',k:'win',n:4,key:x=>x.course,txt:'違うコース4つで、それぞれレースに優勝する',ti:'conqueror'},
-    {id:'v_pick_c',k:'lap',n:3,key:x=>x.course,f:x=>crs.some(c=>c.id===x.course),txt:'今週のコース（'+crs.map(c=>c.name).join('・')+'）をそれぞれ1周する',ti:'tourer'},
-    {id:'v_pick_car',k:'lap',n:3,key:x=>x.car,f:x=>cars.some(c=>c.id===x.car),txt:'今週の車（'+cars.map(cn).join('・')+'）でそれぞれ1周する',ti:'collector'},
-    {id:'v_region',k:'win',n:3,key:x=>x.region,txt:'日本車・アメリカ車・ヨーロッパ車で、それぞれレースに優勝する',ti:'international'},
-    {id:'v_drive',k:'lap',n:5,key:x=>x.drive,txt:'FR・FF・MR・RR・4WD、5つの駆動方式の車でそれぞれ1周する',ti:'drivetrain'}];
-  return L[((N%L.length)+L.length)%L.length];
-}
+const CH_WEEKLY2=[
+  {id:'v_wx',k:'lap',n:4,key:x=>x.wx,txt:'4種類の天候（晴れ・曇り・雨・霧）でそれぞれ1周する',ti:'allweather'},
+  {id:'v_cars8',k:'lap',n:8,key:x=>x.car,txt:'違う車8台で、それぞれ1周する',ti:'collector'},
+  {id:'v_view',k:'lap',n:4,key:x=>x.view,txt:'4つの違う視点でそれぞれ1周する',ti:'director'},
+  {id:'v_ai',k:'race',n:4,key:x=>x.ai,txt:'AIの強さ4段階（やさしい〜エキスパート）のレースをそれぞれ完走する',ti:'challenger'},
+  {id:'v_crs8',k:'lap',n:8,key:x=>x.course,txt:'違うコース8つで、それぞれ1周する',ti:'tourer'},
+  {id:'v_time',k:'win',n:3,key:x=>x.time,txt:'昼・夕方・夜のレースでそれぞれ優勝する',ti:'allday'},
+  {id:'v_ghost',k:'ghost',n:3,key:x=>x.course,txt:'3つのコースで、ほかの人のゴーストより速く1周する',ti:'ghostbuster'},
+  {id:'v_drive',k:'lap',n:5,key:x=>x.drive,txt:'FR・FF・MR・RR・4WD、5つの駆動方式の車でそれぞれ1周する',ti:'drivetrain'},
+  {id:'v_hard',k:'win',n:3,f:x=>AI_UP(x.ai),txt:'AI「むずかしい」以上のレースで3回優勝する',ti:'hardcharger'},
+  {id:'v_mt',k:'lap',n:15,f:x=>x.mt,txt:'MT（マニュアル）で15周する',ti:'manual'},
+  {id:'v_tyre',k:'race',n:3,f:x=>x.tyreOk&&x.laps>=3,txt:'3周以上のレースを、タイヤを適温に保って3回完走する',ti:'tyreman'},
+  {id:'v_region',k:'win',n:3,key:x=>x.region,txt:'日本車・アメリカ車・ヨーロッパ車で、それぞれレースに優勝する',ti:'international'},
+  {id:'v_sc',k:'win',n:2,f:x=>x.sc,txt:'セーフティカー先導ありのレースで2回優勝する',ti:'restart'},
+  {id:'v_crswin',k:'win',n:4,key:x=>x.course,txt:'違うコース4つで、それぞれレースに優勝する',ti:'conqueror'}];
+CH_WEEKLY2.forEach(w=>TITLE_HOW[w.ti]='ウィークリー「'+w.txt+'」');
+function chWeekly2(N){const L=CH_WEEKLY2;return L[((N%L.length)+L.length)%L.length];}
 let chToday=null,chTodayKey='',chWk=null,chWkKey='';
 // roll the saved progress over when the day / week changes
 function chSync(){
@@ -4099,7 +4136,7 @@ function updatePlayer(dt,canDrive){
           const lt=raceT-lapStart;sectorHit(4);recordLap(lt,true);
           if(!ownGhost||lt<ownGhost.t){ownGhost={t:lt,d:rec.slice()};try{localStorage.setItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id),JSON.stringify(ownGhost));}catch(e){}
           }
-          if(ghostInfo&&ghostInfo.rec!=null&&lt<ghostInfo.rec&&ghost&&ghost!==ownGhost&&ghostInfo.name!==PLAYER)achFlag('ghost');
+          if(ghostInfo&&ghostInfo.rec!=null&&lt<ghostInfo.rec&&ghost&&ghost!==ownGhost&&ghostInfo.name!==PLAYER){achFlag('ghost');chEv('ghost',{course:C.id,car:CAR.id});}
           if(!ghostInfo||ghostInfo.rec==null||lt<ghostInfo.rec){ghost=ownGhost&&ownGhost.t===lt?ownGhost:{t:lt,d:rec.slice()};ghostInfo={name:PLAYER||'あなた',car:CAR.id,t:lt,rec:lt};setGhostCar(CAR.id);renderGhostTag();}
           if(best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rec,4);
           rpLap(lt);
