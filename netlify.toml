@@ -1,3 +1,6 @@
 [build]
   publish = "site"
   command = ""
+  # Free plan: each production deploy costs credits (about 20 a month). Only commits whose message
+  # contains "[deploy]" are published; other pushes are skipped (exit 0 = skip the build).
+  ignore = "git log -1 --pretty=%B | grep -qF '[deploy]' && exit 1 || exit 0"

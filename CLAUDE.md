@@ -7,7 +7,7 @@ GLB モデルを変換して走らせている。UI と文章はすべて日本�
 
 | | URL | 更新方法 | ランキング |
 |---|---|---|---|
-| Netlify 版 | https://tsukimizaka-night-run.netlify.app | `main` に push すると自動デプロイ（`netlify.toml` で `site/` を公開） | 端末ごとの記録のみ |
+| Netlify 版 | https://tsukimizaka-night-run.netlify.app | `main` への push のうち、コミットメッセージに `[deploy]` を含むものだけ本番に出る（`netlify.toml` の `ignore`、`site/` を公開） | 端末ごとの記録のみ |
 | Claude 版（アーティファクト） | https://claude.ai/artifact/D5QourP6E7TqL4C8Z7rRJZ | claude.ai のチャットから Artifact ツールで再公開 | Claude の共有DBで全員のランキング |
 
 - **Claude 版を publish するときはレース中の人を待つ**（新しい版は開いているページに自動で届いて再読み込みされ、走行が中断されるため）:
@@ -20,6 +20,9 @@ GLB モデルを変換して走らせている。UI と文章はすべて日本�
   （Artifact ツールが使えるセッションなら `site/index.html` を読み直してから同じ URL に publish し、
   `cars/` `tracks/` `audio/` の新しいファイルは `files` で一緒に送る）。
 - Claude Code のセッションは普通は作業ブランチに push する。Netlify の本番に出るのは `main` だけ。
+- **Netlify は無料プラン（月300クレジット、本番デプロイ1回15クレジット＝月20回まで）。** 使い切ると本番の更新が止まる（2026-10-17〜実際に止まった）。
+  普段の push には `[deploy]` を付けない。数日に1回、スケジュールタスク「月見坂ナイトラン Netlify まとめ反映」が前回の `[deploy]` 以降に `site/` の変更があれば空コミット `[deploy]` を push する。
+  急ぎで出したいときだけ手で `[deploy]` 付きのコミットを push する。
 
 ## 構成
 
