@@ -75,6 +75,11 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 #hint{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);right:16px;font-size:11px;color:var(--dim);text-shadow:none;letter-spacing:.08em;text-align:right;line-height:1.6}
 
 /* arcade corner call */
+/* rear-view mirror (seat view): the frame is HTML, the picture is drawn by WebGL into the same rectangle */
+#mirHud{top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);width:min(34vw,400px);aspect-ratio:3.6;box-sizing:border-box;
+  border:5px solid #0b0c10;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.12)}
+body.mirhud #cn{margin-top:calc(min(34vw,400px) / 3.6 + 8px)}
+@media (max-width:700px){body.mirhud #cn{margin-top:0}}
 #cn{top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);display:grid;grid-template-columns:76px auto;align-items:center;gap:4px 12px;padding:8px 14px 8px 8px;background:var(--panel);border:2px solid var(--cc,var(--line));border-radius:4px;min-width:230px;opacity:0;transition:opacity .2s}
 #cn.show{opacity:1}
 #cnArrow{width:76px;height:76px;grid-row:span 2}
@@ -441,6 +446,7 @@ body:not(.mt) .pad.s{display:none}
   <canvas id="map"></canvas>
   <canvas id="tyres" aria-label="タイヤの状態"></canvas>
 </div>
+<div class="hud" id="mirHud" hidden></div>
 <div class="hud" id="cn" hidden>
   <canvas id="cnArrow"></canvas>
   <div class="g" id="cnG">右 きつい</div>
@@ -554,6 +560,8 @@ body:not(.mt) .pad.s{display:none}
       <div class="opts" id="ghostRow"><span class="ol">ゴースト</span><div class="grp"><button class="tog" type="button" id="tgGhost" aria-pressed="true">ゴースト ON</button></div>
         <span class="tmnote" id="ghostNote"></span></div>
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
+      <div class="opts" id="mirRow"><span class="ol">バックミラー</span><div class="grp"><button class="tog" type="button" id="tgMirror" aria-pressed="true">バックミラー ON</button></div>
+        <span class="tmnote">運転席視点のとき、画面の上に後ろの様子を映します。</span></div>
       <div class="keys">
         <span><kbd>↑</kbd><kbd>W</kbd> アクセル</span>
         <span><kbd>↓</kbd><kbd>S</kbd> ブレーキ</span>
@@ -1879,7 +1887,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai'};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true};
 const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
   {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
 const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
@@ -1917,7 +1925,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.radio===false)opts.radio=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -2081,7 +2089,7 @@ document.querySelectorAll('.pad button[data-k]').forEach(b=>{
 });
 function setOpt(k,v){
   opts[k]=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
-  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 '}[k]+(v?'ON':'OFF');
+  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio',mirror:'tgMirror'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 ',mirror:'バックミラー '}[k]+(v?'ON':'OFF');
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
 $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
@@ -2091,6 +2099,7 @@ VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog 
 document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.m);nextStep();}));
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
 $('tgSC').addEventListener('click',()=>setOpt('sc',!opts.sc));
+$('tgMirror').addEventListener('click',()=>setOpt('mirror',!opts.mirror));
 const AI_NOTE={easy:'ライバルはゆっくり走ります。ここでの優勝は実績には数えません（チャレンジには数えます）。',normal:'いつもの強さ。',hard:'コーナーもブレーキも速く、ガイドの速度では勝てません。',expert:'ゴールドタイム級のペースで走ります。全部の道幅とタイヤの温まりを使い切ろう。'};
 function setAI(id){opts.ai=id;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
   document.querySelectorAll('#aiLvs .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ai===id));$('aiNote').textContent=AI_NOTE[id];try{if(step==='go')renderSummary();}catch(e){}}
@@ -4488,6 +4497,30 @@ function towerTick(){
     const gap=i===0?(e.fin?'FINISH':pre?'':'トップ'):pre?'':e.fin&&lead.fin?'+'+(e.fin-lead.fin).toFixed(1):'+'+Math.max(0,(lead.s-e.s)/vRef).toFixed(1);
     const g=li.children[3];if(g.textContent!==gap)g.textContent=gap;});
 }
+/* ---------- rear-view mirror (seat view) ----------
+   A camera at the driver's eye looking back renders into a small texture, shown at the top of the screen inside the
+   #mirHud frame (mirrored left-right by the quad's UVs). The player's own car is hidden for that render. */
+const MIR={cam:new THREE.PerspectiveCamera(13,3.6,0.25,1200),rt:null,scene:new THREE.Scene(),ocam:new THREE.OrthographicCamera(0,1,1,0,-1,1),q:null};
+const _mq=new THREE.Quaternion(),_mp=new THREE.Vector3(),_mY=new THREE.Vector3(0,1,0);
+function mirFrame(){
+  const on=opts.mirror&&(state==='race'||state==='count'||state==='finish')&&!!VIEWS[view].fp&&!tut,el=$('mirHud');
+  document.body.classList.toggle('mirhud',on);
+  if(el.hidden===on)el.hidden=!on;
+  if(!on)return;
+  const r=el.getBoundingClientRect(),W=innerWidth,H=innerHeight,bw=5,iw=r.width-bw*2,ih=r.height-bw*2;if(iw<10||ih<4)return;
+  if(!MIR.rt){MIR.rt=new THREE.WebGLRenderTarget(512,142);
+    const g=new THREE.PlaneGeometry(1,1),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setX(i,1-uv.getX(i));
+    MIR.q=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:MIR.rt.texture,fog:false,depthTest:false}));MIR.scene.add(MIR.q);}
+  // the eye (or the drawn dashboard's seat), looking back along the car
+  const a=cabAnchor();if(a){a.getWorldPosition(_mp);_mp.y+=0.06;a.parent.getWorldQuaternion(_mq);}else{_mp.set(pl.x,pl.y+1.15,pl.z);_mq.setFromAxisAngle(_mY,pl.th);}
+  MIR.cam.position.copy(_mp);MIR.cam.quaternion.copy(_mq);if(Math.abs(MIR.cam.aspect-iw/ih)>0.01){MIR.cam.aspect=iw/ih;MIR.cam.updateProjectionMatrix();}
+  const pv=playerCar.visible,iv=interior.visible,hv=hoodG.visible;playerCar.visible=interior.visible=hoodG.visible=false;
+  renderer.setRenderTarget(MIR.rt);renderer.render(scene,MIR.cam);renderer.setRenderTarget(null);
+  playerCar.visible=pv;interior.visible=iv;hoodG.visible=hv;
+  const C=MIR.ocam;if(C.right!==W||C.top!==H){C.right=W;C.top=H;C.updateProjectionMatrix();}
+  MIR.q.scale.set(iw,ih,1);MIR.q.position.set(r.left+bw+iw/2,H-(r.top+bw+ih/2),0);
+  const ac=renderer.autoClear;renderer.autoClear=false;renderer.render(MIR.scene,C);renderer.autoClear=ac;
+}
 /* ---------- loop ---------- */
 let orbitA=0;
 function applyOffset(){
@@ -4573,9 +4606,10 @@ function frame(now){
   }
   rigFrame(dt);
   renderer.render(scene,camera);
+  mirFrame();
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');
