@@ -2758,7 +2758,7 @@ async function initShared(){
   try{user=window.claude&&window.claude.use?await window.claude.use('user'):null;}catch(e){user=null;}
   try{UID=user?await user.id():null;}catch(e){UID=null;}
   if(!db){shared='off';renderBoard();if(realOn)startReal();return;}
-  sdb=db;shared=UID?'on':'readonly';updSubscribe();
+  sdb=db;shared=UID?'on':'readonly';updSubscribe();csPull();
   if(shared==='on'&&user&&user.can){try{if(user.can('data.write')===false)shared='readonly';}catch(e){}}
   try{
     db.collection('records').onSnapshot(snap=>{
@@ -2767,11 +2767,68 @@ async function initShared(){
       board=all;PROFS=pf;if(mine)myDoc=mine;
       if(shared==='connecting')shared=UID?'on':'readonly';
       renderBoard();if(state==='finish')renderResultRank();
-      syncLocalToShared();achRecords();queueProf();crCheck();if(step==='prof'&&!$('menu').hidden)renderProf();if(realOn)startReal();
+      syncLocalToShared();achRecords();queueProf();crCheck();if(PLAYER&&csPulled===PLAYER)csRestoreBests();if(step==='prof'&&!$('menu').hidden)renderProf();if(realOn)startReal();
     },err=>{shared=err&&err.code==='revoked'?'off':shared;if(err&&err.code==='unavailable'){setTimeout(initShared,4000);}renderBoard();});
   }catch(e){shared='off';}
   renderBoard();
 }
+
+/* ---------- cloud save (Claude build) ----------
+   Achievements, challenges, titles and garage items (ACHS) live in this browser's storage, which is per device and per
+   app - opened on another phone or in the Claude app instead of the browser, it starts empty. So every save is also
+   written to the player's private data/users/<uid>/save (readable only by that person), and on load the two are merged:
+   unlocked items and maps are united, counters take the larger value, today's daily / this week's weekly the newer one.
+   Best laps come back from the shared ranking (the player's own rows). */
+let csDoc=null,csT=0,csBusy=false,csPulled='';
+const csPath=()=>'data/users/'+UID+'/save';
+function csMerge(a,b){
+  if(a==null)return b;if(b==null)return a;
+  if(typeof a==='number'&&typeof b==='number')return Math.max(a,b);
+  if(Array.isArray(a)||Array.isArray(b)){if(!Array.isArray(a)||!Array.isArray(b))return a;
+    if(a.every(x=>typeof x!=='object')&&b.every(x=>typeof x!=='object'))return [...new Set(a.concat(b))];
+    return a.length>=b.length?a.map((x,i)=>csMerge(x,b[i])):b.map((x,i)=>csMerge(a[i],x));}
+  if(typeof a==='object'&&typeof b==='object'){const o=Object.assign({},a);for(const k in b)o[k]=csMerge(a[k],b[k]);return o;}
+  return a!==''&&a!=null?a:b;
+}
+function csMergeAch(L,R){
+  if(!R||typeof R!=='object')return L;
+  const o=csMerge(L,R);
+  // progress that belongs to a day / week / streak: the newer one, merged only when both are the same period
+  const per=(k,key)=>{const a=L[k]||{},b=R[k]||{};o[k]=(a[key]||'')===(b[key]||'')?csMerge(a,b):((a[key]||'')>(b[key]||'')?a:b);};
+  per('dly','d');per('wk','w');
+  {const a=L.stk||{},b=R.stk||{};o.stk=(a.last||'')>=(b.last||'')?Object.assign({},a,{b:Math.max(a.b||0,b.b||0)}):Object.assign({},b,{b:Math.max(a.b||0,b.b||0)});}
+  o.title=L.title||R.title||'';o.cos=Object.assign({},R.cos||{},L.cos||{});
+  return o;
+}
+async function csPull(){
+  if(!sdb||!UID||shared==='off'||csBusy)return;csBusy=true;
+  try{const snap=await sdb.doc(csPath()).get();csDoc=snap&&snap.exists?snap.data():null;}catch(e){csBusy=false;return;}
+  csBusy=false;
+  if(!csDoc||typeof csDoc!=='object'||typeof csDoc.players!=='object')csDoc={v:1,players:{}};
+  if(!PLAYER){const n=$('nameIn');if(n&&!n.value&&csDoc.last)n.value=csDoc.last;return;}
+  if(!ACHS)return;csPulled=PLAYER;
+  const rem=csDoc.players[PLAYER]&&csDoc.players[PLAYER].ach,before=JSON.stringify(ACHS);
+  if(rem){const m=csMergeAch(ACHS,rem),b=achBlank();for(const k in b)if(m[k]!=null&&typeof m[k]===typeof b[k])b[k]=m[k];
+    if(JSON.stringify(b)!==before){ACHS=b;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}achCheck(true);queueProf();
+      if(typeof step!=='undefined'&&!$('menu').hidden){if(step==='ach')renderAch();if(step==='chal')renderChal();}}}
+  csRestoreBests();csQueue(1500);
+}
+function csQueue(ms){if(!sdb||!UID||!PLAYER||shared!=='on')return;clearTimeout(csT);csT=setTimeout(csPush,ms==null?6000:ms);}
+async function csPush(){
+  if(!sdb||!UID||!PLAYER||!ACHS||shared!=='on'||csPulled!==PLAYER){if(csPulled!==PLAYER)csPull();return;}
+  if(!csDoc)csDoc={v:1,players:{}};
+  csDoc.players=Object.assign({},csDoc.players,{[PLAYER]:{ach:ACHS,at:Date.now()}});csDoc.last=PLAYER;csDoc.at=Date.now();
+  try{await sdb.doc(csPath()).set(JSON.parse(JSON.stringify(csDoc)));}catch(e){console.warn('cloud save failed',e&&e.code);}
+}
+// the player's own best laps from the shared ranking -> this device (personal best, gold checks)
+function csRestoreBests(){
+  if(!PLAYER||!UID)return;let n=0;
+  for(const r of board){if(r.uid!==UID||r.name!==PLAYER)continue;const c=COURSES.find(x=>x.id===r.course),car=CARS.find(x=>x.id===r.car);if(!c||!car||!validT(r.t))continue;
+    let t=null;try{t=parseFloat(localStorage.getItem(bestKey(c,car)));}catch(e){}
+    if(!validT(t)||r.t<t-1e-4){try{localStorage.setItem(bestKey(c,car),String(r.t));n++;}catch(e){}}}
+  if(n&&C){try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){}renderCourseCards();}
+}
+addEventListener('pagehide',()=>{if(csT){clearTimeout(csT);csPush();}});
 
 /* ---------- game updates and running races (Claude build) ----------
    A new version reaches every open page by itself and reloads it, which would throw a racer back to the title.
@@ -2968,13 +3025,13 @@ function syncLocalToShared(){  // personal bests set before sign-in / before thi
 }
 function renderPlayer(){$('pName').textContent=PLAYER||'—';}
 function openNameDlg(){
-  const d=$('nameDlg');$('nameIn').value=PLAYER||'';$('nameErr').hidden=true;d.hidden=false;
+  const d=$('nameDlg');$('nameIn').value=PLAYER||(csDoc&&csDoc.last)||'';$('nameErr').hidden=true;d.hidden=false;
   setTimeout(()=>{$('nameIn').focus();$('nameIn').select();},30);
 }
 function setPlayer(n){
   const first=!PLAYER;PLAYER=n;
   try{localStorage.setItem('fpr-player',n);if(first&&!LEGACY_OWNER){LEGACY_OWNER=n;localStorage.setItem('fpr-legacy-owner',n);}}catch(e){if(first&&!LEGACY_OWNER)LEGACY_OWNER=n;}
-  renderPlayer();synced=false;achLoad();
+  renderPlayer();synced=false;achLoad();csPulled='';csPull();
   if(C){try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){best=null;}
     bestSplits=null;try{const b=JSON.parse(localStorage.getItem(splitKey(C))||'null');if(Array.isArray(b)&&b.length===4)bestSplits=b;}catch(e){}
     ownGhost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ownGhost=g;}catch(e){}ghost=null;ghostInfo=null;}
@@ -3352,7 +3409,7 @@ function achLoad(){
     if(validT(t)){ACHS.cl[c.id]=1;ACHS.car[car.id]=1;if(!ACHS.laps)ACHS.laps=1;}}));
   achCheck(true);
 }
-function achSave(){achDirty=false;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}if(typeof queueProf==='function')queueProf();}
+function achSave(){achDirty=false;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}if(typeof queueProf==='function')queueProf();if(typeof csQueue==='function')csQueue();}
 // unlock whatever is newly met; quiet = no toast (loading)
 function achCheck(quiet){
   if(!ACHS)return;const got=[];
