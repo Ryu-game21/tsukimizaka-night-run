@@ -1785,7 +1785,8 @@ function seatCamera(sx,sy){
 }
 // drawn-dashboard cars: everything of the player's model behind the windscreen base (car z < HOOD_Z) is clipped away,
 // so from the seat only the real bonnet, wings and lamps show. Player-only material copies (the models share theirs).
-const HOOD_Z={r34:0.45}   // per car, checked by eye: hsto (mid-engine, seat far forward) keeps the drawn bonnet - its glass and roof fall in front of the cut,hoodPlane=new THREE.Plane(),_hn=new THREE.Vector3();
+// HOOD_Z per car, checked by eye: hsto (mid-engine, seat far forward) keeps the drawn bonnet - its glass and roof fall in front of the cut
+const HOOD_Z={r34:0.45},hoodPlane=new THREE.Plane(),_hn=new THREE.Vector3();
 function hoodClip(on){
   if(on){renderer.localClippingEnabled=true;const z0=HOOD_Z[CAR.id]||0.6;_hn.set(Math.sin(pl.th),0,Math.cos(pl.th));
     hoodPlane.normal.copy(_hn);hoodPlane.constant=-(_hn.x*(pl.x+_hn.x*z0)+_hn.z*(pl.z+_hn.z*z0));}
