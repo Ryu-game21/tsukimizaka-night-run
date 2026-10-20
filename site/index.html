@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>月見坂ナイトラン</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -261,8 +262,10 @@ body.phl .pad.s button{width:54px;height:38px}
 body.phl .vbar{left:max(10px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 80px)}
 body.phl .vbtn{font-size:12px;padding:4px 10px}
 body.phl #hint{display:none}
-body.phl #radio{left:max(10px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 122px);max-width:min(330px,40%)}
-body.phl #radio p{font-size:13px}
+body.phl #radio{left:max(10px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 122px);max-width:min(280px,34%);padding:6px 10px}
+body.phl #radio p{font-size:12px;line-height:1.4}
+/* touch pads only while driving (not over the menus) */
+body:not(.hudon) .pad{display:none!important}
 body.phl #cn{top:4px;transform:translateX(-50%) scale(.76);transform-origin:50% 0}
 body.phl #mirHud{width:230px;top:4px}
 body.phl.mirhud #cn{margin-top:70px}
@@ -279,6 +282,16 @@ body.phl .card h1{font-size:26px}
 body.phl .card h1.logo{font-size:48px;margin:2px 0 8px}
 body.phl #result .card{max-width:520px}
 body.phl .courses{grid-template-columns:repeat(4,minmax(0,1fr))}
+body.phl #radio{left:calc(max(10px,env(safe-area-inset-left,0px)) + 112px);bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
+/* title screen in one view: logo beside the player row, menu in two columns */
+body.phl .card h1.logo{font-size:40px;margin:0 0 6px}
+body.phl .card h1.logo small{margin-top:8px}
+body.phl .tagline{margin:0 0 8px;font-size:12px}
+body.phl .player{margin-bottom:8px;padding-bottom:8px}
+body.phl .tmenu{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:440px}
+body.phl .tmenu .btn{font-size:15px;padding:8px 0 7px}
+body.phl .tmenu #goStart{grid-column:1/-1}
+body.phl .press{display:none}
 .stepbar{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 14px}
 .stepbar button{appearance:none;font:inherit;font-family:var(--f-dot);font-weight:600;font-size:12px;color:var(--dim);background:transparent;border:1px solid transparent;border-radius:3px;padding:2px 8px;cursor:pointer}
 .stepbar button.done{color:var(--lcd);border-color:var(--line)}
@@ -3031,7 +3044,7 @@ $('goOpts').addEventListener('click',()=>{optsBack='title';showStep('opts');});
 $('goOpts2').addEventListener('click',()=>{optsBack='go';showStep('opts');});
 $('backBtn').addEventListener('click',prevStep);
 $('nextBtn').addEventListener('click',nextStep);
-function setHud(on){if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
+function setHud(on){document.body.classList.toggle('hudon',on);if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
   initAudio();if(ac&&ac.state==='suspended')ac.resume();
