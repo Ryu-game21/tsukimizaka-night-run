@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta property="og:type" content="article">
+<meta property="og:title" content="月見坂ナイトラン開発記">
+<meta property="og:description" content="ブラウザの3Dレースゲーム「月見坂ナイトラン」の、初回公開から7日間・51回のコミットの記録。">
+<meta property="og:url" content="https://tsukimizaka-night-run.vercel.app/making/">
+<meta property="og:image" content="https://tsukimizaka-night-run.vercel.app/og.jpg">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<title>月見坂ナイトラン開発記</title>
+<meta name="description" content="ブラウザの3Dレースゲーム「月見坂ナイトラン」の、初回公開から7日間・51回のコミットの記録。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap">
+<style>
+/* Layout: デジタル庁デザインシステム（DADS 2.1.0 のトークン）に沿った1段組みの記録ページ。ヘッダー → 目次 → 数字 → 仕組み → 日ごとの記録（ステップナビゲーション）→ つまずいたこと → 工程 → 遊ぶ。 */
+:root{
+  /* neutral (Solid Gray) */
+  --bg:#ffffff; --surface:#f2f2f2; --fg:#333333; --fg-strong:#1a1a1a; --fg-sub:#666666;
+  --line:#cccccc; --line-ui:#949494;
+  /* key = Blue */
+  --key:#0017c1; --key-hover:#00118f; --key-active:#000060; --key-soft:#e8f1fe; --key-soft-hover:#c5d7fb;
+  --on-key:#ffffff;
+  /* link */
+  --link:#00118f; --link-visited:#8b008b; --link-active:#c74700;
+  /* semantic */
+  --error:#ce0000; --error-soft:#fdeeee;
+  /* focus */
+  --focus-ring:#ffd43d; --focus-outline:#000000;
+  /* chip labels (outlined: border / text / background) */
+  --c-car:#0031d8; --c-car-b:#264af4; --c-car-bg:#e8f1fe;
+  --c-course:#115a36; --c-course-b:#197a4b; --c-course-bg:#e6f5ec;
+  --c-drive:#0055ad; --c-drive-b:#0066be; --c-drive-bg:#f0f9ff;
+  --c-sound:#5109ad; --c-sound-b:#5c10be; --c-sound-bg:#f1eafa;
+  --c-play:#8b3200; --c-play-b:#ac3e00; --c-play-bg:#ffeee2;
+  --c-online:#006173; --c-online-b:#006f83; --c-online-bg:#e9f7f9;
+  --c-mobile:#8b008b; --c-mobile-b:#aa00aa; --c-mobile-bg:#f3e5f4;
+  --c-infra:#333333; --c-infra-b:#666666; --c-infra-bg:#f2f2f2;
+  --c-publish:#3e5a00; --c-publish-b:#507500; --c-publish-bg:#ebfad9;
+  --c-fix:#a90000; --c-fix-b:#ce0000; --c-fix-bg:#fdeeee;
+  /* type */
+  --sans:"Noto Sans JP",-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+  --mono:"Noto Sans Mono",ui-monospace,monospace;
+  --r6:.375rem; --r8:.5rem; --r12:.75rem; --r16:1rem;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1a1a1a; --surface:#333333; --fg:#f2f2f2; --fg-strong:#ffffff; --fg-sub:#b3b3b3;
+  --line:#4d4d4d; --line-ui:#767676;
+  --key:#9db7f9; --key-hover:#c5d7fb; --key-active:#e8f1fe; --key-soft:#000060; --key-soft-hover:#00118f; --on-key:#1a1a1a;
+  --link:#c5d7fb; --link-visited:#ff8eff; --link-active:#ffa66d;
+  --error:#ff9696; --error-soft:#620000;
+  --focus-ring:#ffd43d; --focus-outline:#ffffff;
+  --c-car:#9db7f9; --c-car-b:#9db7f9; --c-car-bg:transparent;
+  --c-course:#71c598; --c-course-b:#71c598; --c-course-bg:transparent;
+  --c-drive:#97d3ff; --c-drive-b:#97d3ff; --c-drive-bg:transparent;
+  --c-sound:#cda6ff; --c-sound-b:#cda6ff; --c-sound-bg:transparent;
+  --c-play:#ffa66d; --c-play-b:#ffa66d; --c-play-bg:transparent;
+  --c-online:#79e2f2; --c-online-b:#79e2f2; --c-online-bg:transparent;
+  --c-mobile:#ff8eff; --c-mobile-b:#ff8eff; --c-mobile-bg:transparent;
+  --c-infra:#e6e6e6; --c-infra-b:#b3b3b3; --c-infra-bg:transparent;
+  --c-publish:#ade830; --c-publish-b:#ade830; --c-publish-bg:transparent;
+  --c-fix:#ff9696; --c-fix-b:#ff9696; --c-fix-bg:transparent;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1a1a1a; --surface:#333333; --fg:#f2f2f2; --fg-strong:#ffffff; --fg-sub:#b3b3b3;
+  --line:#4d4d4d; --line-ui:#767676;
+  --key:#9db7f9; --key-hover:#c5d7fb; --key-active:#e8f1fe; --key-soft:#000060; --key-soft-hover:#00118f; --on-key:#1a1a1a;
+  --link:#c5d7fb; --link-visited:#ff8eff; --link-active:#ffa66d;
+  --error:#ff9696; --error-soft:#620000;
+  --focus-ring:#ffd43d; --focus-outline:#ffffff;
+  --c-car:#9db7f9; --c-car-b:#9db7f9; --c-car-bg:transparent;
+  --c-course:#71c598; --c-course-b:#71c598; --c-course-bg:transparent;
+  --c-drive:#97d3ff; --c-drive-b:#97d3ff; --c-drive-bg:transparent;
+  --c-sound:#cda6ff; --c-sound-b:#cda6ff; --c-sound-bg:transparent;
+  --c-play:#ffa66d; --c-play-b:#ffa66d; --c-play-bg:transparent;
+  --c-online:#79e2f2; --c-online-b:#79e2f2; --c-online-bg:transparent;
+  --c-mobile:#ff8eff; --c-mobile-b:#ff8eff; --c-mobile-bg:transparent;
+  --c-infra:#e6e6e6; --c-infra-b:#b3b3b3; --c-infra-bg:transparent;
+  --c-publish:#ade830; --c-publish-b:#ade830; --c-publish-bg:transparent;
+  --c-fix:#ff9696; --c-fix-b:#ff9696; --c-fix-bg:transparent;
+  color-scheme:dark;
+}
+
+/* ---------- base: Std-16N-170 */
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:1rem;line-height:1.7;letter-spacing:.02em;
+  overflow-wrap:anywhere;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+h1,h2,h3,h4{color:var(--fg-strong);text-wrap:balance}
+.wrap{max-width:61rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:0}
+.sub{color:var(--fg-sub)}
+.dns14{font-size:.875rem;line-height:1.3}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* link (DADS Link) */
+a{color:var(--link);text-decoration:underline;text-underline-offset:.1875rem}
+a:visited{color:var(--link-visited)}
+a:hover{color:var(--link);text-decoration-thickness:.1875rem}
+a:active{color:var(--link-active);text-decoration-thickness:1px}
+a:focus-visible{outline:4px solid var(--focus-outline);outline-offset:2px;border-radius:.25rem;background:var(--focus-ring);color:#00118f;box-shadow:0 0 0 2px var(--focus-ring)}
+.ext::after{content:"";display:inline-block;width:.9em;height:.9em;margin-left:.2em;vertical-align:-.05em;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z'/%3E%3C/svg%3E") center/contain no-repeat}
+
+/* button (DADS Button: primary / secondary, Oln-16B-100) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:3rem;min-width:6rem;padding:.5rem 1rem;border-radius:var(--r8);
+  font:700 1rem/1 var(--sans);letter-spacing:.02em;text-decoration:none;cursor:pointer;border:1px solid var(--key)}
+.btn-primary,.btn-primary:visited{background:var(--key);color:var(--on-key)}
+.btn-primary:hover{background:var(--key-hover);border-color:var(--key-hover);color:var(--on-key);text-decoration:underline}
+.btn-secondary,.btn-secondary:visited{background:var(--bg);color:var(--key)}
+.btn-secondary:hover{background:var(--key-soft-hover);color:var(--key);text-decoration:underline}
+.btn:focus-visible{outline:4px solid var(--focus-outline);outline-offset:2px;box-shadow:0 0 0 2px var(--focus-ring);background:var(--key);color:var(--on-key)}
+.btn-sm{min-height:2.25rem;min-width:5rem;padding:.125rem .75rem;border-radius:var(--r6)}
+
+/* skip link */
+.skip{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:-100px;z-index:20;background:var(--bg);padding:.5rem 1rem}
+.skip:focus{top:calc(8px + env(safe-area-inset-top,0px))}
+
+/* ---------- header */
+.site-head{border-bottom:1px solid var(--line)}
+.site-head .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:4rem;padding-block:8px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:1.0625rem;color:var(--fg-strong);line-height:1.3}
+.brand small{display:block;font-weight:400;font-size:.875rem;color:var(--fg-sub)}
+
+/* ---------- sections */
+main section{padding-block:3rem;border-top:1px solid var(--line)}
+main section:first-child{border-top:0}
+.sec-head{display:grid;gap:1rem;margin-bottom:2rem;max-width:42rem}
+h2{font-size:1.75rem;line-height:1.5;letter-spacing:.01em}            /* Std-28B-150 */
+h3{font-size:1.25rem;line-height:1.5}                                   /* Std-20B-150 */
+.lead{font-size:1.0625rem;line-height:1.7}                              /* Std-17N-170 */
+@media (min-width:48em){
+  main section{padding-block:4.5rem}
+  h2{font-size:2rem}                                                    /* Std-32B-150 */
+}
+
+/* hero */
+.hero{padding-block:2.5rem 3rem}
+.hero .date{font-size:.875rem;color:var(--fg-sub);margin-bottom:.75rem}
+.hero h1{font-size:2rem;line-height:1.5;letter-spacing:.01em}            /* Std-32B-150 */
+.hero .lead{margin-top:1rem;max-width:40rem}
+.hero .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:1.5rem}
+.hero figure{margin-top:2rem}
+.hero img{display:block;width:100%;max-width:100%;height:auto;border-radius:var(--r8)}
+figcaption{margin-top:.5rem;font-size:.875rem;line-height:1.5;color:var(--fg-sub)}
+@media (min-width:48em){.hero h1{font-size:3rem;line-height:1.4;letter-spacing:0}} /* Dsp-48B-140 */
+
+/* toc */
+.toc{border:1px solid var(--line-ui);border-radius:var(--r12);padding:1.25rem 1.5rem;margin-top:2.5rem}
+.toc h2{font-size:1rem;line-height:1.7}
+.toc ol{margin-top:.5rem;padding-left:1.5em;columns:2;column-gap:2rem}
+.toc li{break-inside:avoid;padding-block:.125rem}
+@media (max-width:40em){.toc ol{columns:1}}
+
+/* numbers */
+.nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line-ui)}
+.nums div{padding:1rem .75rem 1rem 0;border-bottom:1px solid var(--line);display:grid;gap:.25rem;align-content:start;min-width:0}
+.nums dt{font-size:.875rem;line-height:1.3;color:var(--fg-sub)}
+.nums dd{font-size:1.75rem;line-height:1.3;font-weight:700;color:var(--fg-strong);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.nums dd small{font-size:1rem;font-weight:400;color:var(--fg);margin-left:.25em}
+.nums dd .was{font-size:1rem;font-weight:400;color:var(--fg-sub)}
+@media (max-width:48em){.nums{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* how */
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}
+.card{border:1px solid var(--line-ui);border-radius:var(--r12);padding:1.5rem;display:grid;gap:1rem;align-content:start;min-width:0;background:var(--bg)}
+@media (max-width:48em){.cols{grid-template-columns:minmax(0,1fr)}}
+.diagram{overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:18rem;height:auto}
+.dg-box{fill:var(--bg);stroke:var(--line-ui);stroke-width:1.5}
+.dg-key{fill:var(--key-soft);stroke:var(--key);stroke-width:1.5}
+.dg-bar{fill:var(--fg-sub)}
+.dg-arrow{stroke:var(--key);stroke-width:2;fill:none}
+.dg-t{fill:var(--fg-strong);font:700 13px var(--mono)}
+.dg-s{fill:var(--fg-sub);font:400 11px var(--mono)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:18rem;font-size:1rem;line-height:1.7}
+caption{text-align:left;font-weight:700;padding-bottom:.5rem;color:var(--fg-strong)}
+th,td{text-align:left;vertical-align:top;padding:.5rem .75rem;border:1px solid var(--line-ui)}
+thead th{background:var(--surface);font-weight:700;color:var(--fg-strong);white-space:nowrap}
+tbody th{font-weight:700;white-space:nowrap}
+td.nowrap{white-space:nowrap}
+code{font-family:var(--mono);font-size:.9375em;letter-spacing:0}
+
+/* chip label (DADS ChipLabel, outlined) */
+.chip{display:inline-flex;align-items:center;min-height:1.75rem;padding:.125rem .4375rem;border:1px solid var(--cb);border-radius:var(--r6);
+  background:var(--cbg);color:var(--ct);font-size:.875rem;line-height:1;font-weight:400;white-space:nowrap;letter-spacing:.02em}
+.k-car{--ct:var(--c-car);--cb:var(--c-car-b);--cbg:var(--c-car-bg)}
+.k-course{--ct:var(--c-course);--cb:var(--c-course-b);--cbg:var(--c-course-bg)}
+.k-drive{--ct:var(--c-drive);--cb:var(--c-drive-b);--cbg:var(--c-drive-bg)}
+.k-sound{--ct:var(--c-sound);--cb:var(--c-sound-b);--cbg:var(--c-sound-bg)}
+.k-play{--ct:var(--c-play);--cb:var(--c-play-b);--cbg:var(--c-play-bg)}
+.k-online{--ct:var(--c-online);--cb:var(--c-online-b);--cbg:var(--c-online-bg)}
+.k-mobile{--ct:var(--c-mobile);--cb:var(--c-mobile-b);--cbg:var(--c-mobile-bg)}
+.k-infra{--ct:var(--c-infra);--cb:var(--c-infra-b);--cbg:var(--c-infra-bg)}
+.k-publish{--ct:var(--c-publish);--cb:var(--c-publish-b);--cbg:var(--c-publish-bg)}
+.k-fix{--ct:var(--c-fix);--cb:var(--c-fix-b);--cbg:var(--c-fix-bg)}
+
+/* filter (toggle buttons) */
+.filter{border:0;padding:0;margin:0 0 2rem;min-width:0}
+.filter legend{font-weight:700;color:var(--fg-strong);padding:0;margin-bottom:.5rem}
+.filter .row{display:flex;flex-wrap:wrap;gap:8px}
+.filter .btn[aria-pressed="true"]{background:var(--key);color:var(--on-key)}
+.filter .btn[aria-pressed="true"]:hover{background:var(--key-hover);border-color:var(--key-hover)}
+.filter .n{font-family:var(--mono);font-weight:400;font-size:.875rem}
+.status{margin-top:.75rem;font-size:.875rem;color:var(--fg-sub)}
+
+/* step navigation (DADS StepNavigation, vertical) */
+.steps{list-style:none;padding:0;margin:0;--num:2.75rem}
+.step{position:relative;display:grid;grid-template-columns:var(--num) minmax(0,1fr);column-gap:1rem;padding-bottom:2.5rem}
+.step::before{content:"";position:absolute;left:calc(var(--num)/2 - .5px);top:var(--num);bottom:0;border-right:1px solid var(--fg)}
+.step:last-child::before{display:none}
+.step .num{grid-row:1/span 9;width:var(--num);height:var(--num);border-radius:50%;border:2px solid var(--fg);background:var(--bg);
+  display:grid;place-content:center;font-weight:700;font-size:1.25rem;line-height:1;color:var(--fg-strong);font-variant-numeric:tabular-nums;letter-spacing:0}
+.step .head{display:grid;gap:.25rem;padding-top:.375rem;margin-bottom:1rem}
+.step h3{font-size:1.25rem;line-height:1.5}
+.step .meta{font-size:.875rem;line-height:1.3;color:var(--fg-sub)}
+.step .theme{max-width:40rem}
+.events{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+.ev{display:grid;grid-template-columns:3.5rem minmax(0,1fr);gap:.25rem 1rem;padding-block:.75rem;border-bottom:1px solid var(--line)}
+.ev time{font-family:var(--mono);font-size:.875rem;line-height:1.7;color:var(--fg-sub);padding-top:.125rem;font-variant-numeric:tabular-nums;letter-spacing:0}
+.ev .t{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .5rem;font-weight:700;color:var(--fg-strong);line-height:1.7}
+.ev ul{margin-top:.25rem;padding-left:1.25em;color:var(--fg)}
+.ev[hidden],.step.empty{display:none}
+@media (max-width:40em){.steps{--num:2.25rem}.step .num{font-size:1rem}.ev{grid-template-columns:minmax(0,1fr)}}
+
+/* lessons */
+.lessons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}
+.lesson{border:1px solid var(--line-ui);border-radius:var(--r12);padding:1.5rem;display:grid;gap:.75rem;align-content:start;min-width:0}
+.lesson .top{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.lesson dl{display:grid;gap:.75rem;margin-top:.25rem}
+.lesson dt{font-weight:700;font-size:.875rem;line-height:1.3;color:var(--fg-sub)}
+.lesson dd{margin-top:.25rem}
+@media (max-width:48em){.lessons{grid-template-columns:minmax(0,1fr)}}
+
+/* pipeline (numbered steps, small) */
+.pipe{--num:2.25rem}
+.pipe .step{padding-bottom:1.75rem}
+.pipe .num{font-size:1rem}
+.pipe .head{margin-bottom:0;padding-top:.25rem}
+.pipe h3{font-size:1.125rem;line-height:1.6;display:flex;flex-wrap:wrap;gap:.25rem .5rem;align-items:center}  /* Std-18B-160 */
+.pipe .tool{font-family:var(--mono);font-size:.875rem;color:var(--fg-sub);letter-spacing:0}
+
+/* play */
+.play{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2rem;align-items:start}
+.play img{width:100%;max-width:100%;height:auto;border-radius:var(--r8);display:block}
+.dests{display:grid;gap:1rem;margin-top:1.5rem}
+.dest{border:1px solid var(--line-ui);border-radius:var(--r12);padding:1rem 1.25rem;display:grid;gap:.25rem}
+.dest a{font-weight:700}
+@media (max-width:48em){.play{grid-template-columns:minmax(0,1fr)}}
+
+footer{background:var(--surface);padding-block:2rem 2.5rem;font-size:.875rem;line-height:1.7}
+footer p{max-width:46rem}
+footer p+p{margin-top:.5rem}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">本文へ移動</a>
+
+<header class="site-head">
+  <div class="wrap">
+    <p class="brand">月見坂ナイトラン<small>開発記</small></p>
+    <a class="btn btn-primary btn-sm ext" href="https://tsukimizaka-night-run.vercel.app" target="_blank" rel="noopener">ゲームで遊ぶ<span class="vh">（新しいタブで開きます）</span></a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <p class="date">2026年10月15日〜10月21日の記録</p>
+      <h1>月見坂ナイトラン開発記</h1>
+      <p class="lead">月見坂ナイトランは、ブラウザで遊べる3Dのレースゲームです。ゲームは1つの HTML ファイルでできています。このページは、初回公開から7日間・51回のコミットで、何を足し、どこでつまずいたかをまとめた記録です。</p>
+      <figure>
+        <img src="nsxr_169_rear.jpg" alt="夜の峠道を走る白い NSX-R を後ろから見たゲーム画面。黄色いセンターラインと矢印の標識が続いている" width="1600" height="900">
+        <figcaption>ゲーム画面。コース「月見坂」の夜、ホンダ NSX-R。</figcaption>
+      </figure>
+      <nav class="toc" aria-labelledby="toc-h">
+        <h2 id="toc-h">このページの内容</h2>
+        <ol>
+          <li><a href="#numbers">数字で見る7日間</a></li>
+          <li><a href="#how">ゲームの仕組み</a></li>
+          <li><a href="#log">日ごとの記録</a></li>
+          <li><a href="#lessons">つまずいたことと対策</a></li>
+          <li><a href="#pipeline">コースを作る10の工程</a></li>
+          <li><a href="#play">ゲームを遊ぶ</a></li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  <section id="numbers" aria-labelledby="numbers-h">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="numbers-h">数字で見る7日間</h2>
+        <p>左が初回公開（10月15日）の時点、右が10月21日の時点です。</p></div>
+      <dl class="nums">
+        <div><dt>コミット</dt><dd>51<small>回</small></dd></div>
+        <div><dt>車</dt><dd><span class="was">26 → </span>31<small>台</small></dd></div>
+        <div><dt>コース</dt><dd>19<small>本（実在15）</small></dd></div>
+        <div><dt>index.html の行数</dt><dd><span class="was">2,641 → </span>4,771<small>行</small></dd></div>
+        <div><dt>実績</dt><dd><span class="was">0 → </span>126<small>個</small></dd></div>
+        <div><dt>変換・検査ツール</dt><dd>31<small>本</small></dd></div>
+        <div><dt>車の3Dモデル</dt><dd>102<small>MB</small></dd></div>
+        <div><dt>公開先</dt><dd><span class="was">2 → </span>3<small>か所</small></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-h">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="how-h">ゲームの仕組み</h2>
+        <p>ゲームは three.js（r128）で作っています。CSS も物理計算も、19本のコースのデータも、1枚の HTML に入っています。</p></div>
+      <div class="cols">
+        <div class="card">
+          <h3>3Dモデルを PNG 画像に入れて配る</h3>
+          <p>Claude のアーティファクトで配信できるファイルは、json・txt・png・jpg だけです。車やコースの3Dモデル（GLB）はそのままでは置けません。</p>
+          <p>そこで、GLB のデータを幅4096のグレースケール画像の画素として並べ、PNG にしています。ページを開くと、画像の中身を展開して元のデータに戻します。データは1バイトも変わりません。BGM と信号音の mp3 も同じ方法です。</p>
+          <div class="diagram">
+            <svg viewBox="0 0 520 140" role="img" aria-labelledby="dg-t">
+              <title id="dg-t">GLB を PNG に入れ、ブラウザで GLB に戻す流れ</title>
+              <rect class="dg-box" x="4" y="36" width="112" height="64" rx="6"/>
+              <text class="dg-t" x="60" y="63" text-anchor="middle">car.glb</text>
+              <text class="dg-s" x="60" y="82" text-anchor="middle">3Dモデル</text>
+              <rect class="dg-key" x="200" y="24" width="120" height="88" rx="6"/>
+              <rect class="dg-bar" x="214" y="36" width="92" height="6" opacity=".9"/>
+              <rect class="dg-bar" x="214" y="46" width="92" height="6" opacity=".5"/>
+              <rect class="dg-bar" x="214" y="56" width="92" height="6" opacity=".75"/>
+              <rect class="dg-bar" x="214" y="66" width="92" height="6" opacity=".35"/>
+              <rect class="dg-bar" x="214" y="76" width="56" height="6" opacity=".6"/>
+              <text class="dg-t" x="260" y="102" text-anchor="middle">geo0.png</text>
+              <rect class="dg-box" x="404" y="36" width="112" height="64" rx="6"/>
+              <text class="dg-t" x="460" y="63" text-anchor="middle">GLB に戻す</text>
+              <text class="dg-s" x="460" y="82" text-anchor="middle">pngData()</text>
+              <path class="dg-arrow" d="M120 68 H192 M186 62 L194 68 L186 74"/>
+              <path class="dg-arrow" d="M324 68 H396 M390 62 L398 68 L390 74"/>
+              <text class="dg-s" x="157" y="56" text-anchor="middle">pack_png.py</text>
+              <text class="dg-s" x="361" y="56" text-anchor="middle">展開</text>
+            </svg>
+          </div>
+        </div>
+        <div class="card">
+          <h3>3か所で公開している</h3>
+          <p>同じファイルを3か所で公開しています。更新のしかたは、公開先ごとに違います。</p>
+          <div class="tbl">
+            <table>
+              <caption>公開先と更新のしかた</caption>
+              <thead><tr><th scope="col">公開先</th><th scope="col">更新のしかた</th><th scope="col">ランキング</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Vercel 版</th><td><code>main</code> に push するたびに自動で更新</td><td class="nowrap">端末ごと</td></tr>
+                <tr><th scope="row">Claude 版</th><td>チャットから再公開。レース中の人がいれば、終わるまで待つ</td><td class="nowrap">全員で共有</td></tr>
+                <tr><th scope="row">Netlify 版</th><td>コミットに <code>[deploy]</code> があるときだけ更新。無料枠は月20回まで</td><td class="nowrap">端末ごと</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Netlify は10月17日に無料枠を使い切り、更新が止まりました。そのため、10月21日から Vercel でも公開しています。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="log" aria-labelledby="log-h">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="log-h">日ごとの記録</h2>
+        <p>git に残っているコミットを、日ごとにまとめました。時刻は日本時間です。関連するコミットは1行にまとめています。</p></div>
+      <fieldset class="filter">
+        <legend>種類で絞り込む</legend>
+        <div class="row" id="chips"></div>
+        <p class="status" id="status" aria-live="polite"></p>
+      </fieldset>
+      <ol class="steps" id="road"></ol>
+    </div>
+  </section>
+
+  <section id="lessons" aria-labelledby="lessons-h">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="lessons-h">つまずいたことと対策</h2>
+        <p>不具合が起きたときに、何を直して、そのあと何を決めたかです。</p></div>
+      <div class="lessons">
+        <article class="lesson">
+          <p class="top"><span class="chip k-course">コース</span><span class="dns14 sub">10月17日・ハンガロリンク T14</span></p>
+          <h3>中心線がピット入口の側道を通っていた</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>最終コーナー付近だけ、コースの中心線が本線ではなく側道をなぞっていました。</dd></div>
+            <div><dt>対策</dt><dd>タイヤ跡のある路面に付け替えました。翌日、中心線から本コースの路面が外れる区間を探す検査 <code>route_audit.py</code> を作り、全15コースで確かめました。</dd></div>
+          </dl>
+        </article>
+        <article class="lesson">
+          <p class="top"><span class="chip k-fix">修正</span><span class="dns14 sub">10月20日 18:51〜19:00</span></p>
+          <h3>走行を始めると止まる</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>R34 の運転席からボンネットを見せる変更で、<code>hoodPlane</code> の宣言がコメント行に入ってしまいました。</dd></div>
+            <div><dt>対策</dt><dd>9分後に修正しました。その15分後に、R34 を内装つきのモデルに置き換えています。</dd></div>
+          </dl>
+        </article>
+        <article class="lesson">
+          <p class="top"><span class="chip k-drive">走り</span><span class="dns14 sub">10月17日 11:57〜12:09</span></p>
+          <h3>セーフティカーの1周が周回に数えられていた</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>先導の1周目に無線を出さない変更を入れましたが、3分後に取り消しました。原因は無線ではなかったためです。</dd></div>
+            <div><dt>対策</dt><dd>先導の1周を周回数に入れず、そのあとに規定の周回を走るようにしました。ラップと合計タイムも先導のあとから数えます。</dd></div>
+          </dl>
+        </article>
+        <article class="lesson">
+          <p class="top"><span class="chip k-sound">音</span><span class="dns14 sub">10月17日 13:59〜14:10</span></p>
+          <h3>スマホでアイドリングの音が聞こえない</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>停車中のエンジン音は低い音ばかりで、スマホのスピーカーではほぼ聞こえませんでした。</dd></div>
+            <div><dt>対策</dt><dd>音量を上げるだけでなく、排気の脈動とバズ音を足し、車内のこもりを弱めました。</dd></div>
+          </dl>
+        </article>
+        <article class="lesson">
+          <p class="top"><span class="chip k-online">みんなで</span><span class="dns14 sub">10月18日・コースレコードの通知</span></p>
+          <h3>古い記録が何度も新記録として通知された</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>端末が記録を送り直すと時刻が新しくなり、古い記録が「直近1時間の更新」として通知されていました。</dd></div>
+            <div><dt>対策</dt><dd>数秒以内にまとめて書かれた記録は送り直しとみなし、通知しないようにしました。</dd></div>
+          </dl>
+        </article>
+        <article class="lesson">
+          <p class="top"><span class="chip k-publish">公開</span><span class="dns14 sub">10月17日・10月21日</span></p>
+          <h3>Netlify の無料枠を使い切った</h3>
+          <dl>
+            <div><dt>起きたこと</dt><dd>本番への公開は月20回までで、10月17日に上限に達し、更新が止まりました。</dd></div>
+            <div><dt>対策</dt><dd>Netlify はコミットに <code>[deploy]</code> があるときだけ公開するようにしました。10月21日からは、回数の上限がない Vercel でも公開しています。</dd></div>
+          </dl>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline" aria-labelledby="pipeline-h">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="pipeline-h">コースを作る10の工程</h2>
+        <p>実在のサーキットの3Dモデルから、走れる道幅と壁の位置を割り出します。いちばん気をつけているのは、見た目は道路なのに壁がある所や、ガイドが道からずれる所を作らないことです。</p></div>
+      <ol class="steps pipe">
+        <li class="step"><span class="num" aria-hidden="true">1</span><div class="head"><h3>路面を見分ける</h3><p>上から見た画像を出し、路面・縁石・タイヤ跡・芝・砂のマテリアルを決めます。</p><p class="tool">survey.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">2</span><div class="head"><h3>1周の輪を取る</h3><p>タイヤ跡をたどって1周の輪を作ります。途切れる所は経由点でつなぎます。</p><p class="tool">groove_loop.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">3</span><div class="head"><h3>中心線と道幅を決める</h3><p>白線の外まで舗装が広い所は、中央に寄せる上限を付けます。</p><p class="tool">fit_band.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">4</span><div class="head"><h3>ピットレーンと分ける</h3><p>ピットレーンとの分離線と、曲がり具合による道幅の上限を決めます。</p><p class="tool">band_limit.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">5</span><div class="head"><h3>向きとスタート地点を揃える</h3><p>時計回りに揃え、スタート地点を先頭にします。</p><p class="tool">orient_start.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">6</span><div class="head"><h3>高さとバンクを取る</h3><p>古い路面の上に傾いた路面が重なるバンクは、上の面を使います。</p><p class="tool">route_profile.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">7</span><div class="head"><h3>モデルを軽くする</h3><p>三角形の数と画像の大きさを減らし、PNG に入れます。</p><p class="tool">optimize2.py → pack_png.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">8</span><div class="head"><h3>ゲームに登録する</h3><p>空・霧・地面の色と、モデルの作者とライセンスを書きます。</p><p class="tool">XXX_DATA / COURSES</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">9</span><div class="head"><h3>検査する <span class="chip k-fix">省略しない</span></h3><p>道幅がすべて路面の上にあるか、道の中に壁がないか、中心線が側道を通っていないかを確かめます。1周分の上空の画像は、すべて目で見ます。</p><p class="tool">final_check.py / wall_check.py / route_audit.py</p></div></li>
+        <li class="step"><span class="num" aria-hidden="true">10</span><div class="head"><h3>テストする</h3><p>全コースが組み上がるか、全車の0-100km/h がカタログ値に合うかを確かめます。</p><p class="tool">node tests/run.js</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="play" aria-labelledby="play-h">
+    <div class="wrap play">
+      <figure>
+        <img src="nsxr_169_front.jpg" alt="夜の峠道で、白い NSX-R の後ろに2台のライバル車が続くゲーム画面" width="1600" height="900" loading="lazy">
+        <figcaption>レース中の画面。後ろにライバル車が続いている。</figcaption>
+      </figure>
+      <div>
+        <h2 id="play-h">ゲームを遊ぶ</h2>
+        <p style="margin-top:1rem">31台の車と19のコースを、ブラウザだけで遊べます。天候、時間帯、タイヤの温度、チーム無線、ほかのプレイヤーのゴーストとの対戦があります。</p>
+        <div class="dests">
+          <div class="dest"><a class="ext" href="https://tsukimizaka-night-run.vercel.app" target="_blank" rel="noopener">Vercel 版<span class="vh">（新しいタブで開きます）</span></a><p class="dns14 sub">最新版。記録は端末ごとに保存されます。</p></div>
+          <div class="dest"><a class="ext" href="https://claude.ai/artifact/D5QourP6E7TqL4C8Z7rRJZ" target="_blank" rel="noopener">Claude 版<span class="vh">（新しいタブで開きます）</span></a><p class="dns14 sub">全員のランキングとゴーストを共有します。</p></div>
+          <div class="dest"><a class="ext" href="https://tsukimizaka-night-run.netlify.app" target="_blank" rel="noopener">Netlify 版<span class="vh">（新しいタブで開きます）</span></a><p class="dns14 sub">10月17日の版。無料枠が戻るまで更新が止まっています。</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>車とサーキットの3Dモデルは、Sketchfab で公開されている作品を変換して使っています。各モデルの作者とライセンスは、ゲーム内のクレジットに書いています。非営利のライセンスのモデルがあるため、商用には使っていません。</p>
+    <p>この記録はリポジトリの git 履歴から作りました。初回公開より前の開発は含みません。このページのデザインは、デジタル庁デザインシステムを参考にしています。</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+const CAT={car:'車',course:'コース',drive:'走り',sound:'音',play:'やり込み',online:'みんなで',mobile:'スマホ',infra:'仕組み',publish:'公開',fix:'修正'};
+const DAYS=[
+ ['10/15','木',10,'公開して、作業場を整えた日。ゴーストの共有、実績100個、現地の天気で走るモードを入れました。'],
+ ['10/16','金',5,'全26台の車輪が回り、運転席から本物の車内が見えるようになりました。'],
+ ['10/17','土',15,'いちばんコミットが多かった日。セーフティカー、タイヤの温度、無線、エンジン音、チャレンジを入れました。'],
+ ['10/18','日',8,'レースを強くした日。AIの難易度、ほかのプレイヤーのゴーストとの対戦、順位表を入れました。'],
+ ['10/19','月',3,'バックミラーと宣伝用の場面写真。Netlify の公開回数を節約する決まりを作りました。'],
+ ['10/20','火',7,'R34 とウラカンを内装つきのモデルに替え、スマホを縦に持っても横画面で遊べるようにしました。'],
+ ['10/21','水',3,'検索に出す準備の日。Vercel での公開、Google Search Console の確認、SNS 用のサムネイルを入れました。']
+];
+const E=[
+['10/15','16:59','infra','初回公開',['26台・19コース、index.html 2,641行で始まりました']],
+['10/15','17:29','infra','Claude Code 用の作業環境を追加',['ゲーム本体を site/ に、変換・検査ツールを tools/ に移しました','ロジックのテスト tests/run.js と、作業手順書 CLAUDE.md を追加']],
+['10/15','17:47','drive','MT：シフトダウンできないとき、あと何 km/h 落とせばよいかを表示',['「〇速は △km/h 以下で入ります（あと □km/h 減速）」。減速に合わせて数字が減ります']],
+['10/15','18:51','online','ベストタイムのゴーストを共有',['自己ベストの周を共有ゴーストとして保存し、走行中は名前とタイムを表示']],
+['10/15','18:55','online','ゴーストはコースごとの1位だけに',['1位が別の車なら、その車の形で走ります。走行中に上回れば、その周が次の相手になります']],
+['10/15','19:08','play','実績を100個追加',['はじめの一歩・天候と時間帯・サーキット制覇・ゴールドタイム・テクニック・隠し実績など']],
+['10/15','19:34','drive','リアル天候（現地の今）モード',['各コースの現地の天気・時間帯・気温・風で走ります。気温でタイヤのグリップが変わります','架空のコースは、箱根・日光霧降高原・東京湾岸・湘南の天気を使います']],
+['10/15','20:09','infra','GitHub Actions で毎時、Open-Meteo から天気を取得',['結果を weather ブランチに保存']],
+['10/16','01:31','car','車のモーション：全26台の車輪の回転・前輪の操舵・車体の傾き',['読み込むときに車輪を切り出し、位置と向きの変化から動かします','止まっているときは元のモデルと同じ見た目になることを、全車・4方向で確認']],
+['10/16','09:34','car','運転席視点：車ごとの本物の車内から見る',['座席の位置、右ハンドルか左ハンドルか、目の高さを車ごとに設定']],
+['10/16','14:58','car','日産 GT-R NISMO GT3（R35, 2015）を追加',['運転席では透明なガラスも薄く表示']],
+['10/16','15:22','online','プレイヤー記録',['実績の数（ランク別）・総走行距離・優勝・コースごとのベストと順位']],
+['10/16','17:05','online','コースレコード更新の通知',['ゲーム画面への通知と、定期実行用の集計スクリプト']],
+['10/17','00:50','car','ケーニグセグ ジェスコ、パガーニ イモラ、ホンダ S2000（C-West N1 エアロ）を追加',[]],
+['10/17','01:11','drive','レースの1周目をセーフティカーが先導',['ヴァンテージか SLS が先導し、追い越しは禁止。残り少しで道の外へ抜けます']],
+['10/17','01:41','drive','タイヤの温度',['4輪それぞれの温度とグリップ。横G・ブレーキ・空転で温まり、風と雨で冷えます']],
+['10/17','11:47','drive','チーム無線',['レースでは勝つため、フリー走行ではタイムを縮めるためのアドバイスを吹き出しで表示']],
+['10/17','12:00','fix','セーフティカーの1周目に無線を出さない変更を取り消し',['3分前に入れた変更を元に戻しました']],
+['10/17','12:09','drive','セーフティカー先導の1周を周回数に入れない',['先導のあとに規定の周回を走ります。ラップと合計タイムも先導のあとから']],
+['10/17','13:31','fix','時間帯のボタンが押せないままになる不具合',['リアル天候から手動の天候に戻したときに起きていました']],
+['10/17','13:40','sound','エンジン音を車ごとに',['VTEC・アンチラグ・変速の音・ギア鳴き・破裂音の種類・ブローオフ','車内のこもり、マフラーからの炎']],
+['10/17','13:53','sound','音の新旧の切り替えをやめ、新しいエンジン音だけに',[]],
+['10/17','14:10','sound','アイドリングの音を小さなスピーカーでも聞こえるように',['排気の脈動とバズ音を足し、車内のこもりを弱めました']],
+['10/17','14:15','drive','MT に ニュートラル（N）',['N で空ぶかしすると、回転の上限に当たります']],
+['10/17','15:12','play','チャレンジ',['デイリー3つ・ウィークリー（称号）・ドライバーレベル','ガレージ：炎の色・マフラー・ブローオフ']],
+['10/17','20:06','course','ハンガロリンク：最終コーナーの中心線を本コースに付け替え',['ピット入口の側道を通っていました']],
+['10/18','01:03','course','コースの検査 route_audit.py',['中心線が側道やピット入口を通っていないかを探します。全15コースで確認']],
+['10/18','02:37','online','アップデートでレースを止めない仕組み',['走行中の通知・更新予定のお知らせ・中断したあとの再開の案内','10月19日から、デイリーとウィークリーを「いろいろな車・コースを走る」お題に']],
+['10/18','03:04','drive','レースの AI に難易度',['やさしい・ふつう・むずかしい・エキスパート。エキスパートはゴールドタイム前後のペース']],
+['10/18','10:36','play','チャレンジのお題を、ゲームの要素を幅広く使うものに',['天候・時間帯・視点・MT・ゴースト・リプレイ・セーフティカー・タイヤの温度・セクターなど','ウィークリー14種類と、新しい称号8つ']],
+['10/18','14:37','online','ほかのプレイヤーのゴーストと走るレース',['上位3人のベストラップと対戦。1周走ったあと、スタートラインを越えた瞬間に全員がスタート']],
+['10/18','14:53','drive','右上に全員の順位表',['順位・車の色・名前・トップとの差。順位が上がった行は緑、下がった行は赤で光ります']],
+['10/18','14:57','mobile','スマホのレース中は、ミニマップを隠して順位表を優先',[]],
+['10/18','16:33','fix','コースレコードの通知：記録の送り直しを新記録とみなさない',[]],
+['10/19','10:19','drive','運転席視点にバックミラー',['後ろ向きのカメラで描き、画面の上に左右反転で表示']],
+['10/19','14:39','infra','サムネイル用のゲーム場面写真',['このページの写真もこれを使っています']],
+['10/19','14:53','publish','Netlify は [deploy] のコミットだけ本番に出す',['無料枠を使い切って更新が止まった対策']],
+['10/20','18:51','car','R34 の運転席から、本物のボンネットとミラーを見せる',['目の高さも 1.18m に']],
+['10/20','19:00','fix','緊急の修正：走行を始めると止まる不具合',['hoodPlane の宣言がコメント行に入っていました']],
+['10/20','19:14','car','R34 を内装つきのモデルに置き換え（CC BY 4.0）',['三角形を22.7万から13.9万に減らし、2.2MB に','車輪・目の位置・マフラーの位置を新しいモデルに合わせました']],
+['10/20','22:03','mobile','スマホを縦に持っても、ページを90度回して横画面に',['横向きの低い画面用に、表示・ボタン・メニューの配置を変更']],
+['10/20','22:10','mobile','スマホの横画面を仕上げ',['タイトルを2列に、無線の位置を調整、メニュー中は操作ボタンを隠す']],
+['10/20','22:17','online','実績やチャレンジをクラウドにも保存',['別の端末やアプリで開いても戻ります。ベストタイムも共有ランキングから戻ります']],
+['10/20','23:05','car','ウラカン STO を ウラカン GT3 EVO2 に置き換え',['左ハンドルの本物の車内。GT3 規定の目安の性能（565ps・1,250kg・0-100km/h 3.3秒）']],
+['10/21','15:44','publish','Google Search Console の所有権確認タグを追加',['検索結果に出すための登録の準備']],
+['10/21','15:49','publish','Vercel 版：site/ だけを公開する設定 vercel.json を追加',['リポジトリ全体が公開されてトップページが見つからない状態を直しました','車・コース・音のファイルを1週間キャッシュ']],
+['10/21','15:54','publish','SNS 用のサムネイルと、検索結果の説明文を追加',['リンクを X や LINE に貼ったときに、大きい画像のカードが出ます']]
+];
+const road=document.getElementById('road'),chips=document.getElementById('chips'),status=document.getElementById('status');
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md=d=>{const [m,dd]=d.split('/');return `${+m}月${+dd}日`;};
+let html='';
+DAYS.forEach(([d,wd,n,theme],i)=>{
+  const list=E.filter(e=>e[0]===d);
+  html+=`<li class="step" data-day="${d}"><span class="num" aria-hidden="true">${i+1}</span><div><div class="head"><h3>DAY ${i+1}　${md(d)}（${wd}）</h3><p class="meta">${n}コミット</p><p class="theme">${esc(theme)}</p></div><ul class="events">`;
+  for(const [,t,c,title,pts] of list){
+    html+=`<li class="ev" data-cat="${c}"><time>${t}</time><div><p class="t"><span class="chip k-${c}">${CAT[c]}</span><span>${esc(title)}</span></p>${pts.length?'<ul>'+pts.map(p=>'<li>'+esc(p)+'</li>').join('')+'</ul>':''}</div></li>`;
+  }
+  html+='</ul></div></li>';
+});
+road.innerHTML=html;
+const counts={};E.forEach(e=>counts[e[2]]=(counts[e[2]]||0)+1);
+const mk=(k,label,n)=>`<button type="button" class="btn btn-secondary btn-sm" id="f-${k}" data-k="${k}" aria-pressed="${k==='all'}">${label} <span class="n">${n}</span></button>`;
+chips.innerHTML=mk('all','すべて',E.length)+Object.keys(CAT).filter(k=>counts[k]).map(k=>mk(k,CAT[k],counts[k])).join('');
+const show=k=>{
+  chips.querySelectorAll('.btn').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.k===k)));
+  road.querySelectorAll('.ev').forEach(x=>x.hidden=!(k==='all'||x.dataset.cat===k));
+  road.querySelectorAll('.step').forEach(s=>s.classList.toggle('empty',!s.querySelector('.ev:not([hidden])')));
+  status.textContent=k==='all'?`${E.length}件をすべて表示しています。`:`「${CAT[k]}」の${counts[k]}件を表示しています。`;
+};
+chips.addEventListener('click',ev=>{const b=ev.target.closest('.btn');if(b)show(b.dataset.k);});
+show('all');
+})();
+</script>
+</body>
+</html>
