@@ -284,9 +284,9 @@ body:not(.hudon) .pad{display:none!important}
 body.gyro .pad.l{display:none!important}
 #gyroRow{display:none}
 @media (pointer:coarse){#gyroRow{display:flex}}
-body.phl #cn{top:4px;transform:translateX(-50%) scale(.76);transform-origin:50% 0}
+/* phones, landscape: the corner call sits at the right edge just above ACC/BRK, out of the middle of the road */
+body.phl #cn{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);left:auto;right:max(8px,env(safe-area-inset-right,0px));margin-top:0!important;transform:scale(.7);transform-origin:100% 100%}
 body.phl #mirHud{width:230px;top:4px}
-body.phl.mirhud #cn{margin-top:70px}
 body.phl #split{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 96px)}
 body.phl #split b{font-size:18px}
 body.phl #split em{font-size:17px}
