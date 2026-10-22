@@ -2229,7 +2229,7 @@ const gyTouch=()=>matchMedia('(pointer:coarse)').matches;
 function gyMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a.y==null)return;GY.seen=performance.now();GY.g=[a.x,a.y];if(!GY.n)gyCenter();}
 function gyListen(){if(GY.lis)return;GY.lis=true;addEventListener('devicemotion',gyMotion);}
 async function gyAsk(){       // call straight from a tap (iPhone permission)
-  try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){const r=await DeviceMotionEvent.requestPermission();if(r!=='granted')return 'denied';}}catch(e){return 'denied';}
+  try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){const r=await DeviceMotionEvent.requestPermission();if(r!=='granted')return 'denied';}}catch(e){return 'none';}   // throws inside embeds (no prompt possible)
   GY.asked=true;gyListen();if(GY.seen&&performance.now()-GY.seen<500)return 'ok';
   await new Promise(r=>setTimeout(r,1500));return GY.seen?'ok':'none';
 }
@@ -2249,7 +2249,7 @@ $('tgGyro').addEventListener('click',async()=>{
   gyNote('センサーを確認しています…');
   const r=await gyAsk();
   if(r==='ok'){setOpt('gyro',true);gyCenter();gyNote('ON：スマホを横に持ち、ハンドルのように左右へ回して曲がります。アクセルとブレーキは右のボタン。');}
-  else gyNote(r==='denied'?'動きと向きのセンサーが許可されませんでした。ブラウザの設定で許可すると使えます。':'この画面ではスマホのセンサーが使えません（Claude のアプリの中など）。ブラウザで開くゲーム（Vercel 版・Netlify 版）なら使えます。');
+  else gyNote(r==='denied'?'センサーの使用が許可されませんでした。iPhone はページを開き直してもう一度押し、「許可」を選んでください。Android の Chrome はアドレスバーの左のアイコン →「権限」→「モーション センサー」で許可できます。':'この画面ではスマホのセンサーが使えません（Claude のアプリの中など）。ブラウザで開くゲーム（Vercel 版・Netlify 版）なら使えます。');
 });
 // iPhone forgets the permission per page load: ask again on the first tap when it was left ON
 addEventListener('click',()=>{if(opts.gyro&&gyTouch()&&!GY.asked)gyAsk();},{capture:true,once:true});
