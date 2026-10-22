@@ -49,7 +49,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 
 - `const CARS=[` … 車の一覧。主なフィールド:
   `t100`（0-100km/h 秒）`top`（最高速）`gripG` `brakeG`（実車の G）`gears` `red`（レッドゾーン rpm）
-  `cyl`（音: 3/4/6/8/10/12/'v8x'/'flat6'/'rotary'/'ev'）`turbo` `sc` `lag` `ev`
+  `cyl`（音: 3/4/6/8/10/12/'v8x'/'flat4'/'flat6'/'rotary'/'ev'）`turbo` `sc` `lag` `ev`
   `body:{w,l,ride,h,color,wb}` `model:{url,s,off,rotY}` `credit:{title,author,url,license,licUrl}`。
   加速力は `t100` と `top` から自動で合わせ込まれる（`simT100`）。
   車は `CARS` の末尾（`s2000` の後ろ）に足す（選択中の車は番号 `fpr-car` で覚えているため）。新しい車には `since:'<追加の翌日 YYYY-MM-DD>'` を付ける：
