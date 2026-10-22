@@ -266,6 +266,8 @@ body.phl #map{width:84px;height:84px}
 body.phl.racing #map{display:none}
 body.phl #tyres{width:100px;height:92px}
 body.phl #gauge{width:200px;height:88px;bottom:calc(env(safe-area-inset-bottom,0px) + 2px)}
+/* gyro steering hides the ◀▶ pad: the speedometer moves into that corner and leaves the middle of the road clear */
+body.phl.gyro #gauge{left:max(6px,env(safe-area-inset-left,0px));transform:none}
 body.phl .pad{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
 body.phl .pad.l{left:max(10px,env(safe-area-inset-left,0px))}
 body.phl .pad.r{right:max(10px,env(safe-area-inset-right,0px))}
