@@ -11,6 +11,7 @@ GLB モデルを変換して走らせている。UI と文章はすべて日本�
 | Claude 版（アーティファクト） | https://claude.ai/artifact/D5QourP6E7TqL4C8Z7rRJZ | claude.ai のチャットから Artifact ツールで再公開 | Claude の共有DBで全員のランキング |
 | Vercel 版 | https://tsukimizaka-night-run.vercel.app | `main` への push ごとに自動で本番に出る（Hobby プラン、回数の上限なし）。直下の `vercel.json` で `site/` を公開、キャッシュ設定もここ | 端末ごとの記録のみ |
 
+- **ユーザーへの報告では、更新したら毎回 Vercel 版の URL（https://tsukimizaka-night-run.vercel.app）をそのまま貼る**（ユーザーの希望、2026-10-22）。
 - **Claude 版を publish するときはレース中の人を待つ**（新しい版は開いているページに自動で届いて再読み込みされ、走行が中断されるため）:
   1. ArtifactData で `live` を list（各プレイヤーの `live/<uid>` = `{racing:'race'|'free'|'', eta, at}`）。`at` が3分以内で `racing:'race'` のものの最大 `eta` を出す。
   2. いれば `notice/update` に `{status:'pending', eta:<その最大eta>, at:<今>}` を set（ゲームの上部に「アップデート予定（あと約N分）」と出る）。
