@@ -52,6 +52,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   `cyl`（音: 3/4/6/8/10/12/'v8x'/'flat6'/'rotary'/'ev'）`turbo` `sc` `lag` `ev`
   `body:{w,l,ride,h,color,wb}` `model:{url,s,off,rotY}` `credit:{title,author,url,license,licUrl}`。
   加速力は `t100` と `top` から自動で合わせ込まれる（`simT100`）。
+  車は `CARS` の末尾（`s2000` の後ろ）に足す（選択中の車は番号 `fpr-car` で覚えているため）。新しい車には `since:'<追加の翌日 YYYY-MM-DD>'` を付ける：
+  デイリーの「今日の車」（`chRot`）はその日から並びに入るので、追加した日の途中でお題が変わらない。メーカーが新しいときは `chRegion` と実績 `jp` の日本メーカー一覧も確認。
 - `const RIGS={` … 車のモーション（車輪の回転・前輪の操舵・車体のロール/ピッチ）の設定。車ごとに4輪の円柱
   `hubs:[[x,y,z,半径,x0,x1,yaw0]×4]`（左後・右後・左前・右前、車の座標で m、+z が前、+x が左）と、車輪と一緒に回る
   マテリアル名 `spin`。`rigModel` が読み込み時に車輪を切り出し、`rigDrive`/`rigFrame` が毎フレーム、各車の位置と向きの
