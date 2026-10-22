@@ -279,6 +279,9 @@ body.phl #radio{left:max(10px,env(safe-area-inset-left,0px));bottom:calc(env(saf
 body.phl #radio p{font-size:12px;line-height:1.4}
 /* touch pads only while driving (not over the menus) */
 body:not(.hudon) .pad{display:none!important}
+body.gyro .pad.l{display:none!important}
+#gyroRow{display:none}
+@media (pointer:coarse){#gyroRow{display:flex}}
 body.phl #cn{top:4px;transform:translateX(-50%) scale(.76);transform-origin:50% 0}
 body.phl #mirHud{width:230px;top:4px}
 body.phl.mirhud #cn{margin-top:70px}
@@ -631,6 +634,8 @@ body.phl .press{display:none}
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
       <div class="opts" id="mirRow"><span class="ol">バックミラー</span><div class="grp"><button class="tog" type="button" id="tgMirror" aria-pressed="true">バックミラー ON</button></div>
         <span class="tmnote">運転席視点のとき、画面の上に後ろの様子を映します。</span></div>
+      <div class="opts" id="gyroRow"><span class="ol">ジャイロ操作</span><div class="grp"><button class="tog" type="button" id="tgGyro" aria-pressed="false">ジャイロ操作 OFF</button></div>
+        <span class="tmnote" id="gyroNote">スマホを横に持ち、ハンドルのように左右へ回して曲がります（左の◀▶は消えます）。アクセルとブレーキは右のボタン。</span></div>
       <div class="keys">
         <span><kbd>↑</kbd><kbd>W</kbd> アクセル</span>
         <span><kbd>↓</kbd><kbd>S</kbd> ブレーキ</span>
@@ -1997,7 +2002,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false};
 const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
   {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
 const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
@@ -2035,7 +2040,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -2199,7 +2204,8 @@ document.querySelectorAll('.pad button[data-k]').forEach(b=>{
 });
 function setOpt(k,v){
   opts[k]=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
-  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio',mirror:'tgMirror'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 ',mirror:'バックミラー '}[k]+(v?'ON':'OFF');
+  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio',mirror:'tgMirror',gyro:'tgGyro'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 ',mirror:'バックミラー ',gyro:'ジャイロ操作 '}[k]+(v?'ON':'OFF');
+  if(k==='gyro')gySet();
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
 $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
@@ -2210,6 +2216,44 @@ document.querySelectorAll('.mtog').forEach(b=>b.addEventListener('click',()=>{se
 $('tgGhost').addEventListener('click',()=>{setOpt('ghost',!opts.ghost);ghostNote();});
 $('tgSC').addEventListener('click',()=>setOpt('sc',!opts.sc));
 $('tgMirror').addEventListener('click',()=>setOpt('mirror',!opts.mirror));
+/* ---------- gyro steering (phones, 設定 opts.gyro): turn the phone like a steering wheel.
+   Reads gravity from devicemotion in the phone's own axes. "Straight" is the phone axis nearest to the current
+   gravity (snapped, so a slightly tilted grip at the start is not baked in), re-taken whenever driving starts
+   or the screen turns; the steer is the signed angle from it around the screen normal. Platforms that report the
+   axes with the opposite sign flip both components, which leaves that angle unchanged.
+   iPhone needs DeviceMotionEvent.requestPermission() from a tap; an embed without the motion permission (the
+   Claude version may be one) never fires the event, so the toggle checks for data and says so. */
+const GY={on:false,lis:false,seen:0,g:null,n:null,asked:false};
+const GY_DEAD=0.035,GY_MAX=0.55;           // rad: dead zone, full lock (~32°)
+const gyTouch=()=>matchMedia('(pointer:coarse)').matches;
+function gyMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null||a.y==null)return;GY.seen=performance.now();GY.g=[a.x,a.y];if(!GY.n)gyCenter();}
+function gyListen(){if(GY.lis)return;GY.lis=true;addEventListener('devicemotion',gyMotion);}
+async function gyAsk(){       // call straight from a tap (iPhone permission)
+  try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function'){const r=await DeviceMotionEvent.requestPermission();if(r!=='granted')return 'denied';}}catch(e){return 'denied';}
+  GY.asked=true;gyListen();if(GY.seen&&performance.now()-GY.seen<500)return 'ok';
+  await new Promise(r=>setTimeout(r,1500));return GY.seen?'ok':'none';
+}
+function gyCenter(){if(!GY.g)return;const[x,y]=GY.g;if(Math.hypot(x,y)<3)return;GY.n=Math.abs(x)>Math.abs(y)?[Math.sign(x),0]:[0,Math.sign(y)];}
+// -1..1, positive = left (same sign as keys.left-keys.right)
+function gyroSteer(){
+  if(!GY.on||!GY.g||!GY.n||performance.now()-GY.seen>600)return 0;
+  const[x,y]=GY.g;if(Math.hypot(x,y)<3)return 0;
+  const ang=Math.atan2(GY.n[0]*y-GY.n[1]*x,GY.n[0]*x+GY.n[1]*y);   // + = phone turned clockwise = steer right
+  const m=Math.min(1,Math.max(0,(Math.abs(ang)-GY_DEAD)/(GY_MAX-GY_DEAD)));
+  return -Math.sign(ang)*Math.pow(m,1.25);
+}
+function gySet(){GY.on=!!opts.gyro&&gyTouch();document.body.classList.toggle('gyro',GY.on);if(GY.on)gyListen();}
+const gyNote=t=>{const n=$('gyroNote');if(n)n.textContent=t;};
+$('tgGyro').addEventListener('click',async()=>{
+  if(opts.gyro){setOpt('gyro',false);return;}
+  gyNote('センサーを確認しています…');
+  const r=await gyAsk();
+  if(r==='ok'){setOpt('gyro',true);gyCenter();gyNote('ON：スマホを横に持ち、ハンドルのように左右へ回して曲がります。アクセルとブレーキは右のボタン。');}
+  else gyNote(r==='denied'?'動きと向きのセンサーが許可されませんでした。ブラウザの設定で許可すると使えます。':'この画面ではスマホのセンサーが使えません（Claude のアプリの中など）。ブラウザで開くゲーム（Vercel 版・Netlify 版）なら使えます。');
+});
+// iPhone forgets the permission per page load: ask again on the first tap when it was left ON
+addEventListener('click',()=>{if(opts.gyro&&gyTouch()&&!GY.asked)gyAsk();},{capture:true,once:true});
+addEventListener('orientationchange',()=>setTimeout(gyCenter,400));
 const AI_NOTE={easy:'ライバルはゆっくり走ります。ここでの優勝は実績には数えません（チャレンジには数えます）。',normal:'いつもの強さ。',hard:'コーナーもブレーキも速く、ガイドの速度では勝てません。',expert:'ゴールドタイム級のペースで走ります。全部の道幅とタイヤの温まりを使い切ろう。'};
 function setAI(id){opts.ai=id;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
   document.querySelectorAll('#aiLvs .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ai===id));$('aiNote').textContent=AI_NOTE[id];try{if(step==='go')renderSummary();}catch(e){}}
@@ -3140,7 +3184,7 @@ $('goOpts').addEventListener('click',()=>{optsBack='title';showStep('opts');});
 $('goOpts2').addEventListener('click',()=>{optsBack='go';showStep('opts');});
 $('backBtn').addEventListener('click',prevStep);
 $('nextBtn').addEventListener('click',nextStep);
-function setHud(on){document.body.classList.toggle('hudon',on);if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
+function setHud(on){document.body.classList.toggle('hudon',on);if(on&&GY.on)gyCenter();if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
   initAudio();if(ac&&ac.state==='suspended')ac.resume();
@@ -4342,8 +4386,8 @@ function updateAI(dt,active){
 function place(a,o){a.mesh.position.set(o.x,o.y,o.z);const i=o.i;a.mesh.lookAt(o.x+T[i].x,o.y+SL[i],o.z+T[i].z);}
 function updatePlayer(dt,canDrive){
   const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'?1:0);
-  const st=canDrive?(keys.left-keys.right):0;
-  pl.steer+=(st-pl.steer)*Math.min(1,dt*(st?3.5:6));
+  const kst=keys.left-keys.right,gst=!kst&&GY.on?gyroSteer():0,st=canDrive?(kst||gst):0;
+  pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6)));
   const v=pl.v,sp=Math.abs(v);let a=0;
   const D=CAR.drive;
   // traction: rear/mid drive spins up a little off the line, 4WD bites
@@ -4800,7 +4844,7 @@ function frame(now){
   mirFrame();
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setOpt('gyro',opts.gyro);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');

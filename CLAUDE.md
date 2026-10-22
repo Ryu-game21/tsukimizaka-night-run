@@ -79,7 +79,10 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `phones: landscape`（`phLayout`/`PH`/`VW()`/`VH()`）… スマホは常に横画面。縦持ちのとき（タッチ・縦長・幅540px以下）は `body.rot` でページ全体を90度回す（JS で body の幅・高さ・transform を px 指定）。
   横向きの低い画面（回した場合も本当に横向きも）は `body.phl` 用の配置（HUD・パッド・無線・メニュー）。回転中は縦持ち用の `max-width` メディアクエリが効かないよう `body:not(.rot)` で囲ってある。
   画面サイズは `innerWidth` ではなく `VW()`/`VH()`、要素の位置は `getBoundingClientRect` ではなく `offsetWidth` など（回転の影響を受けない値）を使う。Android は最初のタップで全画面＋横向き固定を試す（`phTryLock`）。
-  タッチのパッドは走行中だけ（`body.hudon`）。ページ先頭に viewport の meta（Netlify 版用。Claude 版は外側のページが付ける）。
+  タッチのパッドは走行中だけ（`body.hudon`）。
+- `gyro steering`（`GY`/`gyroSteer`/`gyAsk`/`gyCenter`、設定 `opts.gyro`、スタート準備の「ジャイロ操作」、タッチ端末だけ表示）… スマホをハンドルのように回して曲がる。`devicemotion` の重力を端末の軸で読み、
+  いまの重力にいちばん近い軸を「まっすぐ」にして（走り出す時・画面の向きが変わった時に取り直す）、そこからの回転角で舵。ON の間は左の◀▶を隠す（`body.gyro`）。キーやボタンを押している間はそちらが優先。
+  iPhone はタップから `DeviceMotionEvent.requestPermission()`（ページを開くたびに最初のタップで再要求）。センサーの値が来ない埋め込み（Claude 版のアプリ内など）では ON にせず、ブラウザ版を案内する。ページ先頭に viewport の meta（Netlify 版用。Claude 版は外側のページが付ける）。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・
