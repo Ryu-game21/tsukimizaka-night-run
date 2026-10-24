@@ -636,6 +636,8 @@ body.phl .press{display:none}
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
       <div class="opts" id="mirRow"><span class="ol">バックミラー</span><div class="grp"><button class="tog" type="button" id="tgMirror" aria-pressed="true">バックミラー ON</button></div>
         <span class="tmnote">運転席視点のとき、画面の上に後ろの様子を映します。</span></div>
+      <div class="opts" id="gfxRow"><span class="ol">画質</span><div class="grp"><button class="tog" type="button" id="gfxHigh" aria-pressed="false">高画質</button><button class="tog" type="button" id="gfxStd" aria-pressed="true">標準</button></div>
+        <span class="tmnote" id="gfxNote">高画質：光のにじみ（ブルーム）・車の影・雨の路面の映り込み・スピード感のブラー・色調の補正。重いときは自動で標準に戻します。</span></div>
       <div class="opts" id="cmRow" hidden><span class="ol">実況</span><div class="grp"><button class="tog" type="button" id="tgCm" aria-pressed="true">実況 ON</button></div>
         <span class="tmnote">スタート・オーバーテイク・ファイナルラップ・チェッカーなどを実況の声で伝えます。</span></div>
       <div class="opts" id="gyroRow"><span class="ol">ジャイロ操作</span><div class="grp"><button class="tog" type="button" id="tgGyro" aria-pressed="false">ジャイロ操作 OFF</button></div>
@@ -1917,11 +1919,11 @@ function addLights(g,s,L2){
 }
 function makeCar(car){
   if(car.model&&MODELS[car.id]){
-    const g=new THREE.Group();g.add(MODELS[car.id].clone(true));addLights(g,car.body,car.body.l/2);scene.add(g);return g;
+    const g=new THREE.Group();g.add(MODELS[car.id].clone(true));addLights(g,car.body,car.body.l/2);scene.add(g);g.userData.car=car;return g;
   }
   if(car.model&&modelLoading[car.id]!=='fail'){
     // still loading: only the lights for now, the model swaps in when it arrives
-    loadModel(car);const g=new THREE.Group();addLights(g,car.body,car.body.l/2);scene.add(g);return g;
+    loadModel(car);const g=new THREE.Group();addLights(g,car.body,car.body.l/2);scene.add(g);g.userData.car=car;return g;
   }
   const s=Object.assign({ride:.2,h:.5,noseIn:.3,rearIn:.1,cab:[-1.2,.8,-1,.2,.55,.8],wr:.32,wing:0},car.body),g=new THREE.Group(),L2=s.l/2;
   const paint=new THREE.MeshLambertMaterial({color:s.color});
@@ -1953,7 +1955,7 @@ function makeCar(car){
     }
   }
   const hs=new THREE.Sprite(new THREE.SpriteMaterial({map:whiteGlow,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.6}));hs.scale.set(3,1.2,1);hs.position.set(0,hy,L2+0.4);hs.userData.base=.7;g.add(hs);
-  scene.add(g);return g;
+  scene.add(g);g.userData.car=car;return g;
 }
 function disposeObj(o){if(!o)return;scene.remove(o);o.traverse(m=>{if(m.geometry&&!m.userData.shared)m.geometry.dispose();if(m.material&&m.material.dispose&&!(m.material.userData&&m.material.userData.shared))m.material.dispose();});}
 let playerCar=null,ghostCar=null,ghostCarId=null,carSel=0;
@@ -2006,7 +2008,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false,cm:true};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false,cm:true,gfx:null};
 const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
   {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
 const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
@@ -2044,7 +2046,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;if(o.gfx==='high'||o.gfx==='std')opts.gfx=o.gfx;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -4867,7 +4869,110 @@ function phTryLock(){
 }
 addEventListener('pointerdown',phTryLock,{once:true});
 addEventListener('orientationchange',()=>setTimeout(resize,250));
-function resize(){phLayout();const w=VW(),h=VH();renderer.setSize(w,h,false);camera.aspect=w/h;applyOffset();camera.updateProjectionMatrix();sizeHud();}
+/* ---------- graphics quality (設定 opts.gfx 'high'|'std', スタート準備の「画質」; default high on a desktop with
+   WebGL2, std on phones). high = post-processing through three's EffectComposer (r128 examples, loaded on demand
+   from jsdelivr): UnrealBloomPass (lamps, lights, sun glints; stronger at night), a grade pass (speed radial blur,
+   saturation/contrast, vignette, a little grain); a sun shadow map that follows the player (cars cast, everything
+   else receives) plus a soft contact shadow under every car; wet roads in the rain (track materials smoother and
+   more reflective). std is exactly the old look. If the frame rate stays low while driving it drops back to std. */
+const GFX={on:false,ready:false,loading:false,fail:false,comp:null,bloom:null,grade:null,stamp:0,tick:0,fps:[],blobTex:null};
+const GFX_BASE='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/';
+const GFX_LIBS=['shaders/CopyShader.js','shaders/LuminosityHighPassShader.js','postprocessing/EffectComposer.js','postprocessing/RenderPass.js','postprocessing/ShaderPass.js','postprocessing/UnrealBloomPass.js'];
+const gfxDefault=()=>!matchMedia('(pointer:coarse)').matches&&renderer.capabilities.isWebGL2?'high':'std';
+const gfxWant=()=>(opts.gfx||gfxDefault())==='high';
+function gfxLoad(){
+  if(GFX.ready||GFX.loading||GFX.fail)return;GFX.loading=true;
+  const next=i=>{if(i>=GFX_LIBS.length){GFX.loading=false;GFX.ready=!!(THREE.EffectComposer&&THREE.UnrealBloomPass);if(!GFX.ready)GFX.fail=true;gfxSet();return;}
+    const el=document.createElement('script');el.src=GFX_BASE+GFX_LIBS[i];el.onload=()=>next(i+1);el.onerror=()=>{GFX.loading=false;GFX.fail=true;gfxSet();};document.head.appendChild(el);};
+  next(0);
+}
+const GRADE={uniforms:{tDiffuse:{value:null},uSpeed:{value:0},uVig:{value:.32},uSat:{value:1.12},uCon:{value:1.06},uGrain:{value:.018},uTime:{value:0}},
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:`uniform sampler2D tDiffuse;uniform float uSpeed,uVig,uSat,uCon,uGrain,uTime;varying vec2 vUv;
+  float rnd(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+  void main(){vec2 c=vUv-.5;float d=length(c);vec3 col=texture2D(tDiffuse,vUv).rgb;
+    if(uSpeed>.001){float k=uSpeed*.045*smoothstep(.12,.62,d);vec3 a=col;for(int i=1;i<8;i++){a+=texture2D(tDiffuse,vUv-c*k*float(i)/7.).rgb;}col=a/8.;}
+    float l=dot(col,vec3(.299,.587,.114));col=mix(vec3(l),col,uSat);col=(col-.5)*uCon+.5;
+    col*=1.-uVig*smoothstep(.38,.9,d);col+=(rnd(vUv*vec2(1617.,947.)+uTime)-.5)*uGrain;gl_FragColor=vec4(max(col,0.),1.);}`};
+function gfxBuild(){
+  if(GFX.comp||!GFX.ready)return;
+  const w=VW(),h=VH(),pr=renderer.getPixelRatio();
+  let rt=null;
+  if(renderer.capabilities.isWebGL2&&THREE.WebGLMultisampleRenderTarget){rt=new THREE.WebGLMultisampleRenderTarget(Math.floor(w*pr),Math.floor(h*pr),{format:THREE.RGBAFormat});rt.samples=4;}
+  const comp=new THREE.EffectComposer(renderer,rt||undefined);comp.setPixelRatio(pr);comp.setSize(w,h);
+  comp.addPass(new THREE.RenderPass(scene,camera));
+  GFX.bloom=new THREE.UnrealBloomPass(new THREE.Vector2(w,h),.5,.45,.72);comp.addPass(GFX.bloom);
+  GFX.grade=new THREE.ShaderPass(GRADE);comp.addPass(GFX.grade);
+  GFX.comp=comp;
+}
+function gfxSet(){
+  const want=gfxWant();$('gfxHigh').setAttribute('aria-pressed',want);$('gfxStd').setAttribute('aria-pressed',!want);
+  if(want&&!GFX.ready){if(GFX.fail){$('gfxNote').textContent='高画質の部品を読み込めませんでした（通信を確かめてください）。標準で表示しています。';}else gfxLoad();}
+  const on=want&&GFX.ready;if(on)gfxBuild();
+  if(on===GFX.on&&GFX.stamp)return;
+  GFX.on=on;GFX.stamp++;GFX.fps=[];
+  renderer.shadowMap.enabled=on;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  sunL.castShadow=on;if(on){sunL.shadow.mapSize.set(2048,2048);const sc=sunL.shadow.camera;sc.left=-16;sc.right=16;sc.top=16;sc.bottom=-16;sc.near=1;sc.far=160;sc.updateProjectionMatrix();sunL.shadow.bias=-0.0006;sunL.shadow.normalBias=0.02;if(!sunL.target.parent)scene.add(sunL.target);}
+  scene.traverse(o=>{if(o.isMesh&&o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true);}});
+  gfxScene(true);
+}
+function setGfx(v){opts.gfx=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}$('gfxNote').textContent='高画質：光のにじみ（ブルーム）・車の影・雨の路面の映り込み・スピード感のブラー・色調の補正。重いときは自動で標準に戻します。';gfxSet();}
+$('gfxHigh').addEventListener('click',()=>setGfx('high'));$('gfxStd').addEventListener('click',()=>setGfx('std'));
+// soft dark ellipse under each car (contact shadow; also at night when the sun shadow is faint)
+function gfxBlob(){if(GFX.blobTex)return GFX.blobTex;GFX.blobTex=canvasTex(128,128,g=>{const r=g.createRadialGradient(64,64,8,64,64,64);r.addColorStop(0,'rgba(0,0,0,0.75)');r.addColorStop(.55,'rgba(0,0,0,0.45)');r.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=r;g.fillRect(0,0,128,128);});return GFX.blobTex;}
+function gfxCarRoots(){return[playerCar,ghostCar,scar&&scar.mesh].concat(AI.map(a=>a.mesh)).filter(Boolean);}
+// only grey, mid-dark surfaces get wet (asphalt, kerbs, concrete) - grass, trees and stands stay as they are.
+// The colour is the material colour times the average of its texture (read once from a 16x16 copy).
+function gfxRoadLike(m){
+  let r=m.color?m.color.r:1,g=m.color?m.color.g:1,b=m.color?m.color.b:1;
+  const img=m.map&&m.map.image;
+  if(img&&(img.width||img.videoWidth)){try{const c=document.createElement('canvas');c.width=c.height=16;const x=c.getContext('2d');x.drawImage(img,0,0,16,16);
+    const d=x.getImageData(0,0,16,16).data;let R=0,G=0,B=0;for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];}const n=d.length/4*255;r*=R/n;g*=G/n;b*=B/n;}catch(e){return false;}}
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,sat=mx>0?(mx-mn)/mx:0;
+  return sat<.2&&l>.04&&l<.62;
+}
+// mark casters/receivers, blobs and wet roads; cheap when nothing changed (stamp per object)
+function gfxScene(force){
+  const on=GFX.on,cars=new Set(gfxCarRoots()),wet=on&&wxSel==='rain',tag=GFX.stamp+':'+wet,stag=tag+':'+(C&&C.id)+':'+Object.keys(TRACKS).length+':'+scene.children.length;
+  cars.forEach(c=>{
+    let b=c.userData.gfxBlob;
+    const gh=c===ghostCar||c.userData.carId!=null;
+    if(on&&!b&&!gh){const car=c.userData.car||CAR,w=(car.body&&car.body.w||1.8)*1.25,l=(car.body&&car.body.l||4.4)*1.12;
+      b=new THREE.Mesh(new THREE.PlaneGeometry(w,l),new THREE.MeshBasicMaterial({map:gfxBlob(),transparent:true,depthWrite:false,opacity:.85,fog:true}));
+      b.rotation.x=-Math.PI/2;b.position.y=.03;b.renderOrder=-1;c.add(b);c.userData.gfxBlob=b;}
+    if(b)b.visible=on;
+    if(c.userData.gfxTag!==tag){c.userData.gfxTag=tag;c.traverse(o=>{if(o.isMesh&&o!==b){o.castShadow=on&&!gh;o.receiveShadow=false;}});}
+  });
+  if(!force&&scene.userData.gfxTag===stag)return;scene.userData.gfxTag=stag;
+  scene.traverse(o=>{
+    if(!o.isMesh||!o.material)return;let p=o,isCar=false;while(p){if(cars.has(p)){isCar=true;break;}p=p.parent;}if(isCar)return;
+    const lit=m=>m&&(m.isMeshStandardMaterial||m.isMeshLambertMaterial||m.isMeshPhongMaterial);
+    const ms=Array.isArray(o.material)?o.material:[o.material];o.receiveShadow=on&&ms.some(lit);
+    ms.forEach(m=>{if(!m||!m.isMeshStandardMaterial)return;const u=m.userData;
+      if(u.dryR==null){u.dryR=m.roughness;u.dryE=m.envMapIntensity;u.road=gfxRoadLike(m);}
+      if(!u.road)return;
+      const r=wet?Math.max(.08,u.dryR*.5):u.dryR,e=wet?Math.max(u.dryE*2.4,.9):u.dryE;
+      if(m.roughness!==r||m.envMapIntensity!==e){m.roughness=r;m.envMapIntensity=e;}});
+  });
+}
+let gfxSlow=0;
+function gfxFrame(dt){
+  const night=timeSel==='night',dusk=timeSel==='dusk';
+  GFX.bloom.strength=night?1.1:dusk?.7:.32;GFX.bloom.threshold=night?.38:dusk?.6:.78;GFX.bloom.radius=.5;
+  const live=state==='race'||state==='count'||state==='finish',fp=live&&VIEWS[view]&&VIEWS[view].fp;
+  const sp=live?Math.max(0,Math.min(1,(Math.abs(pl.v)*3.6-110)/190)):0;
+  GFX.grade.uniforms.uSpeed.value+=(sp*(fp?.35:1)-GFX.grade.uniforms.uSpeed.value)*Math.min(1,dt*3);
+  GFX.grade.uniforms.uTime.value=(GFX.grade.uniforms.uTime.value+dt)%100;
+  GFX.grade.uniforms.uVig.value=night?.3:.28;GFX.grade.uniforms.uCon.value=night?1.0:1.06;
+  // sun shadow follows the player
+  const L=sunL.position.clone().sub(sunL.target.position).normalize();
+  sunL.target.position.set(pl.x,pl.y||0,pl.z);sunL.position.copy(sunL.target.position).addScaledVector(L,80);sunL.target.updateMatrixWorld();
+  GFX.tick-=dt;if(GFX.tick<=0){GFX.tick=1;gfxScene(false);}
+  // too slow while driving: back to the old look
+  if(live&&state==='race'&&dt>0){GFX.fps.push(dt);if(GFX.fps.length>240){const avg=GFX.fps.reduce((a,b)=>a+b,0)/GFX.fps.length;GFX.fps=[];
+    if(avg>1/28&&!opts.gfx){gfxSlow++;if(gfxSlow>=2){opts.gfx='std';try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}gfxSet();pop('画質を標準に下げました','');}}else gfxSlow=0;}}
+}
+function resize(){phLayout();const w=VW(),h=VH();renderer.setSize(w,h,false);if(GFX.comp){GFX.comp.setPixelRatio(renderer.getPixelRatio());GFX.comp.setSize(w,h);}camera.aspect=w/h;applyOffset();camera.updateProjectionMatrix();sizeHud();}
 addEventListener('resize',resize);
 let lastT=performance.now(),hudTick=0,loadTick=0;
 function frame(now){
@@ -4945,11 +5050,11 @@ function frame(now){
     if(busy.length)$('loading').textContent='3Dモデル読み込み中 '+busy.join('・');
   }
   rigFrame(dt);
-  renderer.render(scene,camera);
+  if(GFX.on&&GFX.comp){gfxFrame(dt);GFX.comp.render(dt);}else renderer.render(scene,camera);
   mirFrame();
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setOpt('gyro',opts.gyro);setOpt('cm',opts.cm);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setOpt('gyro',opts.gyro);setOpt('cm',opts.cm);try{gfxSet();}catch(e){console.warn('gfx',e);}setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');

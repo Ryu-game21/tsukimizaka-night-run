@@ -89,6 +89,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   ファイルがなければ実況なし・行も出ない。きっかけはスタート（GO）、無線のイベント（`radioSay` の先頭で `cmFromRadio`、無線 OFF でもレースの判定は回す）、ゴール、自己ベスト。1度に1つ、キーごとの間隔 `CM_CD`、話している間はエンジン音を下げる。
   台本2（`CM_LINES2`）は天候・時間帯と車の組み合わせのセリフ：`cmPassKey`（相手との馬力差・年式差・メーカー・国・EV・雨の4WD）、`cmLostKey`、`cmBattleKey`、`cmWinKey`、スタートの時間帯/天候。`cmVar` が合うものから確率で選び、voice.json にないキーは使わない。
   台本3・4（`CM_LINES3` 車 `c_<id>`・`CM_LINES4` コース `t_<id>`）は紹介：セーフティカー先導の1周（とゴースト対戦のアウトラップ）で、最初のセリフのあとにコース→車の順に読む（`cmIntroLap`→`CM.seq`→`cmTick`、GREEN で打ち切り。2026-10-24 にユーザーの希望でスタート準備の画面から移した。`cmIntro` は未使用）。車やコースを足したら台本3・4にも1行足して、その行だけ録ってもらう。
+- `graphics quality`（`GFX`/`gfxSet`/`gfxScene`/`gfxFrame`/`gfxRoadLike`、設定 `opts.gfx`='high'|'std'、スタート準備の「画質」、既定はPC+WebGL2で高画質・スマホは標準）… 高画質は three r128 の EffectComposer（examples を jsdelivr から必要時に読む）：
+  UnrealBloomPass（夜・夕方は強め）、色調・周辺減光・粒子・速度の放射ブラーのシェーダー、太陽の影（プレイヤーに追従、車だけ落とす）と車の下の接地影、雨で灰色の路面だけ濡らす（テクスチャの平均色で判定）。走行中に重いと自動で標準へ。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・
