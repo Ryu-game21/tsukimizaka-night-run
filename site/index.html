@@ -2276,7 +2276,7 @@ function cmLoad(){
   .catch(e=>{CM.none=true;CM.loading=false;});
 }
 const cmLive=()=>opts.cm&&CM.buf&&A&&!tut&&(state==='race'||state==='count'||state==='finish');
-function cmStop(){if(CM.src){try{CM.src.stop();}catch(e){}CM.src=null;}CM.until=0;CM.q=null;if(A)A.eng.gain.setTargetAtTime(1,ac.currentTime,.2);}
+function cmStop(){if(CM.src){try{CM.src.stop();}catch(e){}CM.src=null;}CM.until=0;CM.q=null;if(A){A.eng.gain.cancelScheduledValues(ac.currentTime);A.eng.gain.setTargetAtTime(1,ac.currentTime,.2);A.bgmD.gain.cancelScheduledValues(ac.currentTime);A.bgmD.gain.setTargetAtTime(1,ac.currentTime,.2);}}
 // key: a clip name, or a group whose clips are named <group>_a/_b; imp = important (queued if busy)
 function cmSay(key,imp,g){
   if(!cmLive())return false;
@@ -2284,11 +2284,29 @@ function cmSay(key,imp,g){
   if(CM.last[grp]!=null&&now-CM.last[grp]<cd)return false;
   let k=key;if(!CM.clips[k]){const v=['_a','_b'].map(x=>grp+x).filter(x=>CM.clips[x]);if(!v.length)return false;k=pick(v);}
   if(now<CM.until){if(imp){CM.q=k;CM.last[grp]=now;}return false;}
-  const[t0,t1]=CM.clips[k],d=t1-t0,s=ac.createBufferSource();s.buffer=CM.buf;s.connect(A.cm);s.start(now+.02,t0,d);
-  CM.src=s;CM.until=now+d+.35;CM.last[grp]=now;
-  A.eng.gain.cancelScheduledValues(now);A.eng.gain.setTargetAtTime(.5,now,.08);A.eng.gain.setTargetAtTime(1,now+d,.35);
-  return true;
+  CM.last[grp]=now;cmPlay(k);return true;
 }
+function cmPlay(k){
+  const now=ac.currentTime,[t0,t1]=CM.clips[k],d=t1-t0,s=ac.createBufferSource();s.buffer=CM.buf;s.connect(A.cm);s.start(now+.02,t0,d);
+  CM.src=s;CM.until=now+d+.35;
+  for(const n of[A.eng,A.bgmD]){n.gain.cancelScheduledValues(now);n.gain.setTargetAtTime(n===A.bgmD?.3:.5,now,.08);n.gain.setTargetAtTime(1,now+d,.35);}
+  return d;
+}
+/* pre-race introduction (take 3 = cars c_<id>, take 4 = courses t_<id>): on the スタート準備 step the commentator
+   introduces the course, then the car, over the menu music. Once per course x car (again after 10 min); leaving
+   the step or pressing start cuts it off. */
+function cmIntro(){
+  if(!opts.cm||tut)return;initAudio();cmLoad();
+  const want=['t_'+COURSES[sel].id,'c_'+CAR.id],tag=want.join('+'),go=()=>{
+    if(step!=='go'||state!=='menu'||!CM.buf)return;
+    const now=ac.currentTime;if(CM.intro===tag&&now-(CM.introT||0)<600)return;
+    const ks=want.filter(k=>CM.clips[k]);if(!ks.length)return;
+    CM.intro=tag;CM.introT=now;cmStop();
+    let t=0;ks.forEach((k,i)=>{CM.introTO=CM.introTO||[];CM.introTO.push(setTimeout(()=>{if(step==='go'&&state==='menu')cmPlay(k);},t*1000+(i?0:350)));t+=CM.clips[k][1]-CM.clips[k][0]+.45;});
+  };
+  if(CM.buf)go();else{let n=0;const w=setInterval(()=>{if(CM.buf||CM.none||++n>120){clearInterval(w);go();}},250);}
+}
+function cmIntroStop(){(CM.introTO||[]).forEach(clearTimeout);CM.introTO=[];if(CM.src&&state==='menu')cmStop();}
 function cmTick(){if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k,false,'q');}if(CM.src&&!cmLive())cmStop();}
 function cmStartCall(){
   if(mode!=='race'||GR.on)return;
@@ -2432,7 +2450,7 @@ function initAudio(){
   A.eng=gainN(1);A.eng.connect(A.master);A.duck=gainN(1);A.duck.connect(A.eng);s2Init();
   A.sfx=gainN(.9);A.sfx.connect(A.cabinIn);A.ui=gainN(.7);A.ui.connect(A.master);
   A.amb=gainN(0);A.amb.connect(A.cabinIn);
-  A.bgm=gainN(0);A.bgm.connect(A.master);
+  A.bgm=gainN(0);A.bgmD=gainN(1);A.bgmD.connect(A.master);A.bgm.connect(A.bgmD);
   A.cm=gainN(1.5);A.cm.connect(A.master);
   const layer=(buf,f,dest)=>{const s=loopSrc(buf),g=gainN(0);let n=s;f.forEach(x=>{n.connect(x);n=x;});n.connect(g);g.connect(dest);return g;};
   A.sqf=filt('bandpass',1000,9);A.sqf2=filt('bandpass',1900,11);
@@ -3213,6 +3231,7 @@ document.querySelectorAll('#bScope .tog').forEach(b=>b.addEventListener('click',
 const STEPS=['mode','car','course','tm','cond','go'],STEPN={mode:'モード',car:'マシン',course:'コース',tm:'変速',cond:'天候',go:'スタート'};
 let step='title',optsBack='title';
 function showStep(s){
+  if(s!=='go')try{cmIntroStop();}catch(e){}
   step=s;document.querySelectorAll('#mcard .step').forEach(e=>e.hidden=e.dataset.s!==s);
   const k=STEPS.indexOf(s),bar=$('stepBar');
   bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof'||s==='chal';
@@ -3223,7 +3242,7 @@ function showStep(s){
   $('backBtn').textContent=s==='mode'?'タイトルへ':'戻る';
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
     bar.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showStep(b.dataset.s)));}
-  if(s==='go'){renderSummary();ghostNote();oppRows();}
+  if(s==='go'){renderSummary();ghostNote();oppRows();try{cmIntro();}catch(e){}}
   if(s==='cond'||s==='go'){if(realOn)startReal();renderRealInfo();}
   if(s==='course'){renderCourseCards();renderBoard();rpMenuUi();}
   if(s==='tm')tmUi();
@@ -3267,7 +3286,7 @@ $('nextBtn').addEventListener('click',nextStep);
 function setHud(on){document.body.classList.toggle('hudon',on);if(on&&GY.on)gyCenter();if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
-  initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();
+  cmIntroStop();initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();
   if(C!==COURSES[sel])buildCourse(sel);
   else if(realOn){const was=wxSel+timeSel+tempC+wind.ms;applyCondition();if(was!==wxSel+timeSel+tempC+wind.ms)buildCourse(sel);}
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}

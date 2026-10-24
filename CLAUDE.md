@@ -88,6 +88,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   `tools/pack_voice.py` が台本（`CM_LINES`、ユーザーに渡した順）を通しで読んだ1本の音声から切り出して作る（`key=fix.mp3` で1行だけ差し替え）。声は ElevenLabs でユーザーが作る（実在の人の声のまねはしない、話し方の特徴だけで作った声）。
   ファイルがなければ実況なし・行も出ない。きっかけはスタート（GO）、無線のイベント（`radioSay` の先頭で `cmFromRadio`、無線 OFF でもレースの判定は回す）、ゴール、自己ベスト。1度に1つ、キーごとの間隔 `CM_CD`、話している間はエンジン音を下げる。
   台本2（`CM_LINES2`）は天候・時間帯と車の組み合わせのセリフ：`cmPassKey`（相手との馬力差・年式差・メーカー・国・EV・雨の4WD）、`cmLostKey`、`cmBattleKey`、`cmWinKey`、スタートの時間帯/天候。`cmVar` が合うものから確率で選び、voice.json にないキーは使わない。
+  台本3・4（`CM_LINES3` 車 `c_<id>`・`CM_LINES4` コース `t_<id>`）は紹介：スタート準備の画面に来たらコース→車の順に読む（`cmIntro`、同じ組み合わせは10分は繰り返さない、画面を離れる・スタートで止める）。メニュー中は BGM を下げる（`A.bgmD`）。車やコースを足したら台本3・4にも1行足して、その行だけ録ってもらう。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・

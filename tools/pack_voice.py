@@ -2,7 +2,8 @@
 
 usage: python3 tools/pack_voice.py take1.mp3 [take2.mp3 ...] [key=fix.mp3 ...]
   takeN.mp3    script N (CM_SETS[N-1] in this file, same order) read in one go, any pause between lines
-               (take 1 = the basic lines of 2026-10-24, take 2 = weather / car-pairing lines)
+               (take 1 = basic lines, 2 = weather / car pairings, 3 = car intros, 4 = course intros;
+               a take can be skipped with '-' to keep its order, e.g.  t1.mp3 t2.mp3 - t4.mp3)
   key=fix.mp3  replace one clip with a separate recording of just that line (re-read, better take)
 writes site/audio/voice.png + site/audio/voice.json = {file, bytes, clips:{key:[t0,t1]}} and work/voice/<key>.wav
 for listening. Prints every clip's length against what its text predicts - check the table: a cut in the wrong
@@ -71,7 +72,64 @@ CM_LINES2 = [
     ('win_night', 'ナイトレースを制したのは、このマシンだ！'),
     ('win_giant', '格上のライバルたちを抑えて、堂々の優勝！'),
 ]
-CM_SETS = [CM_LINES, CM_LINES2]
+# take 3: car introductions (c_<car id>), take 4: course introductions (t_<course id>) - played on the スタート準備 step
+CM_LINES3 = [
+    ('c_s30z', '日産フェアレディ240Z。ロングノーズの初代Zが、低く構えた姿で走ります。'),
+    ('c_m3e30', 'BMW M3、E30。レースに勝つために生まれた、高回転の4気筒が自慢です。'),
+    ('c_s180sx', '日産180SX。リトラクタブルライトの軽いFR、ドリフトの定番マシンです。'),
+    ('c_r34', 'スカイラインGT-R、R34。電子制御の4WDで、どんな路面もしっかりつかみます。'),
+    ('c_a90', 'GRスープラ。ワイドボディをまとった、直列6気筒ターボのFRです。'),
+    ('c_p930', 'ポルシェ911ターボ。ターボラグとの付き合い方が、速さのカギです。'),
+    ('c_gt3rs', '911 GT3 RS。巨大なウイングと9000回転のエンジン、コーナーの鬼です。'),
+    ('c_alfa33', 'アルファロメオ33ストラダーレ。わずか700キロの車体に、甲高いV8を積んだ名車です。'),
+    ('c_mclarenf1', 'マクラーレンF1。運転席が真ん中にある、伝説のV12スーパーカーです。'),
+    ('c_challenger', 'ダッジ・チャレンジャー。大排気量のV8が唸る、アメリカンマッスルです。'),
+    ('c_gt500', 'マスタング・シェルビーGT500。770馬力を超える、最強のマスタングです。'),
+    ('c_hgt3', 'ランボルギーニ・ウラカンGT3。V10を背負った、本物のレーシングマシンです。'),
+    ('c_lpi8004', 'カウンタックLPI 800-4。V12とモーターを組み合わせた、現代のカウンタックです。'),
+    ('c_gryaris', 'GRヤリス。3気筒ターボと4WDに、ラリーの技術を詰め込んだ一台です。'),
+    ('c_evo10', 'ランサーエボリューションテン。賢い4WDで、コーナーの立ち上がりが鋭い！'),
+    ('c_vantage', 'アストンマーティン・ヴァンテージ。F1のセーフティカーを務めたマシンです。'),
+    ('c_gt4rs', 'ケイマンGT4 RS。背中から響く吸気音と、9000回転のエンジンが魅力です。'),
+    ('c_lfa', 'レクサスLFA。天使の咆哮と呼ばれる、V10サウンドを聴いてください！'),
+    ('c_vettegs', 'コルベット・グランスポーツ。太いトルクで、立ち上がりから一気に加速します。'),
+    ('c_civicbtcc', 'シビック・タイプR、BTCC仕様。前輪駆動で戦う、本物のツーリングカーです。'),
+    ('c_nsxr', 'NSXタイプR。軽さとバランスを突き詰めた、ミッドシップの名車です。'),
+    ('c_f40lb', 'フェラーリF40、リバティーウォーク仕様。ツインターボの暴れ馬です！'),
+    ('c_mc20cielo', 'マセラティMC20チェロ。F1由来の技術を持つ、V6ツインターボのオープンです。'),
+    ('c_laferrari', 'ラ・フェラーリ。V12とモーターで、合計963馬力のハイパーカーです。'),
+    ('c_model3', 'テスラ・モデル3。電気モーターならではの、鋭い出足に注目です。'),
+    ('c_f458', 'フェラーリ458イタリア。9000回転まで回る、自然吸気V8の名機を積んでいます。'),
+    ('c_gtr3', 'GT-R NISMO GT3。後輪駆動に生まれ変わった、GT-Rのレーシングマシンです。'),
+    ('c_jesko', 'ケーニグセグ・ジェスコ。1600馬力を誇る、モンスターハイパーカーです！'),
+    ('c_imola', 'パガーニ・イモラ。わずか5台、V12ツインターボの芸術品です。'),
+    ('c_s2000', 'ホンダS2000。9000回転まで回る、自然吸気のオープンFRです。'),
+    ('c_ae86', 'トヨタ、ハチロク・トレノ。直線は遅くても、コーナーで勝負するマシンです！'),
+    ('c_rx7', 'マツダRX-7。ロータリーエンジンの甲高い音を、聴いてください！'),
+    ('c_gdb', 'スバル・インプレッサWRX STI。ボクサーサウンドを響かせる、4WDターボです。'),
+]
+CM_LINES4 = [
+    ('t_tsukimi', '今日の舞台は月見坂。街灯がまばらに続く、夜の峠道です。'),
+    ('t_kirifuri', '舞台は霧降ヘアピン。つづら折りを駆け上がる、霧の峠です。'),
+    ('t_wangan', '舞台は湾岸ナイト。ビルの灯りが流れる、高速の環状線です。'),
+    ('t_kaigan', '舞台は夕凪海岸。夕日に向かって、海沿いのコーナーを駆け抜けます。'),
+    ('t_spa', '舞台はスパ・フランコルシャン。オー・ルージュからラディオンを、一気に駆け上がります！'),
+    ('t_suzuka', '舞台は鈴鹿サーキット。世界でも珍しい、立体交差の8の字コースです。'),
+    ('t_nurburgring', '舞台はニュルブルクリンク。アイフェルの森に囲まれた、ドイツの名門コースです。'),
+    ('t_shanghai', '舞台は上海サーキット。どこまでも回り込む、1コーナーが名物です。'),
+    ('t_bahrain', '舞台はバーレーン。砂漠の中、ハードブレーキングが続くサーキットです。'),
+    ('t_albertpark', '舞台はアルバート・パーク。湖を囲む、公園の道路を使ったコースです。'),
+    ('t_hungaroring', '舞台はハンガロリンク。休む暇のない、コーナーの連続です。'),
+    ('t_bugatti', '舞台はブガッティ・サーキット。ル・マンのホームストレートを走ります。'),
+    ('t_monza', '舞台はモンツァ。スピードの殿堂、全開の時間はどこよりも長い！'),
+    ('t_silverstone', '舞台はシルバーストン。マゴッツからベケッツ、高速コーナーの連続です。'),
+    ('t_catalunya', '舞台はカタルーニャ。長いストレートと、テクニカルなコーナーの組み合わせです。'),
+    ('t_madring', '舞台はマドリン。マドリードの街を走る、新しい半市街地コースです。'),
+    ('t_zandvoort', '舞台はザントフォールト。砂丘の中で、バンク付きのコーナーが待っています。'),
+    ('t_marinabay', '舞台はマリーナ・ベイ。光に包まれた、シンガポールの市街地コースです。'),
+    ('t_yas', '舞台はヤス・マリーナ。ホテルの下をくぐる、アブダビのサーキットです。'),
+]
+CM_SETS = [CM_LINES, CM_LINES2, CM_LINES3, CM_LINES4]
 SR = 44100
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
@@ -150,6 +208,7 @@ def main():
     takes = [a for a in sys.argv[1:] if '=' not in a]; fixes = dict(a.split('=', 1) for a in sys.argv[1:] if '=' in a)
     keys, texts, clips, rates = [], [], [], []
     for n, take in enumerate(takes):
+        if take == '-': continue
         L = CM_SETS[n]; c, r = split(decode(take), [t for _, t in L])
         keys += [k for k, _ in L]; texts += [t for _, t in L]; clips += c; rates += [r] * len(L)
     rate = float(np.median(rates))
@@ -171,7 +230,7 @@ def main():
         wv = os.path.join(d, 'a.wav'); mp = os.path.join(d, 'a.mp3')
         with wave.open(wv, 'wb') as w:
             w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((allx * 32767).astype(np.int16).tobytes())
-        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wv, '-ac', '1', '-b:a', '80k', mp], check=True)
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wv, '-ac', '1', '-b:a', '56k', mp], check=True)
         data = open(mp, 'rb').read()
     # mp3 encoders add a short delay at the start; measure it so the clip times stay exact
     dec = decode_bytes(data); off = align(dec, allx)
