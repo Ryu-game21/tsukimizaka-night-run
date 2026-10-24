@@ -67,6 +67,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `const XXX_DATA={pts:[...],hw:[...],bank:[...],rw:[...]}` … コースの中心線（x,y,z を 4m 間隔で平らに並べたもの）、
   半幅、バンク（横方向 1m あたりの高さ変化）、任意で壁の距離 `rw`。
 - `const COURSES=[` … コース一覧（`pts:XXX_DATA.pts` などで参照、`W` `N` `runoff` `laps` `env` `credit`）。
+- `ground`（`GROUND`/`groundLoad`/`groundApply`/`gDy`、`RWP`/`RWN`、`tracks/<id>/ground.json`）… 3Dモデルのあるコースは、`tools/ground_scan.py <id>` が道の外まで実際の地面の高さ（道の平面からの差、1m 刻み）と左右別々の壁の位置（ガードレール・フェンス・木・段差・崖・モデルの端・ほかの区間との中間）を出す。
+  ゲームは車の高さに `gDy` を足し、壁は `pl.off` の符号で `RWP`（+NR 側）/`RWN`（-NR 側）。ゲームの点とスキャンの点は位置で対応づける（`GDY.K`）。`work/ground/export.js` で index.html からコースの点を書き出してから走らせ、`tools/ground_view.py` で上から確かめる。
+  コースの点（pts/hw/bank）を変えたら ground.json も作り直す。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
   MT は 1速の下にニュートラル（`pl.gear===0`、表示 N）：駆動もエンジンブレーキもなく、アクセルで空ぶかししてリミッター（`nRev`/`revCut`）に当たる。

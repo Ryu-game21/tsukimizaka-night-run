@@ -1369,6 +1369,7 @@ async function pngData(ab,n){
 }
 function loadTrack(c){
   const key='trk:'+c.id;
+  groundLoad(c);
   if(TRACKS[c.id]){world.add(TRACKS[c.id]);return;}
   if(modelLoading[key]===true||modelLoading[key]==='fail'||!THREE.GLTFLoader)return;
   modelLoading[key]=true;modelProg[key]=0;
@@ -1394,6 +1395,39 @@ function loadTrack(c){
     });
   }).catch(err=>{modelLoading[key]='fail';console.warn('track load failed',err);});
 }
+/* ground under and beside the road (2026-10-25, tools/ground_scan.py -> tracks/<id>/ground.json): the real height of
+   the model's ground out to the walls (dy from the road plane, int8 x 5 cm, 1 m across) and a wall distance per side
+   (wp = +NR side, wn = -NR side) where a barrier, a step, a drop or the edge of the model really is. Before this the
+   car rode the road plane out to one symmetric wall distance, so it floated over gravel traps, sank into berms and
+   drove through barriers on one side while hitting thin air on the other. Courses without a file keep RW. */
+const GROUND={};let RWP=null,RWN=null,GDY=null;
+function groundLoad(c){
+  if(!c.model||GROUND[c.id]||GROUND['_'+c.id])return;GROUND['_'+c.id]=1;
+  fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
+    if(!g||!g.dy)return;const b=atob(g.dy),a=new Int8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i)<<24>>24;g.a=a;
+    GROUND[c.id]=g;if(C===c&&HW)groundApply(c);}).catch(()=>{});
+}
+function groundApply(c){
+  RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;
+  const g=GROUND[c.id];if(!g||!c.hw||g.wp.length!==c.hw.length){RWP.set(RW);RWN.set(RW);return;}
+  const M=c.hw.length,pt=c.pts,GK=new Float32Array(N);
+  // which scanned point each game sample sits at: the nearest one by position (the scan points are not evenly spaced
+  // along the spline, so i/N*M drifts by up to ~10 m), plus the fraction towards the next one
+  for(let i=0;i<N;i++){const u=Math.round(i/N*M);let bk=0,bd=1e18;
+    for(let d=-24;d<=24;d++){const k=((u+d)%M+M)%M,dx=pt[k*3]-P[i].x,dz=pt[k*3+2]-P[i].z,e=dx*dx+dz*dz;if(e<bd){bd=e;bk=k;}}
+    const k2=(bk+1)%M,ax=pt[k2*3]-pt[bk*3],az=pt[k2*3+2]-pt[bk*3+2],ll=ax*ax+az*az||1;
+    let f=((P[i].x-pt[bk*3])*ax+(P[i].z-pt[bk*3+2])*az)/ll;let k=bk;if(f<0){k=(bk-1+M)%M;f+=1;}GK[i]=k+Math.max(0,Math.min(.999,f));}
+  for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
+    RWP[i]=Math.max(HW[i]+0.3,g.wp[k]*(1-f)+g.wp[k2]*f);RWN[i]=Math.max(HW[i]+0.3,g.wn[k]*(1-f)+g.wn[k2]*f);}
+  GDY={M,S:g.lat,st:g.step,W:2*g.lat+1,a:g.a,K:GK};
+}
+// ground height above (+) or below (-) the road plane at sample i, lateral offset off (m)
+function gDy(i,off){
+  const G=GDY;if(!G)return 0;
+  const u=G.K[i],k=Math.floor(u)%G.M,f=u-Math.floor(u),k2=(k+1)%G.M,x=Math.max(-G.S,Math.min(G.S-1e-6,off/G.st)),j=Math.floor(x),t=x-j;
+  const r1=k*G.W+G.S+j,r2=k2*G.W+G.S+j,a=G.a;
+  return((a[r1]*(1-t)+a[r1+1]*t)*(1-f)+(a[r2]*(1-t)+a[r2+1]*t)*f)*0.05;
+}
 function ctrlVecs(c,flat){
   if(c.pts){const a=[];for(let k=0;k<c.pts.length;k+=3)a.push(new THREE.Vector3(c.pts[k],flat?0:c.pts[k+1],c.pts[k+2]));return a;}
   return c.ctrl.map(p=>new THREE.Vector3(p[0],flat?0:p[2],p[1]));
@@ -1416,6 +1450,7 @@ function computeTrack(c){
   if(c.hw){const M=c.hw.length;for(let i=0;i<N;i++){const u=i/N*M,k=Math.floor(u)%M,f=u-Math.floor(u),k2=(k+1)%M;
       HW[i]=c.hw[k]*(1-f)+c.hw[k2]*f;BK[i]=c.bank[k]*(1-f)+c.bank[k2]*f;RW[i]=HW[i]+(c.runoff||9);if(c.rw)RW[i]=Math.max(RW[i],c.rw[k]*(1-f)+c.rw[k2]*f);}}
   else{HW.fill(HALF);RW.fill(RAIL);}
+  groundApply(c);
   const CW=c.pts?Math.max(6,Math.round(30/ds)):6;
   const R=new Float32Array(N),step=new Float32Array(N);RC=R;
   vc=new Float32Array(N);const vP=new Float32Array(N);vT=new Float32Array(N);
@@ -2127,7 +2162,7 @@ const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
   const f=wrap(s)/ds,i=Math.floor(f)%N,j=(i+1)%N,t=f-Math.floor(f);
   out.x=P[i].x+(P[j].x-P[i].x)*t+NR[i].x*lane;out.z=P[i].z+(P[j].z-P[i].z)*t+NR[i].z*lane;
-  out.y=P[i].y+(P[j].y-P[i].y)*t+BK[i]*lane;out.i=i;return out;
+  out.y=P[i].y+(P[j].y-P[i].y)*t+BK[i]*lane+gDy(i,lane);out.i=i;return out;
 }
 function nearest(x,z,from,win){
   let bi=from,bd=1e18;
@@ -4786,8 +4821,8 @@ function updatePlayer(dt,canDrive){
   if(state==='race'&&pl.lap>=1&&pl.lap>SCL&&pl.lap===pl.maxLap)for(let k=1;k<4;k++){const b=Math.floor(N*k/4);if(prev<b&&pl.idx>=b&&pl.idx-prev<N/8&&curSplits.length<k)sectorHit(k);}
   const p=P[pl.idx],n=NR[pl.idx],dx=pl.x-p.x,dz=pl.z-p.z;
   pl.off=dx*n.x+dz*n.z;
-  pl.y=p.y+SL[pl.idx]*(dx*T[pl.idx].x+dz*T[pl.idx].z)+BK[pl.idx]*pl.off;
-  const lim=RW[pl.idx]-1.05;
+  pl.y=p.y+SL[pl.idx]*(dx*T[pl.idx].x+dz*T[pl.idx].z)+BK[pl.idx]*pl.off+gDy(pl.idx,pl.off);
+  const lim=((pl.off>0?RWP:RWN)||RW)[pl.idx]-1.05;
   if(Math.abs(pl.off)>lim){
     const s=Math.sign(pl.off),ex=Math.abs(pl.off)-lim;
     pl.x-=n.x*s*ex;pl.z-=n.z*s*ex;pl.off=s*lim;scrapeAmt=1;
