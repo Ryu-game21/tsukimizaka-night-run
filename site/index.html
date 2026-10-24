@@ -636,6 +636,8 @@ body.phl .press{display:none}
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
       <div class="opts" id="mirRow"><span class="ol">バックミラー</span><div class="grp"><button class="tog" type="button" id="tgMirror" aria-pressed="true">バックミラー ON</button></div>
         <span class="tmnote">運転席視点のとき、画面の上に後ろの様子を映します。</span></div>
+      <div class="opts" id="cmRow" hidden><span class="ol">実況</span><div class="grp"><button class="tog" type="button" id="tgCm" aria-pressed="true">実況 ON</button></div>
+        <span class="tmnote">スタート・オーバーテイク・ファイナルラップ・チェッカーなどを実況の声で伝えます。</span></div>
       <div class="opts" id="gyroRow"><span class="ol">ジャイロ操作</span><div class="grp"><button class="tog" type="button" id="tgGyro" aria-pressed="false">ジャイロ操作 OFF</button></div>
         <span class="tmnote" id="gyroNote">スマホを横に持ち、ハンドルのように左右へ回して曲がります（左の◀▶は消えます）。アクセルとブレーキは右のボタン。</span></div>
       <div class="keys">
@@ -2004,7 +2006,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false,cm:true};
 const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
   {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
 const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
@@ -2042,7 +2044,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 function sample(s,lane,out){
@@ -2206,7 +2208,7 @@ document.querySelectorAll('.pad button[data-k]').forEach(b=>{
 });
 function setOpt(k,v){
   opts[k]=v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
-  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio',mirror:'tgMirror',gyro:'tgGyro'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 ',mirror:'バックミラー ',gyro:'ジャイロ操作 '}[k]+(v?'ON':'OFF');
+  const b=$({line:'tgLine',call:'tgCall',ghost:'tgGhost',sc:'tgSC',radio:'tgRadio',mirror:'tgMirror',gyro:'tgGyro',cm:'tgCm'}[k]);b.setAttribute('aria-pressed',v);b.textContent={line:'ガイドライン ',call:'コーナー予告 ',ghost:'ゴースト ',sc:'セーフティカー先導 ',radio:'チーム無線 ',mirror:'バックミラー ',gyro:'ジャイロ操作 ',cm:'実況 '}[k]+(v?'ON':'OFF');
   if(k==='gyro')gySet();
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
@@ -2256,6 +2258,57 @@ $('tgGyro').addEventListener('click',async()=>{
 // iPhone forgets the permission per page load: ask again on the first tap when it was left ON
 addEventListener('click',()=>{if(opts.gyro&&gyTouch()&&!GY.asked)gyAsk();},{capture:true,once:true});
 addEventListener('orientationchange',()=>setTimeout(gyCenter,400));
+fetch('audio/voice.json').then(r=>{if(r.ok)$('cmRow').hidden=false;}).catch(()=>{});
+$('tgCm').addEventListener('click',()=>{setOpt('cm',!opts.cm);if(!opts.cm)cmStop();});
+/* ---------- commentary voice (設定 opts.cm, スタート準備の「実況」): short recorded lines for the big moments.
+   audio/voice.json {file,bytes,clips:{key:[t0,t1]}} + voice.png (one mp3, packed like the other audio, made by
+   tools/pack_voice.py from one take of the whole script). Missing file = no commentary and no 実況 row.
+   Hooks: the race start (cmStartCall at GO), the radio events (cmFromRadio, called at the top of radioSay
+   whether or not the radio is on), the finish (radioFinish) and lap records. One line at a time; each key has its
+   own cool-down, a busy voice drops minor lines and queues important ones. The engine dips while it speaks. */
+const CM={buf:null,clips:null,loading:false,none:false,src:null,until:0,last:{},q:null};
+const CM_CD={pass:12,lead:20,lost:15,closing:45,defend:40,hit_car:25,hit_wall:25,dirt:60,sec_fast:60,pb:20,gold:999,push:90};
+function cmLoad(){
+  if(CM.buf||CM.loading||CM.none||!ac)return;CM.loading=true;
+  fetch('audio/voice.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>{CM.clips=j.clips;$('cmRow').hidden=false;
+    return fetch('audio/'+j.file).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();}).then(ab=>pngData(ab,j.bytes)).then(u8=>
+      new Promise((res,rej)=>ac.decodeAudioData(u8.buffer.slice(u8.byteOffset,u8.byteOffset+u8.byteLength),res,rej))).then(buf=>{CM.buf=buf;});})
+  .catch(e=>{CM.none=true;CM.loading=false;});
+}
+const cmLive=()=>opts.cm&&CM.buf&&A&&!tut&&(state==='race'||state==='count'||state==='finish');
+function cmStop(){if(CM.src){try{CM.src.stop();}catch(e){}CM.src=null;}CM.until=0;CM.q=null;if(A)A.eng.gain.setTargetAtTime(1,ac.currentTime,.2);}
+// key: a clip name, or a group whose clips are named <group>_a/_b; imp = important (queued if busy)
+function cmSay(key,imp){
+  if(!cmLive())return false;
+  const grp=key.replace(/_[ab]$/,''),now=ac.currentTime,cd=CM_CD[grp]!=null?CM_CD[grp]:8;
+  if(CM.last[grp]!=null&&now-CM.last[grp]<cd)return false;
+  let k=key;if(!CM.clips[k]){const v=['_a','_b'].map(x=>grp+x).filter(x=>CM.clips[x]);if(!v.length)return false;k=pick(v);}
+  if(now<CM.until){if(imp){CM.q=k;CM.last[grp]=now;}return false;}
+  const[t0,t1]=CM.clips[k],d=t1-t0,s=ac.createBufferSource();s.buffer=CM.buf;s.connect(A.cm);s.start(now+.02,t0,d);
+  CM.src=s;CM.until=now+d+.35;CM.last[grp]=now;
+  A.eng.gain.cancelScheduledValues(now);A.eng.gain.setTargetAtTime(.5,now,.08);A.eng.gain.setTargetAtTime(1,now+d,.35);
+  return true;
+}
+function cmTick(){if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k);}if(CM.src&&!cmLive())cmStop();}
+function cmStartCall(){
+  if(mode!=='race'||GR.on)return;
+  if(scOn())cmSay('sc_start',true);else cmSay(wxSel==='rain'&&CM.clips&&CM.clips.start_rain&&Math.random()<.6?'start_rain':'start',true);
+}
+function cmFromRadio(key){
+  if(!opts.cm||!CM.buf)return;
+  if(key==='green')cmSay('sc_green',true);
+  else if(key==='gr_green')cmSay('gr_green',true);
+  else if(/^gain\d/.test(key))cmSay(key==='gain1'?'lead':'pass',key==='gain1');
+  else if(/^lose\d/.test(key))cmSay('lost');
+  else if(key==='closing'||key==='chance')cmSay('closing');
+  else if(key==='defend')cmSay('defend');
+  else if(key==='hit_car'||key==='hit_wall')cmSay(key);
+  else if(key==='dirt')cmSay('dirt');
+  else if(/^sec_fast/.test(key)&&mode==='free')cmSay('sec_fast');
+  else if(key==='allbest')cmSay('push');
+  else if(key==='final')cmSay('final',true);
+  else if(key==='gold_ok')cmSay('gold',true);
+}
 const AI_NOTE={easy:'ライバルはゆっくり走ります。ここでの優勝は実績には数えません（チャレンジには数えます）。',normal:'いつもの強さ。',hard:'コーナーもブレーキも速く、ガイドの速度では勝てません。',expert:'ゴールドタイム級のペースで走ります。全部の道幅とタイヤの温まりを使い切ろう。'};
 function setAI(id){opts.ai=id;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}
   document.querySelectorAll('#aiLvs .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ai===id));$('aiNote').textContent=AI_NOTE[id];try{if(step==='go')renderSummary();}catch(e){}}
@@ -2356,6 +2409,7 @@ function initAudio(){
   A.sfx=gainN(.9);A.sfx.connect(A.cabinIn);A.ui=gainN(.7);A.ui.connect(A.master);
   A.amb=gainN(0);A.amb.connect(A.cabinIn);
   A.bgm=gainN(0);A.bgm.connect(A.master);
+  A.cm=gainN(1.5);A.cm.connect(A.master);
   const layer=(buf,f,dest)=>{const s=loopSrc(buf),g=gainN(0);let n=s;f.forEach(x=>{n.connect(x);n=x;});n.connect(g);g.connect(dest);return g;};
   A.sqf=filt('bandpass',1000,9);A.sqf2=filt('bandpass',1900,11);
   { const s=loopSrc(A.noise),g=gainN(0);s.connect(A.sqf);s.connect(A.sqf2);A.sqf.connect(g);A.sqf2.connect(g);g.connect(A.cabinIn);A.sq=g; }
@@ -3189,7 +3243,7 @@ $('nextBtn').addEventListener('click',nextStep);
 function setHud(on){document.body.classList.toggle('hudon',on);if(on&&GY.on)gyCenter();if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
-  initAudio();if(ac&&ac.state==='suspended')ac.resume();
+  initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();
   if(C!==COURSES[sel])buildCourse(sel);
   else if(realOn){const was=wxSel+timeSel+tempC+wind.ms;applyCondition();if(was!==wxSel+timeSel+tempC+wind.ms)buildCourse(sel);}
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
@@ -4163,6 +4217,7 @@ function radioReset(){RD.q=[];RD.busy=0;RD.prio=0;RD.last={};RD.t=0;RD.hideT=0;$
   rdLap={over:0,slow:0,dirt:0,centre:0,centreN:0,worst:[null,null,null,null],said:{}};
   rdRace={pos:null,ahead:[],behindClose:false,tick:0,finalSaid:false,winSaid:false,coldSaid:false,greenSaid:false};}
 function radioSay(key,lines,prio,cls,cd){
+  try{cmFromRadio(key);}catch(e){}
   if(!opts.radio||state==='menu'||state==='replay'||tut)return false;
   prio=prio||1;const now=RD.t;
   if(RD.last[key]!=null&&now-RD.last[key]<(cd||40))return false;
@@ -4178,7 +4233,7 @@ function radioTick(dt){
   RD.t+=dt;
   if(RD.q&&RD.q.length){const due=RD.q.filter(x=>x.at<=RD.t);RD.q=RD.q.filter(x=>x.at>RD.t);due.forEach(x=>{try{x.fn();}catch(e){}});}
   if(RD.hideT&&RD.t>RD.hideT){RD.hideT=0;$('radio').classList.remove('show');}
-  if(!opts.radio||state!=='race'||tut||!rdRace)return;
+  if(!(opts.radio||(opts.cm&&CM.buf))||state!=='race'||tut||!rdRace)return;   // the race logic also feeds the commentary
   // what the lap is made of (free run advice)
   if(mode==='free'&&pl.lap>=1){const hw=HW[pl.idx];
     if(Math.abs(pl.off)>hw)rdLap.dirt+=dt;
@@ -4234,6 +4289,7 @@ function radioRace(tk){
 }
 function radioFinish(rank){
   if(mode!=='race')return;
+  cmSay(rank===1?'win':rank<=3&&AI.filter(a=>!a.out).length>=2?'podium':'finish',true);
   const L1={1:['P1！ やったぞ、優勝だ！','優勝！ 完璧なレースだった！','チェッカー！ P1だ、おめでとう！'],2:['P2でフィニッシュ。あと一歩だった','P2！ いいレースだった、次は勝とう'],3:['P3でフィニッシュ。表彰台だ、よくやった','P3、表彰台だ。ナイスドライブ'],4:['P4でフィニッシュ。次は表彰台を狙おう','P4。ペースは悪くない、次につなげよう']};
   RD.busy=0;radioSay('finish',L1[rank]||L1[4],5,rank===1?'good':'',999);
 }
@@ -4289,6 +4345,7 @@ function radioLap(lt,prevBest){
   if(mode!=='free'||!rdLap)return;
   const pb=prevBest==null||lt<prevBest,g=goldTime(),hasGold=ACHS&&ACHS.gold&&ACHS.gold[C.id];
   RD.busy=Math.min(RD.busy,RD.t+1);
+  if(pb&&prevBest!=null)cmSay('pb');
   if(pb&&prevBest!=null)radioSay('pb',[()=>fmt(lt)+'、自己ベスト更新！ '+sec3(prevBest-lt)+'秒縮めた',()=>'ベスト更新！ '+fmt(lt)+'だ、ナイスラップ',()=>'速い！ '+fmt(lt)+'、'+sec3(prevBest-lt)+'秒の更新だ'],4,'good',0.1);
   else if(pb)radioSay('pb',[()=>'最初のタイムは'+fmt(lt)+'。ここから削っていこう'],3,'',0.1);
   else{const ws=lapSectors.length?lapSectors[lapSectors.length-1]:null;let wk=-1,wd=0;
@@ -4781,11 +4838,11 @@ function frame(now){
   }else if(state==='count'){
     countT-=dt;if(sigOn&&ac&&ac.state==='running')countT=countTotal-(ac.currentTime-sigT0);const r=countT-0.6,n=r>SIG[3]-SIG[1]?3:r>SIG[3]-SIG[2]?2:1;
     if(countT>0.6){const t=String(n);if($('msg').textContent!==t){showMsg(t,false);if(!sigOn)beep(660,0.12);}}
-    if(countT<=0.6){state='race';showMsg('GO',false,0.8);if(!sigOn)beep(1320,0.35);}
+    if(countT<=0.6){state='race';showMsg('GO',false,0.8);if(!sigOn)beep(1320,0.35);cmStartCall();}
     updatePlayer(dt,false);updateAI(dt,false);
   }else{
     if(state==='race')raceT+=dt;
-    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);chTick(dt);liveTick(dt);updateTut(dt);updateRevWarn(dt);
+    updatePlayer(dt,state==='race');updateAI(dt,true);scUpdate(dt);updateGhost();radioTick(dt);cmTick();chTick(dt);liveTick(dt);updateTut(dt);updateRevWarn(dt);
     if(state==='race'){
       const fx=Math.sin(pl.th),fz=Math.cos(pl.th);
       const wrongWay=(fx*T[pl.idx].x+fz*T[pl.idx].z)<-0.25&&pl.v>3;
@@ -4846,7 +4903,7 @@ function frame(now){
   mirFrame();
   requestAnimationFrame(frame);
 }
-setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setOpt('gyro',opts.gyro);setMode(mode);
+setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);setOpt('sc',opts.sc);setOpt('radio',opts.radio);setOpt('mirror',opts.mirror);setOpt('gyro',opts.gyro);setOpt('cm',opts.cm);setMode(mode);
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');

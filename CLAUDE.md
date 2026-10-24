@@ -84,6 +84,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `gyro steering`（`GY`/`gyroSteer`/`gyAsk`/`gyCenter`、設定 `opts.gyro`、スタート準備の「ジャイロ操作」、タッチ端末だけ表示）… スマホをハンドルのように回して曲がる。`devicemotion` の重力を端末の軸で読み、
   いまの重力にいちばん近い軸を「まっすぐ」にして（走り出す時・画面の向きが変わった時に取り直す）、そこからの回転角で舵。ON の間は左の◀▶を隠す（`body.gyro`）。キーやボタンを押している間はそちらが優先。
   iPhone はタップから `DeviceMotionEvent.requestPermission()`（ページを開くたびに最初のタップで再要求）。センサーの値が来ない埋め込み（Claude 版のアプリ内など）では ON にせず、ブラウザ版を案内する。ページ先頭に viewport の meta（Netlify 版用。Claude 版は外側のページが付ける）。
+- `commentary voice`（`CM`/`cmSay`/`cmFromRadio`/`cmStartCall`、設定 `opts.cm`、スタート準備の「実況」）… 録音した実況の短いセリフ。`audio/voice.json`（`clips:{key:[t0,t1]}`）＋`voice.png`（mp3 1本）を
+  `tools/pack_voice.py` が台本（`CM_LINES`、ユーザーに渡した順）を通しで読んだ1本の音声から切り出して作る（`key=fix.mp3` で1行だけ差し替え）。声は ElevenLabs でユーザーが作る（実在の人の声のまねはしない、話し方の特徴だけで作った声）。
+  ファイルがなければ実況なし・行も出ない。きっかけはスタート（GO）、無線のイベント（`radioSay` の先頭で `cmFromRadio`、無線 OFF でもレースの判定は回す）、ゴール、自己ベスト。1度に1つ、キーごとの間隔 `CM_CD`、話している間はエンジン音を下げる。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・
