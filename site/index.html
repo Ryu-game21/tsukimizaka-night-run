@@ -2292,9 +2292,7 @@ function cmPlay(k){
   for(const n of[A.eng,A.bgmD]){n.gain.cancelScheduledValues(now);n.gain.setTargetAtTime(n===A.bgmD?.3:.5,now,.08);n.gain.setTargetAtTime(1,now+d,.35);}
   return d;
 }
-/* pre-race introduction (take 3 = cars c_<id>, take 4 = courses t_<id>): on the スタート準備 step the commentator
-   introduces the course, then the car, over the menu music. Once per course x car (again after 10 min); leaving
-   the step or pressing start cuts it off. */
+/* (unused since 2026-10-24: the introduction moved to the safety-car lap, cmIntroLap) menu-time introduction */
 function cmIntro(){
   if(!opts.cm||tut)return;initAudio();cmLoad();
   const want=['t_'+COURSES[sel].id,'c_'+CAR.id],tag=want.join('+'),go=()=>{
@@ -2307,10 +2305,15 @@ function cmIntro(){
   if(CM.buf)go();else{let n=0;const w=setInterval(()=>{if(CM.buf||CM.none||++n>120){clearInterval(w);go();}},250);}
 }
 function cmIntroStop(){(CM.introTO||[]).forEach(clearTimeout);CM.introTO=[];if(CM.src&&state==='menu')cmStop();}
-function cmTick(){if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k,false,'q');}if(CM.src&&!cmLive())cmStop();}
+// course + car introduction during the safety-car lap (and the ghost race's out lap): queued after the opening
+// line, dropped at GREEN
+function cmIntroLap(){if(!opts.cm||!CM.clips)return;CM.seq=['t_'+C.id,'c_'+CAR.id].filter(k=>CM.clips[k]);}
+function cmTick(){
+  if(CM.seq&&CM.seq.length&&A&&cmLive()){if(!(scOn()||grOut()))CM.seq=[];else if(ac.currentTime>=CM.until+.25)cmPlay(CM.seq.shift());}if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k,false,'q');}if(CM.src&&!cmLive())cmStop();}
 function cmStartCall(){
-  if(mode!=='race'||GR.on)return;
-  if(scOn()){cmSay('sc_start',true);return;}
+  if(mode!=='race')return;
+  CM.seq=[];if(GR.on){cmIntroLap();return;}
+  if(scOn()){cmSay('sc_start',true);cmIntroLap();return;}
   cmSay(cmVar('start',[wxSel==='rain'&&'start_rain',wxSel==='fog'&&'start_fog',timeSel==='night'&&'start_night',timeSel==='dusk'&&'start_dusk'],.75),true,'start');
 }
 /* weather and car-pairing variants (take 2 of the script): cmVar picks one of the clips that fit, with
@@ -2337,8 +2340,8 @@ function cmBattleKey(base,o){const b=o&&o.car;if(!b||b.id===CAR.id)return base;r
 function cmWinKey(){const giant=AI.some(a=>!a.out&&a.car&&(a.car.ps||0)>1.3*(CAR.ps||0));return cmVar('win',[wxSel==='rain'&&'win_rain',timeSel==='night'&&'win_night',giant&&'win_giant'],.7);}
 function cmFromRadio(key){
   if(!opts.cm||!CM.buf)return;
-  if(key==='green')cmSay('sc_green',true);
-  else if(key==='gr_green')cmSay('gr_green',true);
+  if(key==='green'){CM.seq=[];cmStop();cmSay('sc_green',true);}
+  else if(key==='gr_green'){CM.seq=[];cmStop();cmSay('gr_green',true);}
   else if(/^gain\d/.test(key)){const f=rdField();if(key==='gain1')cmSay(cmVar('lead',[wxSel==='rain'&&'lead_rain'],.6),true,'lead');else cmSay(cmPassKey(f.behind),false,'pass');}
   else if(/^lose\d/.test(key))cmSay(cmLostKey(rdField().ahead),false,'lost');
   else if(key==='closing'||key==='chance')cmSay(cmBattleKey('closing',rdField().ahead),false,'closing');
@@ -3242,7 +3245,7 @@ function showStep(s){
   $('backBtn').textContent=s==='mode'?'タイトルへ':'戻る';
   if(k>=0){bar.innerHTML=STEPS.map((x,i)=>`<button type="button" data-s="${x}"${i===k?' aria-current="step"':''} class="${i<k?'done':''}"${i>k?' disabled':''}>${i+1} ${STEPN[x]}</button>`).join('');
     bar.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showStep(b.dataset.s)));}
-  if(s==='go'){renderSummary();ghostNote();oppRows();try{cmIntro();}catch(e){}}
+  if(s==='go'){renderSummary();ghostNote();oppRows();}
   if(s==='cond'||s==='go'){if(realOn)startReal();renderRealInfo();}
   if(s==='course'){renderCourseCards();renderBoard();rpMenuUi();}
   if(s==='tm')tmUi();
