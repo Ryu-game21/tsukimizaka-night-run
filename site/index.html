@@ -815,6 +815,16 @@ let N=1200,RC=null,vcD=null;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
 /* ---------- machines: real cars with downloaded 3D models, catalogue specs; 0-100 and top speed fitted to published/test figures ---------- */
 // Cornering and braking use real lateral/braking G multiplied by GAME_G so the arcade feel survives.
 const GAME_G=1.35;
+/* downforce (2026-10-25): extra grip as a fraction at 200 km/h, growing with the square of the speed (dfK). Race cars
+   and big-wing cars gain the most; old road cars almost nothing. It also shortens braking at speed, and the corner
+   speeds of the guide / corner calls / AI line (vCorner) include it. */
+const DF={gtr3:.45,hgt3:.45,civicbtcc:.25,gt3rs:.35,gt4rs:.2,jesko:.35,imola:.25,laferrari:.2,lpi8004:.12,mclarenf1:.08,f40lb:.12,mc20cielo:.12,
+  f458:.1,lfa:.15,a90:.12,s180sx:.08,gdb:.1,rx7:.12,s2000:.1,gryaris:.1,evo10:.06,vantage:.08,vettegs:.06,challenger:.02,gt500:.08,p930:.03,
+  alfa33:.04,s30z:.02,m3e30:.04,ae86:.02,model3:.02,nsxr:.08,r34:.06,hgt3x:0};
+const DF_V=55.6;   // 200 km/h
+const dfK=(car,v)=>1+(car.df||0)*Math.min(2.4,(v/DF_V)*(v/DF_V));
+// cornering speed on radius R with grip g and the car's downforce: v^2 = gR (1 + df v^2/V^2)
+function vCorner(g,R,car){const d=(car&&car.df||0)*g*R/(DF_V*DF_V);if(d>=.7)return 1e9;return Math.sqrt(g*R/(1-d));}
 const CARS=[
  {id:'s30z',maker:'日産',name:'フェアレディ 240Z',code:'HS30',year:1971,short:'フェアレディ240Z',cls:'FR スポーツ',drive:'FR',tm:'5速MT',
   engine:'L24 2.4L 直列6気筒 SOHC',ps:150,rpm:5600,trq:'21.0kgf·m / 4,800rpm',kg:1010,
@@ -1065,7 +1075,7 @@ CARS.forEach(c=>{
   for(let it=0;it<50;it++){const acc=(lo+hi)/2,V=vt/Math.sqrt(1-c.k*vt*vt/acc);if(simT100(c,acc,V)>c.t100)lo=acc;else hi=acc;}
   c.acc=(lo+hi)/2;c.vmax=vt/Math.sqrt(1-c.k*vt*vt/c.acc);
   c.vtop=c.lim?c.lim/3.6:vt;c.topKmh=c.lim||c.top;
-  c.grip=c.gripG*9.8*GAME_G;c.brake=c.brakeG*9.8*GAME_G;
+  c.grip=c.gripG*9.8*GAME_G;c.brake=c.brakeG*9.8*GAME_G;c.df=DF[c.id]!=null?DF[c.id]:.05;
   c.gearTop=[];for(let g=1;g<=c.gears;g++)c.gearTop.push(c.top*1.04*Math.pow(g/c.gears,0.72));
   c.tach=Math.ceil((c.red+600)/1000)*1000;
   c.t100sim=simT100(c,c.acc,c.vmax);
@@ -1459,8 +1469,8 @@ function computeTrack(c){
     const ang=Math.acos(Math.max(-1,Math.min(1,a.x*b.x+a.z*b.z)));
     R[i]=(2*CW*ds)/Math.max(ang,1e-4);
     const n=T[(i+1)%N];step[i]=T[i].x*n.z-T[i].z*n.x;
-    vc[i]=Math.min(VAI,Math.sqrt(GAI*R[i]));
-    vP[i]=Math.min(VMAX,Math.sqrt(GRIP*R[i])*0.93);vT[i]=vP[i];
+    vc[i]=Math.min(VAI,vCorner(GAI,R[i],CAR));
+    vP[i]=Math.min(VMAX,vCorner(GRIP,R[i],CAR)*0.93);vT[i]=vP[i];
   }
   for(let pass=0;pass<2;pass++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;
     vc[i]=Math.min(vc[i],Math.sqrt(vc[j]*vc[j]+2*BR_AI*ds));
@@ -2169,7 +2179,7 @@ function nearest(x,z,from,win){
   for(let k=-win;k<=win;k++){const i=(from+k+N)%N,dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}
   return bi;
 }
-function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.steer=0;pl.off=lane;pl.gear=1;}
+function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.beta=0;pl.steer=0;pl.off=lane;pl.gear=1;}
 function resetRace(){
   const ln=W*0.22,grid=[[-9,ln],[-17,-ln],[-25,ln]];
   AI.forEach((a,k)=>{a.s=grid[k][0];a.lane=a.laneT=grid[k][1];a.v=0;a.fin=0;a.skillC=a.skill*C.ai;});
@@ -4791,7 +4801,7 @@ function updatePlayer(dt,canDrive){
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
   if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):(neutral?0:22);
-  if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK):(v>-8?-6:0);
+  if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfK(CAR,sp)-1)):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
     let eb=1.4;
@@ -4807,15 +4817,33 @@ function updatePlayer(dt,canDrive){
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
-  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1);
+  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
   tyreUpdate(dt,sp,pl.steer*k*sp*Math.sign(pl.v),thr&&!neutral,brk,trac);
   sqAmt=Math.abs(pl.off)>HW[pl.idx]||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
   offAmt=Math.abs(pl.off)>HW[pl.idx]?1:0;scrapeAmt=0;
-  pl.th+=pl.steer*k*Math.sign(pl.v)*dt;
-  pl.x+=Math.sin(pl.th)*pl.v*dt+Math.cos(pl.th)*(pl.windDrift||0)*dt;pl.z+=Math.cos(pl.th)*pl.v*dt-Math.sin(pl.th)*(pl.windDrift||0)*dt;
+  /* vehicle dynamics (2026-10-25): the heading turns at the steering's yaw rate, capped by the FRONT tyres (understeer);
+     the direction of travel follows the heading only as fast as the tyres allow, so the difference is the slip angle
+     (pl.beta). Braking moves weight forward (front grip up, rear down: the car rotates on the way into a corner),
+     throttle moves it back, and on a rear- or mid-engined car the drive uses up rear grip (power oversteer).
+     When the rear cannot hold the corner the heading swings further (oversteer); a stability limit keeps the slip
+     under ~32 deg so a keyboard player does not spin. Sliding scrubs speed. */
+  {const wt=Math.max(-.22,Math.min(.22,-a/(9.8*GAME_G)*.3)),gF=g*(1+wt),gR0=g*(1-wt);
+   const rwd=D==='FR'||D==='MR'||D==='RR',use=thr&&a>0&&sp>4?Math.min(.92,a/Math.max(gR0,1)*(rwd?1.15:D==='4WD'?.45:0)):0,gR=gR0*Math.sqrt(1-use*use);
+   const ks=Math.min(sp/6*CAR.steer,CAR.steer),rF=gF/Math.max(sp,1);
+   let r=Math.max(-rF,Math.min(rF,pl.steer*ks*Math.sign(pl.v)));
+   const over=sp*Math.abs(r)-gR;if(sp>9&&over>0)r+=Math.sign(r)*Math.min(over,5)/Math.max(sp,1)*.55;
+   let be=(pl.beta||0)+r*dt;
+   const gT=(gF+gR)/2,turn=Math.max(-gT/Math.max(sp,1)*dt,Math.min(gT/Math.max(sp,1)*dt,be*Math.min(1,dt*9)));be-=turn;
+   const BMAX=.56;if(Math.abs(be)>BMAX){pl.th-=(be-Math.sign(be)*BMAX);be=Math.sign(be)*BMAX;}
+   if(sp<2)be*=Math.max(0,1-dt*6);
+   pl.beta=be;pl.latA=sp*turn/Math.max(dt,1e-4);
+   if(Math.abs(be)>.06)pl.v*=1-Math.min(.5,(Math.abs(Math.sin(be))-.05)*1.1)*dt;
+   pl.th+=r*dt;}
+  const vdir=pl.th-(pl.beta||0);
+  pl.x+=Math.sin(vdir)*pl.v*dt+Math.cos(pl.th)*(pl.windDrift||0)*dt;pl.z+=Math.cos(vdir)*pl.v*dt-Math.sin(pl.th)*(pl.windDrift||0)*dt;
 
   const prev=pl.idx;pl.idx=nearest(pl.x,pl.z,pl.idx,30);
   if(state==='race'&&pl.lap>=1&&pl.lap>SCL&&pl.lap===pl.maxLap)for(let k=1;k<4;k++){const b=Math.floor(N*k/4);if(prev<b&&pl.idx>=b&&pl.idx-prev<N/8&&curSplits.length<k)sectorHit(k);}
@@ -4827,6 +4855,7 @@ function updatePlayer(dt,canDrive){
     const s=Math.sign(pl.off),ex=Math.abs(pl.off)-lim;
     pl.x-=n.x*s*ex;pl.z-=n.z*s*ex;pl.off=s*lim;scrapeAmt=1;
     const fx=Math.sin(pl.th),fz=Math.cos(pl.th),into=(fx*n.x+fz*n.z)*s*pl.v;
+    pl.beta=(pl.beta||0)*.5;
     if(into>0.5){pl.v-=Math.sign(pl.v)*Math.min(Math.abs(pl.v),into*0.9+1);if(into>3){shake=Math.min(1,into/15);thud(into);cornerHit=true;if(into>6)radioContact('wall');}}
     const tgt=(fx*T[pl.idx].x+fz*T[pl.idx].z)>=0?TH[pl.idx]:TH[pl.idx]+Math.PI;
     const d=((tgt-pl.th+Math.PI*3)%(Math.PI*2))-Math.PI;pl.th+=d*Math.min(1,dt*4);
@@ -5262,7 +5291,7 @@ function frame(now){
   if(state==='menu'){
     const vd=Math.min(VMAX*0.55,vT[pl.idx]*0.85+6);
     demoS+=vd*dt;const o=sample(demoS,Math.sin(demoS*0.004)*W*0.18,tmp);
-    pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=vd;pl.off=0;
+    pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=vd;pl.off=0;pl.beta=0;
     const ci=cornerAt[(o.i+8)%N];const tgt=ci>=0?-corners[ci].dir*0.5:0;
     pl.steer+=(tgt-pl.steer)*Math.min(1,dt*2);
     updateAI(dt,true);
