@@ -185,14 +185,14 @@ def split(x, texts):
     def seg_cost(t0, t1, k):
         e = U[k] * rate; return ((t1 - t0) - e) ** 2 / max(e, 0.3)
     dp = np.full((N - 1, M), INF); back = np.zeros((N - 1, M), int)
-    for j in range(M): dp[0][j] = seg_cost(0, cuts[j], 0) - 2.0 * L[j]
+    for j in range(M): dp[0][j] = seg_cost(0, cuts[j], 0) - 4.0 * L[j]
     for k in range(1, N - 1):
         best, bi = INF, -1
         for j in range(M):
             c = INF
             for i in range(max(0, j - 12), j):
                 if dp[k - 1][i] >= INF: continue
-                v = dp[k - 1][i] + seg_cost(cuts[i], cuts[j], k) - 2.0 * L[j]
+                v = dp[k - 1][i] + seg_cost(cuts[i], cuts[j], k) - 4.0 * L[j]
                 if v < c: c, back[k][j] = v, i
             dp[k][j] = c
     last = min(range(M), key=lambda j: dp[N - 2][j] + seg_cost(cuts[j], dur, N - 1))
