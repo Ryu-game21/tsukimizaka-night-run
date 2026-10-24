@@ -61,6 +61,26 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--ink);overflow
 @media (max-width:700px){body:not(.rot) #tower{--rh:21px;width:150px;font-size:12px}body:not(.rot) #tower li em{font-size:10px}
   body.racing:not(.rot) #map{display:none}body.racing:not(.rot) #cn{top:calc(env(safe-area-inset-top,0px) + 162px)}}
 @media (prefers-reduced-motion:reduce){#tower li{transition:none}}
+/* ---------- menu motion (step transitions, staggered entrances, hover/press feedback) ---------- */
+@keyframes mStIn{from{opacity:0;transform:translateX(34px)}to{opacity:1;transform:none}}
+@keyframes mStBack{from{opacity:0;transform:translateX(-34px)}to{opacity:1;transform:none}}
+@keyframes mPop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes mSel{0%{transform:scale(1)}35%{transform:scale(1.045)}100%{transform:scale(1)}}
+@keyframes mSweep{from{background-position:-160% 0}to{background-position:260% 0}}
+@keyframes mCard{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+#mcard .step.m-in{animation:mStIn .36s cubic-bezier(.2,.85,.25,1)}
+#mcard .step.m-back{animation:mStBack .36s cubic-bezier(.2,.85,.25,1)}
+#mcard.m-card{animation:mCard .5s cubic-bezier(.2,.85,.25,1)}
+#mcard .m-stg{animation:mPop .42s cubic-bezier(.2,.85,.25,1) both;animation-delay:calc(var(--i,0) * 26ms + 60ms)}
+.carbtn,.course,.tog,.mtog,.tmtog,.btn,#stepBar button{transition:transform .16s cubic-bezier(.2,.85,.25,1),box-shadow .22s,border-color .22s,background-color .22s}
+@media (hover:hover){.carbtn:hover,.course:hover,.mtog:hover,.tmtog:hover{transform:translateY(-2px);border-color:var(--lcd);box-shadow:0 6px 18px rgba(0,0,0,.35),0 0 0 1px rgba(205,215,228,.35)}
+  .tog:hover{transform:translateY(-1px);border-color:var(--lcd)}.btn:hover{transform:translateY(-1px)}}
+.carbtn:active,.course:active,.tog:active,.mtog:active,.tmtog:active,.btn:active{transform:scale(.965)}
+.m-sel{animation:mSel .34s cubic-bezier(.2,.85,.25,1)}
+#goStart,#startBtn{background-size:220% 100%}
+#goStart.m-shine,#startBtn.m-shine{background-image:linear-gradient(100deg,rgba(255,255,255,0) 35%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 65%),linear-gradient(180deg,#fbfcfd 0%,#dfe4ea 42%,#a9b2bd 52%,#d3d9e0 70%,#f2f4f7 100%);background-size:220% 100%,100% 100%;animation:mSweep 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){#mcard .step.m-in,#mcard .step.m-back,#mcard .m-stg,.m-sel,#mcard.m-card,#goStart.m-shine,#startBtn.m-shine{animation:none}}
+
 #map{width:150px;height:150px;opacity:.92}
 #tyres{width:150px;height:138px}
 #gauge{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 6px);width:320px;height:140px}
@@ -3237,6 +3257,7 @@ const STEPS=['mode','car','course','tm','cond','go'],STEPN={mode:'モード',car
 let step='title',optsBack='title';
 function showStep(s){
   if(s!=='go')try{cmIntroStop();}catch(e){}
+  const prevS=step;
   step=s;document.querySelectorAll('#mcard .step').forEach(e=>e.hidden=e.dataset.s!==s);
   const k=STEPS.indexOf(s),bar=$('stepBar');
   bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof'||s==='chal';
@@ -3255,6 +3276,76 @@ function showStep(s){
   $('menu').scrollTop=0;
   const f=s==='car'?'.carbtn[aria-pressed="true"]':s==='course'?'.course[aria-pressed="true"]':s==='mode'?'.mtog[aria-pressed="true"]':s==='tm'?'.tmtog[aria-pressed="true"]':s==='go'?'#startBtn':s==='title'?'#goStart':s==='cond'?'#times .tog[aria-pressed="true"]':'#vol';
   const el=document.querySelector(f);if(el)try{el.focus({preventScroll:s!=='car'&&s!=='course'});}catch(e){}
+  try{menuMotion(prevS,s);}catch(e){}
+}
+/* ---------- menu motion and sound (2026-10-25): each step slides in (from the right going forward, from the left going
+   back), its buttons and cards pop in one after another, the selected item gives a little bounce, and the 3D view behind
+   the menu moves to a shot that fits the step (menuShot). UI sounds are synthesized (uiSnd): a soft tick on hover,
+   a click on select, a whoosh forward/back between steps, an engine blip of the chosen car, a rising sweep on START.
+   The first sound needs a tap or key (browsers block audio before that). Reduced motion turns the animations off. */
+const MSTEP_ORDER=['title','mode','car','course','tm','cond','go'];
+function menuMotion(from,to){
+  if(from===to)return;
+  const a=MSTEP_ORDER.indexOf(from),b=MSTEP_ORDER.indexOf(to),back=a>=0&&b>=0?b<a:to==='title';
+  const sec=document.querySelector('#mcard .step[data-s="'+to+'"]');
+  if(sec&&!reduceMotion){sec.classList.remove('m-in','m-back');void sec.offsetWidth;sec.classList.add(back?'m-back':'m-in');
+    const items=sec.querySelectorAll('.mtog,.tmtog,.carbtn,.course,.tog,.btn,.opts,dl,h2,.ach-row');let i=0;
+    items.forEach(el=>{if(i>40)return;el.classList.remove('m-stg');void el.offsetWidth;el.style.setProperty('--i',i++);el.classList.add('m-stg');});
+    setTimeout(()=>items.forEach(el=>el.classList.remove('m-stg')),1800);}
+  if(from==='title'&&to==='mode'){const c=$('mcard');c.classList.remove('m-card');void c.offsetWidth;if(!reduceMotion)c.classList.add('m-card');}
+  ['goStart','startBtn'].forEach(id=>{const e=$(id);if(e)e.classList.toggle('m-shine',!reduceMotion&&(to==='title'&&id==='goStart'||to==='go'&&id==='startBtn'));});
+  uiSnd(back?'back':to==='go'?'ready':'next');
+  MCAM.cut=to;
+}
+function menuSel(el){if(!el||reduceMotion)return;el.classList.remove('m-sel');void el.offsetWidth;el.classList.add('m-sel');}
+let uiHoverT=0;
+function uiSnd(kind,arg){
+  if(!A||muted||!ac||ac.state!=='running')return;
+  const t=ac.currentTime;
+  if(kind==='hover'){if(t-uiHoverT<.06)return;uiHoverT=t;tone(2400,.018,'sine',.018);return;}
+  if(kind==='click'){tone(1500,.03,'square',.03);tone(2250,.05,'sine',.035,.012);return;}
+  if(kind==='toggle'){tone(980,.04,'triangle',.05);tone(1470,.06,'sine',.04,.035);return;}
+  const sweep=(f0,f1,dur,g,q)=>{const s=ac.createBufferSource(),fl=ac.createBiquadFilter(),gn=ac.createGain();s.buffer=A.noise;fl.type='bandpass';fl.Q.value=q||1.2;
+    fl.frequency.setValueAtTime(f0,t);fl.frequency.exponentialRampToValueAtTime(f1,t+dur);gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(g,t+dur*.35);gn.gain.exponentialRampToValueAtTime(.0005,t+dur);
+    s.connect(fl);fl.connect(gn);gn.connect(A.ui);s.start(t,Math.random()*1.5);s.stop(t+dur+.05);};
+  if(kind==='next'){sweep(500,3800,.32,.22);tone(660,.12,'triangle',.035,.05);tone(990,.16,'triangle',.03,.11);return;}
+  if(kind==='back'){sweep(3200,420,.3,.18);tone(740,.1,'triangle',.03,.04);tone(494,.14,'triangle',.028,.1);return;}
+  if(kind==='ready'){sweep(400,5200,.5,.26,.9);[523,659,784,1047].forEach((f,i)=>tone(f,.28,'triangle',.032,.06+i*.07));return;}
+  if(kind==='start'){sweep(250,7000,.9,.32,.7);tone(110,.7,'sawtooth',.05,0,A.ui,440);[784,1047,1319,1568].forEach((f,i)=>tone(f,.35,'square',.022,.15+i*.06));return;}
+  if(kind==='rev'){const car=arg||CAR,red=car.red||7000,f0=(car.cyl==='ev'?260:42)*(red/7000),o=ac.createOscillator(),o2=ac.createOscillator(),fl=ac.createBiquadFilter(),g=ac.createGain();
+    const ev=car.cyl==='ev';o.type=ev?'sine':'sawtooth';o2.type=ev?'sine':'square';fl.type='lowpass';fl.Q.value=ev?.7:4;
+    o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f0*(ev?3:3.4),t+.28);o.frequency.exponentialRampToValueAtTime(f0*1.1,t+.85);
+    o2.frequency.setValueAtTime(f0*.5,t);o2.frequency.exponentialRampToValueAtTime(f0*1.7,t+.28);o2.frequency.exponentialRampToValueAtTime(f0*.55,t+.85);
+    fl.frequency.setValueAtTime(500,t);fl.frequency.exponentialRampToValueAtTime(ev?4000:2600,t+.25);fl.frequency.exponentialRampToValueAtTime(400,t+.85);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(ev?.05:.11,t+.05);g.gain.setValueAtTime(ev?.05:.11,t+.3);g.gain.exponentialRampToValueAtTime(.0005,t+.95);
+    o.connect(fl);o2.connect(fl);fl.connect(g);g.connect(A.ui);o.start(t);o2.start(t);o.stop(t+1);o2.stop(t+1);
+    if(!ev&&Math.random()<.7)setTimeout(()=>{try{burst(.07,1200,'bandpass',.25,.7,A.ui);}catch(e){}},640);return;}
+}
+// pointer and click feedback for every button in the menu (delegated)
+(()=>{const m=$('menu');if(!m)return;
+  m.addEventListener('pointerover',e=>{const b=e.target.closest&&e.target.closest('button');if(b&&!b.disabled&&e.pointerType==='mouse')uiSnd('hover');});
+  m.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button');if(!b||b.disabled)return;initAudio();
+    if(b.matches('.carbtn')){menuSel(b);orbitA+=.9;setTimeout(()=>uiSnd('rev'),0);return;}   // after selectCar has run
+    if(b.matches('.course,.mtog,.tmtog,.tog'))menuSel(b);
+    if(b.id==='nextBtn'||b.id==='backBtn'||b.closest('#stepBar'))return;   // the step whoosh covers it
+    uiSnd(b.matches('.tog')?'toggle':'click');},true);
+})();
+// the 3D view behind the menu: one shot per step, blended smoothly (MCAM.p/l follow the target)
+const MCAM={p:null,l:null,cut:'title',t:0};
+function menuShot(dt){
+  const fx=Math.sin(pl.th),fz=Math.cos(pl.th),rx=fz,rz=-fx,st=MCAM.cut;let P,Lk,fov;
+  orbitA+=dt*(st==='car'?0.22:0.32);
+  if(st==='course'){P=[pl.x-fx*26+rx*30,pl.y+42,pl.z-fz*26+rz*30];Lk=[pl.x+fx*24,pl.y,pl.z+fz*24];fov=50;}
+  else if(st==='tm'||st==='cond'){P=[pl.x-fx*6.6+rx*1.2,pl.y+1.5,pl.z-fz*6.6+rz*1.2];Lk=[pl.x+fx*5,pl.y+.8,pl.z+fz*5];fov=56;}
+  else if(st==='go'){const w=Math.sin(orbitA*.6)*.6;P=[pl.x+fx*5.4+rx*(2.4+w),pl.y+.55,pl.z+fz*5.4+rz*(2.4+w)];Lk=[pl.x-fx*.6,pl.y+.55,pl.z-fz*.6];fov=42;}
+  else if(st==='car'){const a=pl.th+Math.PI*.6+Math.sin(orbitA)*1.25,r=5.6;P=[pl.x+Math.sin(a)*r,pl.y+.95,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.55,pl.z];fov=40;}
+  else if(st==='title'){const a=pl.th+Math.PI*.85+Math.sin(orbitA*.7)*1.4,r=10.5;P=[pl.x+Math.sin(a)*r,pl.y+3.4,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.6,pl.z];fov=48;}
+  else{const a=pl.th+Math.PI*.75+Math.sin(orbitA)*1.1,r=7.2;P=[pl.x+Math.sin(a)*r,pl.y+1.7,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.65,pl.z];fov=46;}
+  const k=reduceMotion?1:1-Math.exp(-dt*2.4);
+  if(!MCAM.p){MCAM.p=new THREE.Vector3(...P);MCAM.l=new THREE.Vector3(...Lk);}
+  MCAM.p.x+=(P[0]-MCAM.p.x)*k;MCAM.p.y+=(P[1]-MCAM.p.y)*k;MCAM.p.z+=(P[2]-MCAM.p.z)*k;
+  MCAM.l.x+=(Lk[0]-MCAM.l.x)*k;MCAM.l.y+=(Lk[1]-MCAM.l.y)*k;MCAM.l.z+=(Lk[2]-MCAM.l.z)*k;
+  camera.position.copy(MCAM.p);camera.lookAt(MCAM.l);return fov;
 }
 function nextStep(){const k=STEPS.indexOf(step);if(step==='title')showStep('mode');else if(k>=0&&k<STEPS.length-1)showStep(STEPS[k+1]);else if(step==='go')start();}
 function prevStep(){if(step==='opts'){showStep(optsBack);return;}if(step==='prof'){showStep(profBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
@@ -3268,8 +3359,8 @@ function focusSel(q){const b=document.querySelector(q+'[aria-pressed="true"]');i
 function menuKey(e){
   if(e.code==='Escape'||(e.code==='Backspace'&&step!=='title')){if(step!=='title'){e.preventDefault();prevStep();}return;}
   if(e.code==='ArrowLeft'||e.code==='ArrowRight'){const d=e.code==='ArrowRight'?1:-1;
-    if(step==='car'){e.preventDefault();selectCar((carSel+d+CARS.length)%CARS.length);focusSel('.carbtn');}
-    else if(step==='course'){e.preventDefault();selectCourse((sel+d+COURSES.length)%COURSES.length);focusSel('.course');}
+    if(step==='car'){e.preventDefault();selectCar((carSel+d+CARS.length)%CARS.length);focusSel('.carbtn');initAudio();uiSnd('rev');orbitA+=.9;}
+    else if(step==='course'){e.preventDefault();selectCourse((sel+d+COURSES.length)%COURSES.length);focusSel('.course');initAudio();uiSnd('click');}
     else if(step==='mode'){e.preventDefault();setMode(mode==='race'?'free':'race');focusSel('.mtog');}
     else if(step==='tm'){e.preventDefault();setTM(TM==='at'?'mt':'at');focusSel('.tmtog');}
     return;}
@@ -3291,7 +3382,7 @@ $('nextBtn').addEventListener('click',nextStep);
 function setHud(on){document.body.classList.toggle('hudon',on);if(on&&GY.on)gyCenter();if(!on){$('ghostK').hidden=$('ghostV').hidden=true;}revWarn=null;$('revWarn').hidden=true;['tl','tr','gauge','hint','cn','viewBtn','endBtn'].forEach(id=>$(id).hidden=!on);if(on){$('rpHud').hidden=true;$('endBtn').textContent='終了';$('viewBtn').textContent='視点';}}
 function start(){
   if(!PLAYER){openNameDlg();return;}
-  cmIntroStop();initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();
+  cmIntroStop();initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();try{uiSnd('start');}catch(e){}
   if(C!==COURSES[sel])buildCourse(sel);
   else if(realOn){const was=wxSel+timeSel+tempC+wind.ms;applyCondition();if(was!==wxSel+timeSel+tempC+wind.ms)buildCourse(sel);}
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
@@ -4647,11 +4738,7 @@ function updateCamera(dt){
   }
   if(show){
     // showroom orbit around the selected machine during the attract demo
-    orbitA+=dt*0.32;
-    const a=pl.th+Math.PI*0.75+Math.sin(orbitA)*1.1,r=7.2;
-    camera.position.set(pl.x+Math.sin(a)*r,pl.y+1.7,pl.z+Math.cos(a)*r);
-    camera.lookAt(pl.x,pl.y+0.65,pl.z);
-    fovT=46;
+    fovT=menuShot(dt);
   }else if(CHASE[vid]){
     const c=CHASE[vid],bx=Math.sin(camTh),bz=Math.cos(camTh);
     camera.position.set(pl.x-bx*c.back+sx*0.5,pl.y-sl*c.back+c.up+sy*0.5,pl.z-bz*c.back);
