@@ -1414,8 +1414,9 @@ const GROUND={};let RWP=null,RWN=null,GDY=null;
 function groundLoad(c){
   if(!c.model||GROUND[c.id]||GROUND['_'+c.id])return;GROUND['_'+c.id]=1;
   fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
-    if(!g||!g.dy)return;const b=atob(g.dy),a=new Int8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i)<<24>>24;g.a=a;
-    GROUND[c.id]=g;if(C===c&&HW)groundApply(c);}).catch(()=>{});
+    if(!g||!g.dz)return;const b=atob(g.dz),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+    return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer().then(ab=>{
+      g.a=new Int8Array(ab);GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});}).catch(()=>{});
 }
 function groundApply(c){
   RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;

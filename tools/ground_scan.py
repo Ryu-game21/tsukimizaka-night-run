@@ -2,7 +2,7 @@
 
 usage: python3 tools/ground_scan.py <course id> [out.json]
   reads work/ground/<id>.course.json (made by work/ground/export.js from site/index.html) and site/tracks/<id>/
-  writes site/tracks/<id>/ground.json = {v, step, lat, wl[], wr[], dy:"<base64 int8 rows>"} and prints a report.
+  writes site/tracks/<id>/ground.json = {v, step, lat, wp[], wn[], dz:"<base64 zlib int8 rows>"} and prints a report.
 
 Why: the game used to put the car on the road plane (centre height + bank x offset) all the way out to one wall
 distance RW = max(hw + runoff, rw), the same on both sides. Off the asphalt the real ground is often lower (gravel
@@ -167,7 +167,7 @@ def main():
     # walls are on the +NR side (wl) and -NR side (wr): + offset = NR = left/right as the game's pl.off sign
     q = np.clip(np.round(dyg / 0.05), -127, 127).astype(np.int8)
     out = {'v': 1, 'step': STORE, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
-           'dy': base64.b64encode(q.tobytes()).decode()}
+           'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode()}   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
     json.dump(out, open(dst, 'w'), separators=(',', ':'))
     # report against the old symmetric wall
