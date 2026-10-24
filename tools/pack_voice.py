@@ -1,7 +1,8 @@
 """Commentary voice: cut one long take (every line of the script read in order) into clips and pack them.
 
-usage: python3 tools/pack_voice.py take.mp3 [key=fix.mp3 ...]
-  take.mp3     the whole script (CM_LINES in this file, same order) read in one go, any pause between lines
+usage: python3 tools/pack_voice.py take1.mp3 [take2.mp3 ...] [key=fix.mp3 ...]
+  takeN.mp3    script N (CM_SETS[N-1] in this file, same order) read in one go, any pause between lines
+               (take 1 = the basic lines of 2026-10-24, take 2 = weather / car-pairing lines)
   key=fix.mp3  replace one clip with a separate recording of just that line (re-read, better take)
 writes site/audio/voice.png + site/audio/voice.json = {file, bytes, clips:{key:[t0,t1]}} and work/voice/<key>.wav
 for listening. Prints every clip's length against what its text predicts - check the table: a cut in the wrong
@@ -42,6 +43,35 @@ CM_LINES = [
     ('gold', 'ゴールドタイム！これは速い！'),
     ('push', 'ラップタイム、更新なるか！'),
 ]
+# take 2: weather and car-pairing variants (chosen in cmPassKey / cmStartCall / radioFinish in index.html)
+CM_LINES2 = [
+    ('start_night', 'ナイトレース、スタート！ライトに照らされたコースへ飛び込んでいく！'),
+    ('start_dusk', '夕暮れのサーキット、レーススタートです！'),
+    ('start_fog', '霧の中のスタート！視界は最悪だ！'),
+    ('lead_rain', '雨の中、見事にトップを奪った！'),
+    ('pass_rain', '濡れた路面で、勇気あるオーバーテイク！'),
+    ('pass_fog', '霧の中から、一気に抜き去った！'),
+    ('pass_4wd_rain', '4WDのトラクションが、雨で生きた！'),
+    ('pass_giant', 'ジャイアントキリング！格上のマシンを仕留めた！'),
+    ('pass_classic', 'クラシックカーが、最新のマシンを抜いていく！'),
+    ('pass_modern', '最新のマシンが、往年の名車をかわしていく！'),
+    ('pass_ev', '電気自動車を抜き去った！'),
+    ('pass_jp_eu', '日本車が、ヨーロッパの名車を抜いた！'),
+    ('pass_jp_us', '日本車が、アメリカンパワーを抜き去った！'),
+    ('pass_eu_jp', 'ヨーロッパの名車が、日本車をかわした！'),
+    ('pass_us', 'アメリカンマッスル、パワーで押し切った！'),
+    ('pass_same', '同じメーカー同士の対決、制したのはこちら！'),
+    ('pass_samecar', '同じマシン同士のバトル、腕の差が出た！'),
+    ('lost_power', 'パワーの差か、直線で抜かれた！'),
+    ('lost_rain', '雨でグリップが足りない、抜かれてしまった！'),
+    ('battle_intl', '国を越えた意地のぶつかり合いだ！'),
+    ('battle_same', '同じメーカー同士、譲れない戦い！'),
+    ('hit_wall_rain', '濡れた路面に足を取られた！'),
+    ('win_rain', '雨のレースを制した！見事な優勝です！'),
+    ('win_night', 'ナイトレースを制したのは、このマシンだ！'),
+    ('win_giant', '格上のライバルたちを抑えて、堂々の優勝！'),
+]
+CM_SETS = [CM_LINES, CM_LINES2]
 SR = 44100
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
@@ -117,9 +147,12 @@ def split(x, texts):
 
 
 def main():
-    take = sys.argv[1]; fixes = dict(a.split('=', 1) for a in sys.argv[2:])
-    keys = [k for k, _ in CM_LINES]; texts = [t for _, t in CM_LINES]
-    clips, rate = split(decode(take), texts)
+    takes = [a for a in sys.argv[1:] if '=' not in a]; fixes = dict(a.split('=', 1) for a in sys.argv[1:] if '=' in a)
+    keys, texts, clips, rates = [], [], [], []
+    for n, take in enumerate(takes):
+        L = CM_SETS[n]; c, r = split(decode(take), [t for _, t in L])
+        keys += [k for k, _ in L]; texts += [t for _, t in L]; clips += c; rates += [r] * len(L)
+    rate = float(np.median(rates))
     for k, f in fixes.items():
         if k not in keys: sys.exit('unknown key ' + k)
         clips[keys.index(k)] = trim(decode(f))

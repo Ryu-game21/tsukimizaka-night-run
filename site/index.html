@@ -2278,9 +2278,9 @@ function cmLoad(){
 const cmLive=()=>opts.cm&&CM.buf&&A&&!tut&&(state==='race'||state==='count'||state==='finish');
 function cmStop(){if(CM.src){try{CM.src.stop();}catch(e){}CM.src=null;}CM.until=0;CM.q=null;if(A)A.eng.gain.setTargetAtTime(1,ac.currentTime,.2);}
 // key: a clip name, or a group whose clips are named <group>_a/_b; imp = important (queued if busy)
-function cmSay(key,imp){
+function cmSay(key,imp,g){
   if(!cmLive())return false;
-  const grp=key.replace(/_[ab]$/,''),now=ac.currentTime,cd=CM_CD[grp]!=null?CM_CD[grp]:8;
+  const grp=g||key.replace(/_[ab]$/,''),now=ac.currentTime,cd=CM_CD[grp]!=null?CM_CD[grp]:8;
   if(CM.last[grp]!=null&&now-CM.last[grp]<cd)return false;
   let k=key;if(!CM.clips[k]){const v=['_a','_b'].map(x=>grp+x).filter(x=>CM.clips[x]);if(!v.length)return false;k=pick(v);}
   if(now<CM.until){if(imp){CM.q=k;CM.last[grp]=now;}return false;}
@@ -2289,20 +2289,44 @@ function cmSay(key,imp){
   A.eng.gain.cancelScheduledValues(now);A.eng.gain.setTargetAtTime(.5,now,.08);A.eng.gain.setTargetAtTime(1,now+d,.35);
   return true;
 }
-function cmTick(){if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k);}if(CM.src&&!cmLive())cmStop();}
+function cmTick(){if(CM.q&&A&&ac.currentTime>=CM.until){const k=CM.q;CM.q=null;delete CM.last[k.replace(/_[ab]$/,'')];cmSay(k,false,'q');}if(CM.src&&!cmLive())cmStop();}
 function cmStartCall(){
   if(mode!=='race'||GR.on)return;
-  if(scOn())cmSay('sc_start',true);else cmSay(wxSel==='rain'&&CM.clips&&CM.clips.start_rain&&Math.random()<.6?'start_rain':'start',true);
+  if(scOn()){cmSay('sc_start',true);return;}
+  cmSay(cmVar('start',[wxSel==='rain'&&'start_rain',wxSel==='fog'&&'start_fog',timeSel==='night'&&'start_night',timeSel==='dusk'&&'start_dusk'],.75),true,'start');
 }
+/* weather and car-pairing variants (take 2 of the script): cmVar picks one of the clips that fit, with
+   probability p, else the plain line - so the same race does not always say the same thing. Clips that are not
+   in voice.json yet are skipped, so the plain lines keep working. */
+function cmVar(base,cands,p){const v=cands.filter(k=>k&&CM.clips&&CM.clips[k]);return v.length&&Math.random()<(p==null?.7:p)?pick(v):base;}
+const cmRegion=c=>chRegion(c);
+const cmIntl=(a,b)=>cmRegion(a)!==cmRegion(b);
+// the player just passed car o (a field entry with .car)
+function cmPassKey(o){
+  const a=CAR,b=o&&o.car,c=[];if(!b)return cmVar('pass',[wxSel==='rain'&&'pass_rain',wxSel==='fog'&&'pass_fog']);
+  if(a.id===b.id)c.push('pass_samecar');else if(a.maker===b.maker)c.push('pass_same');
+  if((a.ps||0)<0.75*(b.ps||0))c.push('pass_giant');
+  if(a.year&&b.year){if(a.year<=b.year-25)c.push('pass_classic');else if(a.year>=b.year+25)c.push('pass_modern');}
+  if(b.ev&&!a.ev)c.push('pass_ev');
+  const ra=cmRegion(a),rb=cmRegion(b);
+  if(ra==='日本車'&&rb==='ヨーロッパ車')c.push('pass_jp_eu');else if(ra==='日本車'&&rb==='アメリカ車')c.push('pass_jp_us');
+  else if(ra==='ヨーロッパ車'&&rb==='日本車')c.push('pass_eu_jp');else if(ra==='アメリカ車'&&rb!=='アメリカ車')c.push('pass_us');
+  if(wxSel==='rain')c.push(a.drive==='4WD'?'pass_4wd_rain':'pass_rain');else if(wxSel==='fog')c.push('pass_fog');
+  return cmVar('pass',c);
+}
+function cmLostKey(o){const a=CAR,b=o&&o.car;return cmVar('lost',[b&&(b.ps||0)>1.3*(a.ps||0)&&'lost_power',wxSel==='rain'&&'lost_rain']);}
+function cmBattleKey(base,o){const b=o&&o.car;if(!b||b.id===CAR.id)return base;return cmVar(base,[b.maker===CAR.maker?'battle_same':cmIntl(CAR,b)&&'battle_intl'],.5);}
+function cmWinKey(){const giant=AI.some(a=>!a.out&&a.car&&(a.car.ps||0)>1.3*(CAR.ps||0));return cmVar('win',[wxSel==='rain'&&'win_rain',timeSel==='night'&&'win_night',giant&&'win_giant'],.7);}
 function cmFromRadio(key){
   if(!opts.cm||!CM.buf)return;
   if(key==='green')cmSay('sc_green',true);
   else if(key==='gr_green')cmSay('gr_green',true);
-  else if(/^gain\d/.test(key))cmSay(key==='gain1'?'lead':'pass',key==='gain1');
-  else if(/^lose\d/.test(key))cmSay('lost');
-  else if(key==='closing'||key==='chance')cmSay('closing');
-  else if(key==='defend')cmSay('defend');
-  else if(key==='hit_car'||key==='hit_wall')cmSay(key);
+  else if(/^gain\d/.test(key)){const f=rdField();if(key==='gain1')cmSay(cmVar('lead',[wxSel==='rain'&&'lead_rain'],.6),true,'lead');else cmSay(cmPassKey(f.behind),false,'pass');}
+  else if(/^lose\d/.test(key))cmSay(cmLostKey(rdField().ahead),false,'lost');
+  else if(key==='closing'||key==='chance')cmSay(cmBattleKey('closing',rdField().ahead),false,'closing');
+  else if(key==='defend')cmSay(cmBattleKey('defend',rdField().behind),false,'defend');
+  else if(key==='hit_car')cmSay('hit_car');
+  else if(key==='hit_wall')cmSay(cmVar('hit_wall',[wxSel==='rain'&&'hit_wall_rain'],.6),false,'hit_wall');
   else if(key==='dirt')cmSay('dirt');
   else if(/^sec_fast/.test(key)&&mode==='free')cmSay('sec_fast');
   else if(key==='allbest')cmSay('push');
@@ -4289,7 +4313,7 @@ function radioRace(tk){
 }
 function radioFinish(rank){
   if(mode!=='race')return;
-  cmSay(rank===1?'win':rank<=3&&AI.filter(a=>!a.out).length>=2?'podium':'finish',true);
+  cmSay(rank===1?cmWinKey():rank<=3&&AI.filter(a=>!a.out).length>=2?'podium':'finish',true,'end');
   const L1={1:['P1！ やったぞ、優勝だ！','優勝！ 完璧なレースだった！','チェッカー！ P1だ、おめでとう！'],2:['P2でフィニッシュ。あと一歩だった','P2！ いいレースだった、次は勝とう'],3:['P3でフィニッシュ。表彰台だ、よくやった','P3、表彰台だ。ナイスドライブ'],4:['P4でフィニッシュ。次は表彰台を狙おう','P4。ペースは悪くない、次につなげよう']};
   RD.busy=0;radioSay('finish',L1[rank]||L1[4],5,rank===1?'good':'',999);
 }
