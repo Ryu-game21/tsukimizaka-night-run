@@ -760,6 +760,12 @@ body.phl .press{display:none}
         <label class="vol" for="vol">音量 <input type="range" id="vol" min="0" max="100" value="80"></label>
         <button class="tog" type="button" id="tgAmb" aria-pressed="true">環境音 ON</button>
         <button class="tog" type="button" id="tgBgm" aria-pressed="true">BGM ON</button></div></div>
+      <div class="opts"><span class="ol">音のバランス</span><div class="grp mixgrp">
+        <label class="vol">エンジン <input type="range" data-mix="eng" min="0" max="150" value="100"></label>
+        <label class="vol">効果音 <input type="range" data-mix="sfx" min="0" max="150" value="100"></label>
+        <label class="vol">実況 <input type="range" data-mix="cm" min="0" max="150" value="100"></label>
+        <label class="vol">BGM <input type="range" data-mix="bgm" min="0" max="150" value="100"></label></div>
+        <span class="tmnote">メニューの間は、走っている車のエンジン音を小さくします。</span></div>
       <div class="opts">
         <span class="ol">速度ガイド</span>
         <button class="tog" id="tgLine" aria-pressed="true">ガイドライン ON</button>
@@ -2522,10 +2528,10 @@ function initAudio(){
   A.master=gainN(muted?0:vol);A.slo=filt('lowpass',20000,.7);A.master.connect(A.slo);A.slo.connect(comp);
   // world sounds pass through a cabin filter so the cockpit view sounds muffled
   A.cabin=filt('lowpass',16000,0.5);A.cabin.connect(A.master);A.cabinIn=gainN(1);A.cabinIn.connect(A.cabin);
-  A.eng=gainN(1);A.eng.connect(A.master);A.duck=gainN(1);A.duck.connect(A.eng);s2Init();
+  A.mxEng=gainN(1);A.mxEng.connect(A.master);A.eng=gainN(1);A.eng.connect(A.mxEng);A.duck=gainN(1);A.duck.connect(A.eng);s2Init();
   A.sfx=gainN(.9);A.sfx.connect(A.cabinIn);A.ui=gainN(.7);A.ui.connect(A.master);
   A.amb=gainN(0);A.amb.connect(A.cabinIn);
-  A.bgm=gainN(0);A.bgmD=gainN(1);A.bgmD.connect(A.master);A.bgm.connect(A.bgmD);
+  A.bgm=gainN(0);A.mxBgm=gainN(1);A.mxBgm.connect(A.master);A.bgmD=gainN(1);A.bgmD.connect(A.mxBgm);A.bgm.connect(A.bgmD);
   A.cm=gainN(1.5);A.cm.connect(A.master);
   const layer=(buf,f,dest)=>{const s=loopSrc(buf),g=gainN(0);let n=s;f.forEach(x=>{n.connect(x);n=x;});n.connect(g);g.connect(dest);return g;};
   A.sqf=filt('bandpass',1000,9);A.sqf2=filt('bandpass',1900,11);
@@ -2537,6 +2543,17 @@ function initAudio(){
   A.wet=layer(A.noise,[filt('bandpass',2800,.5)],A.cabinIn);
   rebuildVoices();setAmbient();
 }
+/* sound mix (設定「音のバランス」, fpr-mix): engine / UI and effect sounds / commentary / menu music, each 0-1.5.
+   While the menu is up the demo car's engine is held at 30% so the menu sounds and music are clear. */
+const MIX={eng:1,sfx:1,cm:1,bgm:1};try{Object.assign(MIX,JSON.parse(localStorage.getItem('fpr-mix')||'{}'));}catch(e){}
+let mixLast='';
+function mixApply(){
+  if(!A)return;const menu=state==='menu',tag=[MIX.eng,MIX.sfx,MIX.cm,MIX.bgm,menu].join();if(tag===mixLast)return;mixLast=tag;const t=ac.currentTime;
+  A.mxEng.gain.setTargetAtTime(MIX.eng*(menu?.3:1),t,.25);A.ui.gain.setTargetAtTime(.9*MIX.sfx,t,.05);A.cm.gain.setTargetAtTime(1.5*MIX.cm,t,.05);A.mxBgm.gain.setTargetAtTime(MIX.bgm,t,.1);
+}
+document.querySelectorAll('[data-mix]').forEach(r=>{r.value=Math.round((MIX[r.dataset.mix]??1)*100);
+  r.addEventListener('input',()=>{MIX[r.dataset.mix]=r.value/100;try{localStorage.setItem('fpr-mix',JSON.stringify(MIX));}catch(e){}initAudio();mixApply();
+    if(r.dataset.mix==='sfx')uiSnd('click');});});
 function setVolume(v){vol=v;try{localStorage.setItem('fpr-vol',v);}catch(e){}if(A)A.master.gain.setTargetAtTime(muted?0:vol,ac.currentTime,.05);}
 function toggleMute(){muted=!muted;if(A)A.master.gain.setTargetAtTime(muted?0:vol,ac.currentTime,.05);pop(muted?'消音':'音 ON','good');}
 function burst(dur,f,type,gain,q,dest,f2){
@@ -2829,7 +2846,7 @@ function playSignal(from){
   s.start(ac.currentTime,Math.max(0,from));return true;
 }
 function updateBgm(){
-  if(!A||!A.bgm)return;
+  if(!A||!A.bgm)return;mixApply();
   const want=bgmOn&&state==='menu'&&!document.hidden;
   if(want&&!bgmBuf)loadBgm();
   if(want===updateBgm.last)return;updateBgm.last=want;
