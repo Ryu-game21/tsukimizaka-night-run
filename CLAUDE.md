@@ -99,6 +99,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   破裂音に合わせて `rig_body` に付けた炎のスプライトと点光源が出る（`fxFlame`）。車を追加したら後ろからの描画でマフラー位置を確かめて `EXH` に入れる（モデルにマフラーがない GR ヤリス・GT-R GT3・S2000 は推定）。
 - `menu motion and sound`（`menuMotion`/`menuShot`/`MCAM`/`uiSnd`/`menuSel`）… メニューの段階が進むと右から・戻ると左から滑り込み、ボタンやカードが順に出る。選んだものは小さく弾む。背景の3Dは段階ごとのカメラ（タイトル＝引きの周回、マシン＝低いアップ、コース＝空撮、変速/天候＝後ろ、スタート＝前からの低いアングル）へなめらかに移る。
   効果音は合成（hover の小さなチック、選択のクリック、進む/戻るのシュッ、車を選ぶとその車のレッドゾーンに合わせた空ぶかし、スタートの上昇音）。reduce motion ではアニメなし。
+- `splash / finish cinematic / lap-record effects`（`splashShow`/`splashEnter`、`FIN`/`finCineStart`/`finCam`/`fxTimeScale`、`fxLapRecord`/`fxBanner`/`fxConfetti`、`fxDemo` と `FX_DEMO`）… ページは PRESS TO ENTER の画面から始まる（最初の操作で音を有効にする）。レースのゴールは線の先の横からのカメラ・上下の黒帯・0.2倍のスロー（音もこもる）→ 元の速さで走り抜けて固定カメラから遠ざかる → 結果。
+  フリー走行の自己ベストは緑の光とバナー、コースレコード（全員・全車で最速）は紫の光・紙吹雪・白いフラッシュ・短いスロー・ファンファーレ。`FX_DEMO` を true にすると右下に「演出を見る」パネル（試作ページだけ）。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。
