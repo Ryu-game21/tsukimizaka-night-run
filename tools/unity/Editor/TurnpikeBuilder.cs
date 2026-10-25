@@ -483,13 +483,13 @@ public static class TurnpikeBuilder
             cam.transform.LookAt(car.transform);
             var cd = cam.GetUniversalAdditionalCameraData();
             cd.renderPostProcessing = true; cd.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing; cd.antialiasingQuality = AntialiasingQuality.High;
-            cd.renderShadows = true;
+            cd.renderShadows = true; cd.stopNaN = true;   // 万一の NaN が画面に広がらないように
         }
 
         var prof = ScriptableObject.CreateInstance<VolumeProfile>();
         SaveAsset(prof, GEN + "/PostProfile.asset");
         var tm = prof.Add<Tonemapping>(true); tm.mode.Override(TonemappingMode.ACES);
-        var bl = prof.Add<Bloom>(true); bl.threshold.Override(1.05f); bl.intensity.Override(0.35f); bl.scatter.Override(0.65f);
+        var bl = prof.Add<Bloom>(true); bl.threshold.Override(1.05f); bl.intensity.Override(0.35f); bl.scatter.Override(0.65f); bl.clamp.Override(20f);
         var ca = prof.Add<ColorAdjustments>(true); ca.postExposure.Override(0.25f); ca.contrast.Override(12f); ca.saturation.Override(8f);
         var wb = prof.Add<WhiteBalance>(true); wb.temperature.Override(4f);
         var vg = prof.Add<Vignette>(true); vg.intensity.Override(0.22f); vg.smoothness.Override(0.45f);
@@ -564,16 +564,20 @@ public static class TurnpikeBuilder
         return m;
     }
 
-    // 箱（両面）を足す
+    // 箱を足す（外向きの面だけ。両面にすると法線が打ち消し合って NaN になり、ブルームで白く爆発する）
     static void AddBox(List<Vector3> v, List<int> t, Vector3 c, Vector3 f, Vector3 r, Vector3 size)
     {
-        Vector3 hx = r * size.x / 2, hy = Vector3.up * size.y / 2, hz = f * size.z / 2; int b = v.Count;
-        for (int i = 0; i < 8; i++) v.Add(c + ((i & 1) == 0 ? -hx : hx) + ((i & 2) == 0 ? -hy : hy) + ((i & 4) == 0 ? -hz : hz));
+        Vector3 hx = r * size.x / 2, hy = Vector3.up * size.y / 2, hz = f * size.z / 2;
         int[] q = { 0, 2, 3, 1, 4, 5, 7, 6, 0, 1, 5, 4, 2, 6, 7, 3, 0, 4, 6, 2, 1, 3, 7, 5 };
+        Vector3 P(int i) => c + ((i & 1) == 0 ? -hx : hx) + ((i & 2) == 0 ? -hy : hy) + ((i & 4) == 0 ? -hz : hz);
         for (int k = 0; k < 24; k += 4)
         {
-            t.Add(b + q[k]); t.Add(b + q[k + 1]); t.Add(b + q[k + 2]); t.Add(b + q[k]); t.Add(b + q[k + 2]); t.Add(b + q[k + 3]);
-            t.Add(b + q[k]); t.Add(b + q[k + 2]); t.Add(b + q[k + 1]); t.Add(b + q[k]); t.Add(b + q[k + 3]); t.Add(b + q[k + 2]);
+            Vector3 p0 = P(q[k]), p1 = P(q[k + 1]), p2 = P(q[k + 2]), p3 = P(q[k + 3]);
+            Vector3 fc = (p0 + p1 + p2 + p3) / 4f;
+            bool flip = Vector3.Dot(Vector3.Cross(p1 - p0, p2 - p0), fc - c) < 0f;   // 時計回り＝外向きにそろえる
+            int b = v.Count; v.Add(p0); v.Add(p1); v.Add(p2); v.Add(p3);            // 面ごとに頂点を分ける（角がくっきり）
+            if (flip) { t.Add(b); t.Add(b + 2); t.Add(b + 1); t.Add(b); t.Add(b + 3); t.Add(b + 2); }
+            else { t.Add(b); t.Add(b + 1); t.Add(b + 2); t.Add(b); t.Add(b + 2); t.Add(b + 3); }
         }
     }
 
