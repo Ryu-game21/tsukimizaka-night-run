@@ -47,6 +47,21 @@ def chain(i):
     while out[-1] in parent: out.append(parent[out[-1]])
     return out[::-1]
 
+_ALPHA = {}
+def mat_alpha(mi):
+    """alpha channel (h, w uint8) of a material's base colour texture, or None"""
+    if mi in _ALPHA: return _ALPHA[mi]
+    a = None
+    try:
+        import io
+        from PIL import Image as _I
+        t = J['materials'][mi]['pbrMetallicRoughness']['baseColorTexture']['index']; im = J['images'][J['textures'][t]['source']]
+        bv = J['bufferViews'][im['bufferView']]; o = bv.get('byteOffset', 0)
+        a = np.asarray(_I.open(io.BytesIO(bytes(B[o:o + bv['byteLength']]))).convert('RGBA'))[:, :, 3]
+    except Exception: pass
+    _ALPHA[mi] = a; return a
+
+
 def components(tri):
     """connected pieces of a triangle list (shared vertex indices)"""
     p = np.arange(tri.max() + 1)
@@ -126,7 +141,23 @@ for ni, n in enumerate(J['nodes']):
             dd2, ii2 = ctree.query(cen[:, [0, 2]])
             roadpatch = flat & (dd2 < CHW[ii2] + 2.0) & (np.abs(cen[:, 1] - CY[ii2]) < 0.6) & ~road_covered(cen[:, [0, 2]])
             keep |= roadpatch
-            patch_mask = roadpatch
+            # ...and ground: a piece that lies flat (pit-exit paint, grass verges in the atlas) is not a tree. Thinning
+            # those left holes the size of a lane (Suzuka's pit exit, 2026-10-25): keep them like ground
+            ff = np.bincount(inv, weights=flat.astype(float)) / np.bincount(inv)
+            # (at ground level: within a few metres of the track's height, not a canopy of horizontal leaf cards)
+            rel = np.bincount(inv, weights=np.abs(cen[:, 1] - CY[ii2])) / np.bincount(inv)
+            flat_piece = (ff > 0.95) & (rel < 4.0) & (cd < GROUND_KEEP)
+            keep |= flat_piece[inv]
+            # where such a flat piece points at a see-through texel of the atlas (all three corners and the middle), it
+            # was a broken patch of the racing surface (Suzuka's pit exit lane): it becomes asphalt like roadpatch
+            al = mat_alpha(p['material']) if 'material' in p and 'TEXCOORD_0' in p['attributes'] else None
+            seeth = np.zeros(len(tri), bool)
+            if al is not None:
+                uvt = acc(J, B, p['attributes']['TEXCOORD_0']).astype(np.float64)[tri]; h_, w_ = al.shape
+                pts_ = np.concatenate([uvt, uvt.mean(1, keepdims=True)], 1)
+                xs_ = np.clip(((pts_[:, :, 0] % 1) * w_).astype(int), 0, w_ - 1); ys_ = np.clip(((pts_[:, :, 1] % 1) * h_).astype(int), 0, h_ - 1)
+                seeth = (al[ys_, xs_] < 64).all(1)
+            patch_mask = roadpatch | (flat_piece[inv] & flat & seeth & ~road_covered(cen[:, [0, 2]]))
         elif mat in GROUND: keep = d < GROUND_KEEP
         else: keep = d < CORRIDOR
         if CFG.get('clear') and mat not in ROAD:
@@ -152,6 +183,9 @@ for ni, n in enumerate(J['nodes']):
               v = acc(J, B, ai).astype(np.float32)[used]
               if k == 'TEXCOORD_0' and is_patch:  # planar asphalt mapping (atlas UVs point at a transparent texel)
                   v = (Wp[used][:, [0, 2]] / 6.0).astype(np.float32)
+              if k == 'NORMAL' and is_patch:  # the atlas pieces' normals point anywhere (often down): make them face up
+                  up = M[:3, :3].T @ np.array([0.0, 1.0, 0.0]); up /= np.linalg.norm(up)
+                  v = np.tile(up.astype(np.float32), (len(v), 1))
               at[k] = add(v, 5126, {1: 'SCALAR', 2: 'VEC2', 3: 'VEC3'}[v.shape[1]], 34962, minmax=(k == 'POSITION'))
           np_ = {'attributes': at, 'indices': add(tri2.ravel(), 5125, 'SCALAR', 34963)}
           if 'material' in p: np_['material'] = p['material']
