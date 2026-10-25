@@ -1541,7 +1541,9 @@ function computeTrack(c){
   return minY;
 }
 
+let courseDirty=false;
 function buildCourse(ci){
+  courseDirty=false;
   C=COURSES[ci];disposeWorld();applyCondition();
   const minY=computeTrack(C),E=applyWeather(Object.assign({},C.env,TIMES[timeSel],(C.env.over&&C.env.over[timeSel])||{}));
   // atmosphere
@@ -2130,6 +2132,9 @@ function setGhostCar(id){
   ghostCarId=id;if(ghostCar&&ghostCar.userData.carId===id)return;
   disposeObj(ghostCar);ghostCar=makeGhostCar(CARS.find(c=>c.id===id)||CAR);
 }
+let rivalsWanted=false;
+function wantRivals(on){if(rivalsWanted===on)return;rivalsWanted=on;if(!on)return;buildCars();
+  if(opts.sc)SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));}   // the safety car, too
 function buildCars(){
   CAR=CARS[carSel];
   disposeObj(playerCar);disposeObj(ghostCar);
@@ -2137,7 +2142,11 @@ function buildCars(){
   ghostCar=makeGhostCar(CARS.find(c=>c.id===ghostCarId)||CAR);
   // rivals: the other machines first, then repeats, so every car gets used even with a small garage
   const rivals=CARS.map((c,i)=>(carSel+1+i)%CARS.length).filter(i=>i!==carSel).concat([carSel]);
-  AI.forEach((a,k)=>{disposeObj(a.mesh);if(a.gh){a.mesh=makeGhostCar(a.car,GR_OP);return;}const rc=CARS[rivals[k%rivals.length]];a.mesh=makeCar(rc);a.car=rc;a.color=rc.body.color;a.name=rc.name;});
+  AI.forEach((a,k)=>{disposeObj(a.mesh);if(a.gh){a.mesh=makeGhostCar(a.car,GR_OP);return;}const rc=CARS[rivals[k%rivals.length]];a.car=rc;a.color=rc.body.color;a.name=rc.name;
+    // while picking a car in the menu, rivals that are not loaded yet are left out of the background (each tap used to
+    // fetch three more cars, 1-7 MB each, competing with the car you picked); they load at the start screen of a race
+    if(!rivalsWanted&&rc.model&&!MODELS[rc.id]&&modelLoading[rc.id]!==true){a.mesh=new THREE.Group();scene.add(a.mesh);return;}
+    a.mesh=makeCar(rc);});
   hoodMat.color.setHex(CAR.body.color);
   if(typeof rebuildVoices==='function')rebuildVoices();
 }
@@ -2177,7 +2186,7 @@ try{if(localStorage.getItem('fpr-mode')==='free')mode='free';}catch(e){}
 function setMode(m){
   mode=m;try{localStorage.setItem('fpr-mode',m);}catch(e){}
   document.querySelectorAll('.mtog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));
-  $('ghostRow').hidden=m!=='free';$('oppRow').hidden=m==='free';oppRows();if(m==='race')SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));
+  $('ghostRow').hidden=m!=='free';$('oppRow').hidden=m==='free';oppRows();
   $('startBtn').textContent=m==='free'?'フリー走行を始める':'レースを始める';
 }
 let timeSel='night',view=0,camTh=0;
@@ -2985,7 +2994,9 @@ function renderSpec(){
 function selectCar(k){
   carSel=k;try{localStorage.setItem('fpr-car',k);}catch(e){}
   document.querySelectorAll('.carbtn').forEach((b,i)=>b.setAttribute('aria-pressed',i===k));
-  initAudio();buildCars();renderSpec();buildCourse(sel);renderCourseCards();renderBoard();menuRevT=1.1;tmUi();
+  // the course's speed profile depends on the car, but rebuilding the whole course on every tap made picking a car
+  // slow: it is rebuilt once, when you leave the car step or start (courseDirty)
+  initAudio();buildCars();renderSpec();if(step==='car')courseDirty=true;else buildCourse(sel);renderCourseCards();renderBoard();menuRevT=1.1;tmUi();
 }
 function pkey(base){return (!PLAYER||PLAYER===LEGACY_OWNER)?base:base+'@'+PLAYER;}
 function bestKey(c,car){return pkey('fpr-best-'+c.id+'-'+(car||CAR).id);}
@@ -3411,6 +3422,8 @@ function showStep(s){
   if(s!=='go')try{cmIntroStop();}catch(e){}
   const prevS=step;
   step=s;document.querySelectorAll('#mcard .step').forEach(e=>e.hidden=e.dataset.s!==s);
+  if(courseDirty&&s!=='car')buildCourse(sel);
+  if(s==='go'&&mode==='race')wantRivals(true);else if(s==='car'||s==='mode'||s==='title')wantRivals(false);
   const k=STEPS.indexOf(s),bar=$('stepBar');
   bar.hidden=k<0;$('mnav').hidden=s==='title';$('nextBtn').hidden=s==='go'||s==='opts'||s==='ach'||s==='prof'||s==='chal';
   if(s==='ach')renderAch();
@@ -3632,7 +3645,8 @@ function setHud(on){document.body.classList.toggle('hudon',on);if(on&&GY.on)gyCe
 function start(){
   if(!PLAYER){openNameDlg();return;}
   finCineEnd();FIN.slo=0;cmIntroStop();initAudio();if(ac&&ac.state==='suspended')ac.resume();cmLoad();try{uiSnd('start');}catch(e){}
-  if(C!==COURSES[sel])buildCourse(sel);
+  if(mode==='race')wantRivals(true);
+  if(C!==COURSES[sel]||courseDirty)buildCourse(sel);
   else if(realOn){const was=wxSel+timeSel+tempC+wind.ms;applyCondition();if(was!==wxSel+timeSel+tempC+wind.ms)buildCourse(sel);}
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}

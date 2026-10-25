@@ -109,6 +109,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   効果音は合成（hover の小さなチック、選択のクリック、進む/戻るのシュッ、車を選ぶとその車のレッドゾーンに合わせた空ぶかし、スタートの上昇音）。reduce motion ではアニメなし。
 - `splash / finish cinematic / lap-record effects`（`splashShow`/`splashEnter`、`FIN`/`finCineStart`/`finCam`/`fxTimeScale`、`fxLapRecord`/`fxBanner`/`fxConfetti`、`fxDemo` と `FX_DEMO`）… ページは PRESS TO ENTER の画面から始まる（最初の操作で音を有効にする）。レースのゴールは線の先の横からのカメラ・上下の黒帯・0.2倍のスロー（音もこもる）→ 元の速さで走り抜けて固定カメラから遠ざかる → 結果。
   フリー走行の自己ベストは緑の光とバナー、コースレコード（全員・全車で最速）は紫の光・紙吹雪・白いフラッシュ・短いスロー・ファンファーレ。`FX_DEMO` を true にすると右下に「演出を見る」パネル（試作ページだけ）。
+- `loading`（`rivalsWanted`/`wantRivals`、`courseDirty`）… メニューで車を選ぶたびの待ちを減らす（2026-10-25）：まだ読み込んでいないライバル車とセーフティカーは、レースのスタート準備（`go`）か `start()` まで読み込まない（メニューの背景には読み込み済みのライバルだけ出る）。
+  車の選択ではコースを作り直さず `courseDirty` にして、車の段階を離れる時か `start()` で1回だけ `buildCourse`（推奨速度が車で変わるため）。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。
