@@ -81,6 +81,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   作り方：ブラウザで `tools/osm_fetch.js`（overpass-api.de のページで実行、道の名前・範囲・起点を設定）→ `work/<id>/raw.json`・`raw2.json` → `python3 tools/real_course.py <id>`（道の中心線 4m 間隔・橋は谷の上を直線・勾配の平滑化・カーブからバンク、
   道の下に地面が出ないかの検査つき）→ `work/<id>/course.json` を `XXX_DATA` に入れる。クレジットは「© OpenStreetMap contributors／国土地理院」（ODbL）。
   実際の景色（`terrainPhoto`、`geo:{lat0,lon0}`）：地理院タイルの航空写真（seamlessphoto、z15・約3.9m/px）を道の周り1.5kmまでページが直接読み込み（保存はしない）、地面に平面 UV で貼る（写真の中は頂点色を白に、外は地図の色、境目は白い縁でなじませる）。木の候補（Python が 24000 本、ランダム順）は写真が森の所だけ立て、色も写真から。読めない環境（Claude 版の CSP）では候補の3本に1本。ガードレールはこのコースだけ W 形（`C.terrain`）。
+  道ばたの景色（`scenery`・`buildScenery`・`sceneryTreeFilter`・`sideY`）：道路会社の案内マップ（ユーザーの指定 2026-10-25）の km で区間を決め（全長 13.8km を描く道の長さに合わせて縮める）、あじさい（0.4〜4.2km）・桜のトンネル（4.2〜5.2）・緑のトンネル（5.2〜6.4）・紅葉（8.4〜10.6）・すすき（11km〜）、
+  展望地（湘南ビュー・相模湾・初島/大島・白銀・富士山ビュー）は道より下の木を切って眺めを開ける。1km ごとの距離標と、見どころ（茶）・駐車場（青）の案内板。四季をいっぺんに出している。
+  置く高さは terrain.json の `side`（`real_course.py` が各点の左右 8.5〜27m の地面の高さを出す）。地形の読み込み後に作る（読み込み前の buildCourse では作らない）。ガードレールは写真に合わせて白塗り。
   Unity 版の試作（`tools/unity_export.py`・`tools/unity_car.py`・`tools/unity/`、ブランチ turnpike）：ユーザーの判断でブラウザ版に戻した（Unity の光・地形の見た目は three.js に持ってこられない、Asset Store 素材は配布に使わない）。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。

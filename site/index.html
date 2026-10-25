@@ -1252,6 +1252,10 @@ const COURSES=[
     day:{fogD:.0012,fog:0xd8d4c4,sky:['#3f7fc4','#9cc3e4','#ead9b8']},dusk:{fogD:.0016},night:{fogD:.0022,hemi:[0x5a6290,0x141418,1.2]}}}},
  {id:'turnpike',since:'2026-10-26',name:'箱根ターンパイク',en:'HAKONE TURNPIKE',tag:'実在の道 ・ ヒルクライム',diff:2,laps:1,ai:1.0,W:11,runoff:2.2,hw0:5.5,
   pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3281,runin:300},terrain:{url:'tracks/turnpike/terrain.json'},geo:{lat0:35.2423553,lon0:139.1398212},
+  // the road's own guide map (km as signposted, 13.8 km to 大観山口): flowers and trees along it, the views, the signs
+  scenery:{len:13800,zones:[['hydrangea',0.4,4.2],['sakura',4.2,5.2],['green',5.2,6.4],['maple',8.4,10.6],['susuki',11.0,99]],
+    spots:[[4.0,'御所の入駐車場','p'],[4.5,'桜のトンネル','s'],[5.5,'湘南ビュー展望台','v'],[6.6,'富士山ビューポイント','v'],[7.5,'鍋割駐車場','p'],[9.0,'相模湾の眺望','v'],
+      [11.0,'初島・大島の眺望','v'],[11.5,'白銀展望駐車場','pv'],[12.0,'富士山ビューポイント','v'],[13.0,'すすき','s']]},
   desc:'小田原の料金所から大観山まで、約13km・標高差約950mを一気に駆け上がる峠の有料道路（片道のタイムアタック）。道の形は OpenStreetMap、高さと周りの山は国土地理院の標高データから作った。前半は勾配7〜10%の上りが続く中高速コーナー、後半は尾根沿いのアップダウン。晴れた日は相模湾や富士山が見える。',
   credit:{title:'道路の形（OpenStreetMap）・標高と航空写真（地理院タイル、加工して使用）',author:'© OpenStreetMap contributors／国土地理院',url:'https://maps.gsi.go.jp/development/ichiran.html',license:'ODbL・国土地理院コンテンツ利用規約',licUrl:'https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html'},
   env:{terrain:0x2f4a2a,ground:0x22331e,lamps:0,scatter:'none',far:'none',center:'yellow',over:{
@@ -1435,7 +1439,81 @@ async function pngData(ab,n){
 /* real ground for courses built from map data (2026-10-25, tools/real_course.py -> tracks/<id>/terrain.json + terrain0.png):
    the land from GSI elevation (corridor just under the road, the far land drawn closer so it fits the camera range), its colours,
    the forest beside the road and the sea. Kept across course changes like the circuit models (userData.keep). */
-const TERR={};
+const TERR={},TSIDE={};
+// the real ground beside the road (terrain.json side: per course point, both sides, at sideOffs metres; 0.25 m from the road plane)
+function sideY(s,lane){
+  const D=TSIDE[C.id],i=Math.floor(wrap(s)/ds)%N,base=P[i].y+BK[i]*lane;
+  if(!D||Math.abs(lane)<D.offs[0])return base;
+  const k=Math.round(i/N*(C.pts.length/3));if(k>=D.n)return base;
+  const a=Math.abs(lane),sd=lane>0?0:1,O=D.offs;let j=0;while(j<O.length-2&&a>O[j+1])j++;const f=Math.max(0,Math.min(1,(a-O[j])/(O[j+1]-O[j])));
+  const r=(k*2+sd)*O.length;return base+(D.a[r+j]*(1-f)+D.a[r+j+1]*f)*0.25;
+}
+/* scenery along a real road (2026-10-25, the 箱根ターンパイク guide map): zones by signposted km (scaled to the drawn road)
+   with hydrangeas, cherry / green tunnels, autumn maples and pampas grass (susuki); the views (the conifers below the road
+   cleared), km posts and the spot signs. sceneryTreeFilter keeps the map's forest out of those places. */
+function sceneryAt(c){
+  const sc=c.scenery;if(!sc||!P2P||C!==c)return null;
+  const k=finI()*ds/sc.len;   // metres of the drawn road per signposted metre
+  return{k,zone:s=>{const km=s/k/1000;for(const z of sc.zones)if(km>=z[1]&&km<z[2])return z[0];return '';},
+    view:s=>sc.spots.some(p=>/v/.test(p[2])&&Math.abs(s-p[0]*1000*k)<260)};
+}
+function sceneryTreeFilter(c){
+  const Z=sceneryAt(c);if(!Z)return()=>true;
+  // nearest drawn sample by a 40 m hash grid
+  const G={},cell=40,key=(x,z)=>Math.floor(x/cell)+','+Math.floor(z/cell);
+  for(let i=0;i<N;i+=2){if(!visI(i))continue;const k=key(P[i].x,P[i].z);(G[k]=G[k]||[]).push(i);}
+  return(x,y,z,n)=>{let bi=-1,bd=1e18;const cx=Math.floor(x/cell),cz=Math.floor(z/cell);
+    for(let a=-5;a<=5;a++)for(let b=-5;b<=5;b++){const L=G[(cx+a)+','+(cz+b)];if(L)for(const i of L){const dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}}
+    if(bi<0)return true;const d=Math.sqrt(bd),s=bi>P2P.end?0:bi*ds,zn=Z.zone(s),h=((n*2654435761)>>>0)/4294967296;
+    if(zn&&zn!=='hydrangea'&&d<30)return false;                 // room for the roadside trees / grass
+    if(zn==='susuki'&&d<220&&h<0.75)return false;                // the open grassland near the summit
+    if(Z.view(s)&&d<240&&y<P[bi].y-2)return false;               // the views: nothing below the road
+    return true;};
+}
+function buildScenery(){
+  const Z=sceneryAt(C);if(!Z||!TSIDE[C.id])return;   // needs the roadside ground (built again when the terrain arrives)
+  const o={},dm=new THREE.Object3D(),col=new THREE.Color(),rnd=(()=>{let a=12345;return()=>((a=Math.imul(a^a>>>15,2246822507)+0x9e3779b9|0)>>>0)/4294967296;})();
+  const S1=(P2P.end-5)*ds,put=(s,lane,up)=>{sample(s,lane,o);dm.position.set(o.x,sideY(s,lane)+(up||0),o.z);return dm;};
+  // hydrangea bushes just outside the rail
+  {const L=[];for(let s=0;s<S1;s+=2.6)if(Z.zone(s)==='hydrangea')for(const sd of[1,-1])if(rnd()<0.85)L.push([s+rnd()*2,sd*(RAIL+0.7+rnd()*0.9)]);
+   const pal=[0xe7a1c9,0x93b4ea,0xb59be2,0xf0e6f2,0xd583b0,0x7f9fe0];
+   const m=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.75,1),new THREE.MeshLambertMaterial({color:0xffffff}),L.length);
+   L.forEach((p,k)=>{put(p[0],p[1],0.3);const sz=0.6+rnd()*0.45;dm.scale.set(sz*1.25,sz,sz*1.25);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
+     col.setHex(rnd()<0.22?0x3f6b34:pal[Math.floor(rnd()*pal.length)]);m.setColorAt(k,col);});world.add(m);}
+  // broadleaf trees: cherry tunnel, green tunnel, autumn maples (canopies leaning over the road in the tunnels)
+  {const L=[];for(let s=0;s<S1;s+=7){const zn=Z.zone(s);if(zn!=='sakura'&&zn!=='green'&&zn!=='maple')continue;
+     for(const sd of[1,-1]){if(rnd()<0.12)continue;L.push([s+rnd()*4,sd,zn]);}}
+   const trunkG=new THREE.CylinderGeometry(0.18,0.32,1,6);trunkG.translate(0,0.5,0);
+   const crownG=new THREE.IcosahedronGeometry(1,1);
+   const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x4a3a2c}),L.length),crowns=new THREE.InstancedMesh(crownG,new THREE.MeshLambertMaterial({color:0xffffff}),L.length*3);
+   const pal={sakura:[0xf6dbe6,0xf2c6d8,0xfbe9f0],green:[0x4f8a3c,0x5f9a45,0x3f7a34],maple:[0xd2401f,0xe8762a,0xf0a830,0xb8321c,0x9a7a2c]};
+   let c2=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.6+rnd()*2.5),h=tun?3.4+rnd()*1.2:3+rnd()*2;
+     put(p[0],lane,0);dm.rotation.set(0,0,0);dm.scale.set(1,h+1.2,1);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);
+     for(let q=0;q<3;q++){const inward=tun?[0.8,2.6,4.4][q]:[-0.8,0,0.8][q],r=tun?2.2+rnd()*0.9:1.8+rnd()*0.9;
+       put(p[0]+(rnd()-0.5)*3.5,lane-p[1]*inward,h+r*0.4+(tun?q*0.35:q*0.5));dm.scale.set(r,r*0.7,r);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();crowns.setMatrixAt(c2,dm.matrix);
+       const pl=pal[p[2]];col.setHex(pl[Math.floor(rnd()*pl.length)]);crowns.setColorAt(c2++,col);}});
+   crowns.count=c2;world.add(trunks,crowns);}
+  // pampas grass (susuki): olive blade tufts with pale, tilted plumes
+  {const L=[];for(let s=0;s<S1;s+=1.6)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*1.6,sd*(RAIL+0.6+Math.pow(rnd(),1.8)*16)]);}
+   const bg=new THREE.ConeGeometry(0.4,1.1,5,1,true);bg.translate(0,0.55,0);
+   const pg=new THREE.ConeGeometry(0.07,0.75,4);pg.translate(0,0.375,0);
+   const blades=new THREE.InstancedMesh(bg,new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide}),L.length),plumes=new THREE.InstancedMesh(pg,new THREE.MeshLambertMaterial({color:0xffffff}),L.length*4);
+   let pn=0;L.forEach((p,k)=>{const sz=0.8+rnd()*0.5;put(p[0],p[1],-0.15);const bx=dm.position.x,by=dm.position.y,bz=dm.position.z;
+     dm.scale.set(sz,sz,sz);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();blades.setMatrixAt(k,dm.matrix);col.setHSL(0.17+rnd()*0.04,0.3,0.32+rnd()*0.1);blades.setColorAt(k,col);
+     for(let q=0;q<4;q++){const a=rnd()*6.28,t=0.25+rnd()*0.35;dm.position.set(bx+Math.cos(a)*0.15,by+sz*(0.9+rnd()*0.5),bz+Math.sin(a)*0.15);dm.rotation.set(Math.cos(a)*t,0,Math.sin(a)*t);dm.scale.set(1,sz*(0.9+rnd()*0.4),1);dm.updateMatrix();
+       plumes.setMatrixAt(pn,dm.matrix);col.setHSL(0.1+rnd()*0.03,0.3+rnd()*0.15,0.68+rnd()*0.15);plumes.setColorAt(pn++,col);}});
+   plumes.count=pn;world.add(blades,plumes);}
+  // km posts (left side) and the spot signs (brown: sights, blue: parking)
+  const postM=new THREE.MeshLambertMaterial({color:0x8a8e96}),postG=new THREE.CylinderGeometry(0.05,0.05,2.2,6);
+  const board=(txt,w,h,bg,fg,s,lane,y)=>{const tex=canvasTex(Math.round(w*128),Math.round(h*128),(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.strokeStyle=fg;g.lineWidth=6;g.strokeRect(5,5,W-10,H-10);
+      g.fillStyle=fg;g.font='700 '+Math.round(H*0.46)+'px "M PLUS 1",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,W/2,H/2+2,W*0.92);});
+    const b=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshLambertMaterial({map:tex,side:THREE.DoubleSide,emissive:0x202020}));
+    const i=Math.floor(wrap(s)/ds)%N;put(s,lane,y);b.position.copy(dm.position);b.lookAt(b.position.x-T[i].x,b.position.y,b.position.z-T[i].z);world.add(b);
+    const pole=new THREE.Mesh(postG,postM);put(s,lane,1.1);pole.position.copy(dm.position);world.add(pole);};
+  for(let km=1;km*1000*Z.k<S1;km++)board(km+'km',0.62,0.36,'#1f6b4a','#ffffff',km*1000*Z.k,RAIL+0.6,1.6);
+  for(const sp of C.scenery.spots){if(/s/.test(sp[2]))continue;const s=sp[0]*1000*Z.k-150;if(s<0||s>S1)continue;
+    board((/p/.test(sp[2])?'P ':'')+sp[1],3.4,0.8,/p/.test(sp[2])?'#1f4fa0':'#6b3a1e','#ffffff',s,RAIL+1.2,2.2);}
+}
 function terrainShow(c){
   const far=c.terrain?24000:4000;if(camera.far!==far){camera.far=far;camera.updateProjectionMatrix();}
   if(TERR[c.id]){world.add(TERR[c.id]);return;}
@@ -1444,6 +1522,7 @@ function terrainShow(c){
   fetch(c.terrain.url).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>fetch(base+j.file).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
     .then(ab=>pngData(ab,j.bytes)).then(u=>{
     const b=u.buffer,o1=j.nv*12,o2=o1+j.ni*4,o3=o2+j.nt*16;
+    if(j.side){const bs=atob(j.side),a=new Int8Array(bs.length);for(let i=0;i<bs.length;i++)a[i]=(bs.charCodeAt(i)<<24)>>24;TSIDE[c.id]={a,offs:j.sideOffs,n:a.length/2/j.sideOffs.length};}
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(b,0,j.nv*3),3));
     g.setAttribute('color',new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint8Array(b,o3,j.nv*4),4),3,0,true));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(b,o1,j.ni),1));g.computeVertexNormals();g.computeBoundingSphere();
@@ -1456,11 +1535,11 @@ function terrainShow(c){
     const trees=new THREE.InstancedMesh(cg,new THREE.MeshLambertMaterial({color:0xffffff}),j.nt),d=new THREE.Object3D(),cc=new THREE.Color();
     const plant=(i,k,col)=>{const s=tr[i*4+3];d.position.set(tr[i*4],tr[i*4+1]-0.3,tr[i*4+2]);d.rotation.set(0,i*2.4,0);d.scale.set(s,s*(0.9+((i*37)%11)/25),s);d.updateMatrix();
       trees.setMatrixAt(k,d.matrix);if(col)cc.copy(col);else cc.setHSL(0.30+((i*13)%7)/100,0.34,0.11+((i*29)%10)/140);trees.setColorAt(k,cc);};
-    let n=0;for(let i=0;i<j.nt;i+=3)plant(i,n++);trees.count=n;
+    const keep=sceneryTreeFilter(c);let n=0;for(let i=0;i<j.nt;i+=3)if(keep(tr[i*4],tr[i*4+1],tr[i*4+2],i))plant(i,n++);trees.count=n;
     grp.add(trees);
-    if(c.geo)terrainPhoto(c,land,trees,tr,j.nt,plant);
+    if(c.geo)terrainPhoto(c,land,trees,tr,j.nt,plant,keep);
     if(j.sea!=null){const sp=new THREE.PlaneGeometry(60000,60000);sp.rotateX(-Math.PI/2);const sea=new THREE.Mesh(sp,new THREE.MeshLambertMaterial({color:0x2a5f86}));sea.position.y=j.sea;grp.add(sea);}
-    TERR[c.id]=grp;modelLoading[key]=false;if(C===c)world.add(grp);
+    TERR[c.id]=grp;modelLoading[key]=false;if(C===c){world.add(grp);if(c.scenery)buildScenery();}
   })).catch(e=>{modelLoading[key]='fail';delete TERR['_'+c.id];console.warn('terrain load failed',e);});
 }
 /* the real view (2026-10-25): GSI aerial photos (地理院タイル「全国最新写真（シームレス）」, zoom 15, ~3.9 m a pixel) over the
@@ -1468,7 +1547,7 @@ function terrainShow(c){
    that it is processed). The photo is laid on the ground with planar UVs (white vertex colours inside it, the map colours
    outside with a white border so the edge blends), and the trees are re-planted only where the photo shows forest, tinted
    by it. Where the page cannot reach GSI (the Claude build) nothing changes. */
-function terrainPhoto(c,land,trees,tr,nt,plant){
+function terrainPhoto(c,land,trees,tr,nt,plant,keep){
   const g=c.geo,CXg=Math.cos(g.lat0*Math.PI/180)*111320,CZg=110574,M=c.p2p?c.p2p.n0:c.pts.length/3;
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(let k=0;k<M;k++){const x=c.pts[k*3],z=c.pts[k*3+2];x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);}
   x0-=1500;x1+=1500;z0-=1500;z1+=1500;
@@ -1495,7 +1574,7 @@ function terrainPhoto(c,land,trees,tr,nt,plant){
     const cc=new THREE.Color();let n=0;
     for(let i=0;i<nt&&n<15000;i++){const x=tr[i*4],z=tr[i*4+2],u=(x-x0)/(x1-x0),v=(z-z0)/(z1-z0);if(u<=0||u>=1||v<=0||v>=1)continue;
       const o=(Math.floor(v*H)*W+Math.floor(u*W))*4,R=px[o],G=px[o+1],B=px[o+2];
-      if(!(G>R+3&&G>=B-4&&R+G+B<330))continue;
+      if(!(G>R+3&&G>=B-4&&R+G+B<330)||!keep(x,tr[i*4+1],z,i))continue;
       cc.setRGB(R/255*0.55,G/255*0.62,B/255*0.5);plant(i,n++,cc);}
     if(n>500){trees.count=n;trees.instanceMatrix.needsUpdate=true;if(trees.instanceColor)trees.instanceColor.needsUpdate=true;}
   });
@@ -1711,7 +1790,7 @@ function buildCourse(ci){
   ribbon(i=>[HALF,BK[i]*HALF-0.02,RAIL+0.4,BK[i]*(RAIL+0.4)-0.03],shoulder,10,R0,R1);ribbon(i=>[-HALF,-BK[i]*HALF-0.02,-RAIL-0.4,-BK[i]*(RAIL+0.4)-0.03],shoulder,10,R0,R1);
   const railM=new THREE.MeshLambertMaterial({color:0xb9bec8,emissive:0x1a1c24,side:THREE.DoubleSide});
   if(C.terrain){   // a W-beam rail like the real road's: galvanised, corrugated
-    const rm=new THREE.MeshStandardMaterial({color:0xc4c9d0,metalness:.55,roughness:.42,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.8;}
+    const rm=new THREE.MeshStandardMaterial({color:0xeef0f2,metalness:.1,roughness:.45,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.5;}   // white-painted, like the road's own photos
     const WB=[[0,.44],[.07,.52],[0,.6],[.07,.68],[0,.76]];
     for(const sd of[1,-1])for(let k=0;k<4;k++){const a=WB[k],b=WB[k+1];ribbon(i=>[sd*(RAIL-a[0]),BK[i]*sd*RAIL+a[1],sd*(RAIL-b[0]),BK[i]*sd*RAIL+b[1]],rm,10,R0,R1);}
   }else{ribbon(i=>[RAIL,BK[i]*RAIL+0.45,RAIL,BK[i]*RAIL+0.85],railM,10,R0,R1);ribbon(i=>[-RAIL,-BK[i]*RAIL+0.45,-RAIL,-BK[i]*RAIL+0.85],railM,10,R0,R1);}
@@ -1801,6 +1880,7 @@ function buildCourse(ci){
       if(v<VMAX*0.97)return cY;return cG;});
     guideMesh.visible=opts.line;
   }
+  if(!C.model&&C.scenery)buildScenery();
   if(!C.model){
   // start / finish
   {

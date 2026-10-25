@@ -150,6 +150,22 @@ if fixv: print('lowered', len(fixv), 'vertices')
 # for other engines (tools/unity_export.py): the ground samples in real coordinates and the drawn road
 np.savez(D + 'mesh.npz', P=P, VX=VX, VY=VY, VB=VB, VBR=VBR, start=len(RY), fin=len(RY) + FIN, hw=HW)
 
+# the ground just beside the road (for the game's roadside scenery: bushes, trees, grass, signs): height above (+) or below
+# the road plane at fixed offsets both sides, every course point (route + run-off), 0.25 m units, int8
+SOFF = [8.5, 9.5, 10.5, 12, 14, 16.5, 19.5, 23, 27]
+q_pts = []
+for qi in range(len(XY)):
+    t2 = (XY[min(qi + 1, len(XY) - 1)] - XY[max(qi - 1, 0)]); t2 /= np.linalg.norm(t2); nl = np.array([t2[1], -t2[0]])   # NR (left)
+    for sd in (1, -1):
+        for o in SOFF: q_pts.append(XY[qi] + nl * sd * o)
+q_pts = np.array(q_pts); si2 = tri.find_simplex(q_pts); okq = si2 >= 0
+r2 = q_pts[okq] - tri.transform[si2[okq], 2]; bc2 = np.einsum('ijk,ik->ij', tri.transform[si2[okq], :2], r2); bc2 = np.c_[bc2, 1 - bc2.sum(1)]
+gh = np.full(len(q_pts), np.nan); gh[okq] = (P[T[si2[okq]], 2] * bc2).sum(1)
+gh = gh.reshape(len(XY), 2, len(SOFF))
+ref = Y[:, None, None] + bank[:, None, None] * (np.array([1, -1])[None, :, None] * np.array(SOFF)[None, None, :])
+side = np.clip(np.round(np.nan_to_num(gh - ref, nan=0) * 4), -127, 127).astype(np.int8)
+side_b64 = base64.b64encode(side.tobytes()).decode()
+print('roadside ground: median |dy|', round(float(np.median(np.abs(gh - ref)[np.isfinite(gh)])), 2), 'm')
 # trees: forest in a band beside the road, on the ground
 trees = []
 interp_simplex = tri
@@ -196,7 +212,7 @@ rows = b''.join(b'\x00' + pad[r * Wd:(r + 1) * Wd] for r in range(Hh))
 def chunk(t, d): return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', Wd, Hh, 8, 0, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows, 9)) + chunk(b'IEND', b'')
 open(OUT + 'terrain0.png', 'wb').write(png)
-json.dump({'file': 'terrain0.png', 'bytes': len(blob), 'nv': len(pos), 'ni': int(T.size), 'nt': len(trees), 'sea': 0,
+json.dump({'file': 'terrain0.png', 'bytes': len(blob), 'nv': len(pos), 'ni': int(T.size), 'nt': len(trees), 'sea': 0, 'sideOffs': SOFF, 'side': side_b64,
            'src': 'OpenStreetMap contributors (ODbL); GSI elevation tiles'}, open(OUT + 'terrain.json', 'w'))
 print('terrain', round(len(png) / 1e6, 2), 'MB png,', len(pos), 'verts', len(T), 'tris')
 r1 = lambda a, n=1: [round(float(v), n) for v in a]
