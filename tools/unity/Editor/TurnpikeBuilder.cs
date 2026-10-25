@@ -546,8 +546,8 @@ public static class TurnpikeBuilder
         SaveAsset(m, GEN + "/" + name + ".asset");
         var go = new GameObject(name);
         go.AddComponent<MeshFilter>().sharedMesh = m;
-        var bark = Mat("bark", null, new Color(0.25f, 0.18f, 0.12f), 0.1f); bark.enableGPUInstancing = true;
-        var needles = Mat("needles", null, new Color(0.11f, 0.2f, 0.1f), 0.05f); needles.enableGPUInstancing = true;
+        var bark = Mat("bark", null, new Color(0.25f, 0.18f, 0.12f), 0.1f);
+        var needles = Mat("needles", null, new Color(0.11f, 0.2f, 0.1f), 0.05f);
         go.AddComponent<MeshRenderer>().sharedMaterials = new[] { bark, needles };
         var prefab = PrefabUtility.SaveAsPrefabAsset(go, GEN + "/" + name + ".prefab");
         Object.DestroyImmediate(go);
