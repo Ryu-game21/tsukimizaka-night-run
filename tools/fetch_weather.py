@@ -22,7 +22,7 @@ LOC = {  # same order as REAL_LOC in index.html
     'spa': (50.437, 5.971), 'suzuka': (34.843, 136.541), 'nurburgring': (50.335, 6.947), 'shanghai': (31.338, 121.220),
     'bahrain': (26.032, 50.511), 'albertpark': (-37.850, 144.968), 'hungaroring': (47.582, 19.250), 'bugatti': (47.956, 0.208),
     'monza': (45.620, 9.281), 'silverstone': (52.073, -1.014), 'catalunya': (41.570, 2.261), 'madring': (40.465, -3.616),
-    'zandvoort': (52.389, 4.541), 'marinabay': (1.291, 103.864), 'yas': (24.467, 54.603),
+    'zandvoort': (52.389, 4.541), 'marinabay': (1.291, 103.864), 'yas': (24.467, 54.603), 'turnpike': (35.205, 139.085),
 }
 
 
