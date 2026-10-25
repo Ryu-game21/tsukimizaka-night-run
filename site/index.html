@@ -1251,9 +1251,9 @@ const COURSES=[
   env:{terrain:0xb59a6a,ground:0x8a7550,skirt:[0xb8a179,0x6e5640,0x1e1a16],lamps:0,scatter:'none',far:'none',center:'yellow',over:{
     day:{fogD:.0012,fog:0xd8d4c4,sky:['#3f7fc4','#9cc3e4','#ead9b8']},dusk:{fogD:.0016},night:{fogD:.0022,hemi:[0x5a6290,0x141418,1.2]}}}},
  {id:'turnpike',since:'2026-10-26',name:'箱根ターンパイク',en:'HAKONE TURNPIKE',tag:'実在の道 ・ ヒルクライム',diff:2,laps:1,ai:1.0,W:11,runoff:2.2,hw0:5.5,
-  pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3281,runin:300},terrain:{url:'tracks/turnpike/terrain.json'},
+  pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3281,runin:300},terrain:{url:'tracks/turnpike/terrain.json'},geo:{lat0:35.2423553,lon0:139.1398212},
   desc:'小田原の料金所から大観山まで、約13km・標高差約950mを一気に駆け上がる峠の有料道路（片道のタイムアタック）。道の形は OpenStreetMap、高さと周りの山は国土地理院の標高データから作った。前半は勾配7〜10%の上りが続く中高速コーナー、後半は尾根沿いのアップダウン。晴れた日は相模湾や富士山が見える。',
-  credit:{title:'道路の形・標高の地図データ',author:'© OpenStreetMap contributors／国土地理院',url:'https://www.openstreetmap.org/copyright',license:'ODbL・国土地理院コンテンツ利用規約',licUrl:'https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html'},
+  credit:{title:'道路の形（OpenStreetMap）・標高と航空写真（地理院タイル、加工して使用）',author:'© OpenStreetMap contributors／国土地理院',url:'https://maps.gsi.go.jp/development/ichiran.html',license:'ODbL・国土地理院コンテンツ利用規約',licUrl:'https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html'},
   env:{terrain:0x2f4a2a,ground:0x22331e,lamps:0,scatter:'none',far:'none',center:'yellow',over:{
     day:{fogD:.00011,fog:0xc8d8e6},dusk:{fogD:.00016},night:{fogD:.00028}}}},
 ];
@@ -1451,13 +1451,54 @@ function terrainShow(c){
     const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));land.userData.terrain=true;grp.add(land);
     // forest: tall dark conifers (sugi / hinoki), base on the ground
     const tr=new Float32Array(b,o2,j.nt*4),cg=new THREE.ConeGeometry(2.3,13,6);cg.translate(0,6.2,0);
+    // the candidates are in random order: without the aerial photo every 3rd one stands (terrainPhoto replaces them with the
+    // ones on real forest)
     const trees=new THREE.InstancedMesh(cg,new THREE.MeshLambertMaterial({color:0xffffff}),j.nt),d=new THREE.Object3D(),cc=new THREE.Color();
-    for(let i=0;i<j.nt;i++){const s=tr[i*4+3];d.position.set(tr[i*4],tr[i*4+1]-0.3,tr[i*4+2]);d.rotation.set(0,i*2.4,0);d.scale.set(s,s*(0.9+((i*37)%11)/25),s);d.updateMatrix();
-      trees.setMatrixAt(i,d.matrix);cc.setHSL(0.30+((i*13)%7)/100,0.34,0.11+((i*29)%10)/140);trees.setColorAt(i,cc);}
+    const plant=(i,k,col)=>{const s=tr[i*4+3];d.position.set(tr[i*4],tr[i*4+1]-0.3,tr[i*4+2]);d.rotation.set(0,i*2.4,0);d.scale.set(s,s*(0.9+((i*37)%11)/25),s);d.updateMatrix();
+      trees.setMatrixAt(k,d.matrix);if(col)cc.copy(col);else cc.setHSL(0.30+((i*13)%7)/100,0.34,0.11+((i*29)%10)/140);trees.setColorAt(k,cc);};
+    let n=0;for(let i=0;i<j.nt;i+=3)plant(i,n++);trees.count=n;
     grp.add(trees);
+    if(c.geo)terrainPhoto(c,land,trees,tr,j.nt,plant);
     if(j.sea!=null){const sp=new THREE.PlaneGeometry(60000,60000);sp.rotateX(-Math.PI/2);const sea=new THREE.Mesh(sp,new THREE.MeshLambertMaterial({color:0x2a5f86}));sea.position.y=j.sea;grp.add(sea);}
     TERR[c.id]=grp;modelLoading[key]=false;if(C===c)world.add(grp);
   })).catch(e=>{modelLoading[key]='fail';delete TERR['_'+c.id];console.warn('terrain load failed',e);});
+}
+/* the real view (2026-10-25): GSI aerial photos (地理院タイル「全国最新写真（シームレス）」, zoom 15, ~3.9 m a pixel) over the
+   road and 1.5 km around it, loaded live from GSI by the page (no copy is stored; the course credit names the source and
+   that it is processed). The photo is laid on the ground with planar UVs (white vertex colours inside it, the map colours
+   outside with a white border so the edge blends), and the trees are re-planted only where the photo shows forest, tinted
+   by it. Where the page cannot reach GSI (the Claude build) nothing changes. */
+function terrainPhoto(c,land,trees,tr,nt,plant){
+  const g=c.geo,CXg=Math.cos(g.lat0*Math.PI/180)*111320,CZg=110574,M=c.p2p?c.p2p.n0:c.pts.length/3;
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(let k=0;k<M;k++){const x=c.pts[k*3],z=c.pts[k*3+2];x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);}
+  x0-=1500;x1+=1500;z0-=1500;z1+=1500;
+  const Z=15,PX=x=>((g.lon0+x/CXg)+180)/360*2**Z*256,PY=z=>{const r=(g.lat0-z/CZg)*Math.PI/180;return(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**Z*256;};
+  const X0=PX(x0),X1=PX(x1),Y0=PY(z0),Y1=PY(z1),W=Math.ceil(X1-X0),H=Math.ceil(Y1-Y0);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');ctx.fillStyle='#34452c';ctx.fillRect(0,0,W,H);
+  const jobs=[];
+  for(let ty=Math.floor(Y0/256);ty<=Math.floor(Y1/256);ty++)for(let tx=Math.floor(X0/256);tx<=Math.floor(X1/256);tx++)
+    jobs.push(new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{ctx.drawImage(im,tx*256-X0,ty*256-Y0);res(1);};im.onerror=()=>res(0);
+      im.src='https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/'+Z+'/'+tx+'/'+ty+'.jpg';}));
+  Promise.all(jobs).then(r=>{
+    const ok=r.reduce((a,b)=>a+b,0);if(ok<jobs.length*0.7){console.warn('aerial photo: '+ok+'/'+jobs.length+' tiles');return;}
+    let px;try{px=ctx.getImageData(0,0,W,H).data;}catch(e){return;}
+    ctx.strokeStyle='#fff';ctx.lineWidth=6;ctx.strokeRect(0,0,W,H);
+    // ground: planar UVs over the photo, white inside it so the photo shows as it is
+    const geo=land.geometry,pos=geo.attributes.position.array,ca=geo.attributes.color.data.array,nv=pos.length/3,uv=new Float32Array(nv*2),col=new Uint8Array(nv*3);
+    for(let i=0;i<nv;i++){const u=(pos[i*3]-x0)/(x1-x0),v=(pos[i*3+2]-z0)/(z1-z0),inside=u>0.004&&u<0.996&&v>0.004&&v<0.996;
+      uv[i*2]=Math.min(1,Math.max(0,u));uv[i*2+1]=1-Math.min(1,Math.max(0,v));
+      for(let k=0;k<3;k++)col[i*3+k]=inside?255:ca[i*4+k];}   // the map colours (RGBA, 4 bytes a vertex) outside the photo
+    geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));geo.setAttribute('color',new THREE.BufferAttribute(col,3,true));
+    const tex=new THREE.CanvasTexture(cv);tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    land.material.map=tex;land.material.needsUpdate=true;
+    // trees only on forest, coloured like it
+    const cc=new THREE.Color();let n=0;
+    for(let i=0;i<nt&&n<15000;i++){const x=tr[i*4],z=tr[i*4+2],u=(x-x0)/(x1-x0),v=(z-z0)/(z1-z0);if(u<=0||u>=1||v<=0||v>=1)continue;
+      const o=(Math.floor(v*H)*W+Math.floor(u*W))*4,R=px[o],G=px[o+1],B=px[o+2];
+      if(!(G>R+3&&G>=B-4&&R+G+B<330))continue;
+      cc.setRGB(R/255*0.55,G/255*0.62,B/255*0.5);plant(i,n++,cc);}
+    if(n>500){trees.count=n;trees.instanceMatrix.needsUpdate=true;if(trees.instanceColor)trees.instanceColor.needsUpdate=true;}
+  });
 }
 function loadTrack(c){
   const key='trk:'+c.id;
@@ -1669,7 +1710,11 @@ function buildCourse(ci){
   const shoulder=new THREE.MeshLambertMaterial({color:0x2a2620,side:THREE.DoubleSide});
   ribbon(i=>[HALF,BK[i]*HALF-0.02,RAIL+0.4,BK[i]*(RAIL+0.4)-0.03],shoulder,10,R0,R1);ribbon(i=>[-HALF,-BK[i]*HALF-0.02,-RAIL-0.4,-BK[i]*(RAIL+0.4)-0.03],shoulder,10,R0,R1);
   const railM=new THREE.MeshLambertMaterial({color:0xb9bec8,emissive:0x1a1c24,side:THREE.DoubleSide});
-  ribbon(i=>[RAIL,BK[i]*RAIL+0.45,RAIL,BK[i]*RAIL+0.85],railM,10,R0,R1);ribbon(i=>[-RAIL,-BK[i]*RAIL+0.45,-RAIL,-BK[i]*RAIL+0.85],railM,10,R0,R1);
+  if(C.terrain){   // a W-beam rail like the real road's: galvanised, corrugated
+    const rm=new THREE.MeshStandardMaterial({color:0xc4c9d0,metalness:.55,roughness:.42,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.8;}
+    const WB=[[0,.44],[.07,.52],[0,.6],[.07,.68],[0,.76]];
+    for(const sd of[1,-1])for(let k=0;k<4;k++){const a=WB[k],b=WB[k+1];ribbon(i=>[sd*(RAIL-a[0]),BK[i]*sd*RAIL+a[1],sd*(RAIL-b[0]),BK[i]*sd*RAIL+b[1]],rm,10,R0,R1);}
+  }else{ribbon(i=>[RAIL,BK[i]*RAIL+0.45,RAIL,BK[i]*RAIL+0.85],railM,10,R0,R1);ribbon(i=>[-RAIL,-BK[i]*RAIL+0.45,-RAIL,-BK[i]*RAIL+0.85],railM,10,R0,R1);}
   if(!C.terrain){
     const gm=E.sea?new THREE.MeshLambertMaterial({color:E.seaCol,emissive:timeSel==='night'?0x02060c:0x0a1628}):new THREE.MeshLambertMaterial({color:E.ground});
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),gm);

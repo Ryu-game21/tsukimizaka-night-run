@@ -80,6 +80,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   地面は `terrain:{url}` → `terrainShow`（`tracks/<id>/terrain.json`＋`terrain0.png`：頂点・三角形・木・頂点色）。遠くの土地（7km より先）は近くに縮めて描き、標高 1000m より上も縮める（大観山から見た富士山がほぼ実際の角度）。camera.far はこのコースだけ 24000。
   作り方：ブラウザで `tools/osm_fetch.js`（overpass-api.de のページで実行、道の名前・範囲・起点を設定）→ `work/<id>/raw.json`・`raw2.json` → `python3 tools/real_course.py <id>`（道の中心線 4m 間隔・橋は谷の上を直線・勾配の平滑化・カーブからバンク、
   道の下に地面が出ないかの検査つき）→ `work/<id>/course.json` を `XXX_DATA` に入れる。クレジットは「© OpenStreetMap contributors／国土地理院」（ODbL）。
+  実際の景色（`terrainPhoto`、`geo:{lat0,lon0}`）：地理院タイルの航空写真（seamlessphoto、z15・約3.9m/px）を道の周り1.5kmまでページが直接読み込み（保存はしない）、地面に平面 UV で貼る（写真の中は頂点色を白に、外は地図の色、境目は白い縁でなじませる）。木の候補（Python が 24000 本、ランダム順）は写真が森の所だけ立て、色も写真から。読めない環境（Claude 版の CSP）では候補の3本に1本。ガードレールはこのコースだけ W 形（`C.terrain`）。
+  Unity 版の試作（`tools/unity_export.py`・`tools/unity_car.py`・`tools/unity/`、ブランチ turnpike）：ユーザーの判断でブラウザ版に戻した（Unity の光・地形の見た目は three.js に持ってこられない、Asset Store 素材は配布に使わない）。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
   挙動（2026-10-25 本番に反映）：`DF[車]`（200km/h での追加グリップの割合、`dfK`）のダウンフォース、`vCorner` で推奨速度・AI のラインにも反映。向き `pl.th` と進む向き（`pl.th-pl.beta`）を分け、前輪の限界でアンダー、

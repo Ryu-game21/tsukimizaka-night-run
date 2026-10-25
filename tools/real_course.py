@@ -153,9 +153,10 @@ np.savez(D + 'mesh.npz', P=P, VX=VX, VY=VY, VB=VB, VBR=VBR, start=len(RY), fin=l
 # trees: forest in a band beside the road, on the ground
 trees = []
 interp_simplex = tri
-cand = np.c_[rng.uniform(VX[:, 0].min() - 600, VX[:, 0].max() + 600, 90000), rng.uniform(VX[:, 1].min() - 600, VX[:, 1].max() + 600, 90000)]
+cand = np.c_[rng.uniform(VX[:, 0].min() - 600, VX[:, 0].max() + 600, 260000), rng.uniform(VX[:, 1].min() - 600, VX[:, 1].max() + 600, 260000)]
 dd, kk = road.query(cand)
-w = (dd > HW + 4.5) & (dd < 260) & (rng.random(len(cand)) < np.clip(1.25 - dd / 260, 0, 1))
+# candidates out to 450 m (thinning with distance); the game keeps the ones on forest in the aerial photo, or every 3rd without it
+w = (dd > HW + 4.5) & (dd < 450) & (rng.random(len(cand)) < np.clip(1.3 - dd / 450, 0, 1))
 cand = cand[w]
 si = tri.find_simplex(cand); cand = cand[si >= 0]; si = si[si >= 0]
 r = cand - tri.transform[si, 2]; bc = np.einsum('ijk,ik->ij', tri.transform[si, :2], r); bc = np.c_[bc, 1 - bc.sum(1)]
@@ -163,7 +164,7 @@ hy = (P[T[si], 2] * bc).sum(1)
 for (x, z), y in zip(cand, hy):
     if y < 2: continue
     trees.append((x, y, z, rng.uniform(0.75, 1.6)))
-trees = np.array(trees[:9000], np.float32)
+trees = np.array(trees[:24000], np.float32)   # random order: any prefix is an even sample
 print('trees', len(trees))
 
 # far land (beyond 7 km of the middle of the road) drawn closer and lower so it stays inside the camera range
