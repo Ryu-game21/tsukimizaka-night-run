@@ -95,6 +95,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   whine（ギア鳴き）・hybrid・scK。全車に燃焼のばらつき・回転の揺れ・メカ音、運転席視点では車内のこもり（`S2.cab`）と路面の継ぎ目。
   破裂音は `A.pop` バスで大きめに鳴らし、鳴る瞬間だけエンジンを下げる（`s2Dip`）。`EXH[車]` はマフラー出口 `[x,y,z(,横出し±1)]`（車の座標）で、
   破裂音に合わせて `rig_body` に付けた炎のスプライトと点光源が出る（`fxFlame`）。車を追加したら後ろからの描画でマフラー位置を確かめて `EXH` に入れる（モデルにマフラーがない GR ヤリス・GT-R GT3・S2000 は推定）。
+- `loading`（`rivalsWanted`/`wantRivals`、`courseDirty`）… メニューで車を選ぶたびの待ちを減らす（2026-10-25）：まだ読み込んでいないライバル車とセーフティカーは、レースのスタート準備（`go`）か `start()` まで読み込まない（メニューの背景には読み込み済みのライバルだけ出る）。
+  車の選択ではコースを作り直さず `courseDirty` にして、車の段階を離れる時か `start()` で1回だけ `buildCourse`（推奨速度が車で変わるため）。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。
