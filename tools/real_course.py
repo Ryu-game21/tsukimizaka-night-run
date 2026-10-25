@@ -147,6 +147,8 @@ for idx in np.where(over > 0.02)[0]:
 for v in fixv:
     dd, kk = road.query(P[v, :2]); P[v, 2] = min(P[v, 2], VY[kk] - 0.5)
 if fixv: print('lowered', len(fixv), 'vertices')
+# for other engines (tools/unity_export.py): the ground samples in real coordinates and the drawn road
+np.savez(D + 'mesh.npz', P=P, VX=VX, VY=VY, VB=VB, VBR=VBR, start=len(RY), fin=len(RY) + FIN, hw=HW)
 
 # trees: forest in a band beside the road, on the ground
 trees = []
