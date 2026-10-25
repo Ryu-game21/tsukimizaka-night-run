@@ -6,7 +6,7 @@ const fs=require('fs'),path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8');
 const i0=html.lastIndexOf('<script>'),i1=html.indexOf('</script>',i0);
 let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
-src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},
+src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},get TL(){return TL},get HW(){return HW},get NR(){return NR},get bestLap(){return best},
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
 get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},goldTime,chDailies,chWeekly,chEv,chSync,totalPts,lvOf,renderChal,cosSet,cosGet,chOwnedTitles,TITLES,get chToday(){return chToday},set chToday(v){chToday=v},get chWk(){return chWk},set chWk(v){chWk=v},cleanProf,get SCL(){return SCL},get LAPS(){return LAPS},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ},GR,grResultRows,csPull,csPush,csMergeAch,achBlank,set ACHS(v){ACHS=v},get csDoc(){return csDoc},towerEntries,get towerPos(){return towerPos},get finishRank(){return finishRank}};\n`+src.slice(end);
@@ -252,5 +252,12 @@ ok(t.state==='finish'&&t.finishRank===2&&/1位 Rival[^]*2位 あなた/.test(t.g
     // cars with lag:1 (e.g. 911 turbo 930) spool up from standstill on purpose, so they run ~0.8 s slower than the catalogue figure
     ok(res.at!=null&&Math.abs(res.at-c.t100)<(c.lag?1.0:0.25)&&Math.abs(res.mt-res.at)<0.1,`0-100 ${c.id}: AT ${res.at&&res.at.toFixed(2)} MT ${res.mt&&res.mt.toFixed(2)} (catalogue ${c.t100})`);}
   t.setTM('at');
+  // track limits: a free lap with all four wheels past the edge of the track for 0.3 s is not recorded
+  {t.selectCar(3);t.selectCourse(2);t.setMode('free');t.start();step(260);for(let f=0;f<4000&&t.pl.lap<1;f++)drive(1,40);
+   drive(Math.floor(t.N*0.3),40);const n0=t.laps.length,b0=t.bestLap,N=t.N;let k=t.pl.idx;
+   for(let f=0;f<40;f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],o=t.HW[k]+3;t.pl.x=p.x+n.x*o;t.pl.z=p.z+n.z*o;t.pl.th=t.TH[k];t.pl.v=40;step(1);}
+   ok(t.TL.bad,'all four wheels past the edge for 0.3 s is a track-limit offence');
+   drive(Math.floor(N*0.8),40);ok(t.laps.length===n0+1&&t.TL.lapBad[n0]===true&&t.bestLap===b0&&!t.TL.bad,'the lap with the offence is not recorded (best stays '+b0+')');
+   drive(Math.floor(N*1.05),40);ok(t.laps.length===n0+2&&!t.TL.lapBad[n0+1]&&t.bestLap!=null&&t.bestLap!==b0,'the next clean lap counts');}
 }catch(e){ok(false,'exception: '+e.message+' '+e.stack.split('\n')[1]);}
 origLog(fails?`\n${fails} FAILED`:'\nALL PASSED');process.exit(fails?1:0);},30);

@@ -89,6 +89,8 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   ガードレールは谷側だけ（`railsReal`：9.5m/12m先の地面が道より上なら切り土＝側溝と縁石）。斜面は苔色のノイズ（`vegDetail` の `vUp`）、ススキ区間の地面は枯れ草色（`groundDry`）。昼の bloom はこのコースだけ弱い。
   **tracks/ はブラウザに1週間キャッシュされる**（`vercel.json`）：terrain.json を作り直したら `terrain:{url:'…terrain.json?v=N'}` の N を上げる（png にも同じ ?v が付く）。2026-10-26、古い terrain.json（side なし）が残っていて景色が1つも出なかった。
   Unity 版の試作（`tools/unity_export.py`・`tools/unity_car.py`・`tools/unity/`、ブランチ turnpike）：ユーザーの判断でブラウザ版に戻した（Unity の光・地形の見た目は three.js に持ってこられない、Asset Store 素材は配布に使わない）。
+- `track limits`（`TL`/`tlCheck`/`tlHit`/`tlLap`、`#tlw`、2026-10-26、ユーザー「走れる範囲が増えてタイムが異様に速い」）… 車の中心が `HW[i]`＋車幅の半分＋0.25m より外（4輪ともラインの外）に0.3秒いたら違反。
+  フリー走行はその周を記録しない（ベスト・ランキング・ゴースト・ゴールド・リプレイ・実績、HUD のタイムが赤の取り消し線、結果に「無効」）。レースは警告3回、4回目から1回ごとに +5秒（TOTAL に加算、順位は5秒以内にゴールしそうな相手も前に数える）。違反した周はベストラップにならない。SC 中・スタート前・ゴール後は数えない。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
   挙動（2026-10-25 本番に反映）：`DF[車]`（200km/h での追加グリップの割合、`dfK`）のダウンフォース、`vCorner` で推奨速度・AI のラインにも反映。向き `pl.th` と進む向き（`pl.th-pl.beta`）を分け、前輪の限界でアンダー、

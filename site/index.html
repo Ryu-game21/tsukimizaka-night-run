@@ -589,13 +589,15 @@ body.phl .press{display:none}
 .realinfo .warn{color:#ffb4a0;font-weight:500}
 #times.dis{opacity:.4;pointer-events:none}
 
+#time.tlbad{color:#ff5a4a;text-decoration:line-through;text-decoration-thickness:2px}
+.tlw{font-size:11px;font-weight:700;color:#ffb14a;margin-top:2px;letter-spacing:.04em}
 </style>
 
 <canvas id="gl" aria-label="一人称視点のレース画面"></canvas>
 
 <div class="hud" id="tl" hidden>
   <div class="k" id="lapK">LAP</div><div class="lap" id="lap">1/3</div>
-  <div class="k" id="timeK">TIME</div><div class="t" id="time">0:00.000</div>
+  <div class="k" id="timeK">TIME</div><div class="t" id="time">0:00.000</div><div class="tlw" id="tlw" hidden></div>
   <div class="k">LAST</div><div id="last">-:--.---</div>
   <div class="k">BEST</div><div id="best">-:--.---</div>
   <div class="k" id="wxK" hidden>WEATHER</div><div class="gtag" id="wxV" hidden></div>
@@ -4166,7 +4168,7 @@ function start(){
   {const on=realOn&&!!realFor(C.id);$('wxK').hidden=$('wxV').hidden=!on;if(on){const r=realFor(C.id);$('wxV').textContent=WMO_JA(r.code)+' '+(r.temp!=null?Math.round(r.temp)+'°C':'');}
    const w=realOn?realWarn():'';if(w)setTimeout(()=>showMsg(w.length>40?'天候データ：最新ではありません':w,true,2.5),1200);}
   document.body.classList.toggle('mt',isMT());$('hint').textContent=(isMT()?'E/Q シフト ・ ':'')+'C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了';
-  grEnd();aiBuild();resetRace();tyreReset();radioReset();grStart();scStart();SCL=scar||GR.on?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
+  grEnd();aiBuild();resetRace();tyreReset();radioReset();tlReset();grStart();scStart();SCL=scar||GR.on?1:0;achRaceStart();liveT=0;liveLast='';liveWrite(tut?'':mode);radioFreeStart();if(mode==='free'&&!tut)prepareGhost();else{ghostInfo=null;}
   state='count';loadSignal();countT=countTotal=0.6+(mode==='free'?SIG[3]-SIG[2]:SIG[3]-SIG[0]);sigOn=playSignal(mode==='free'?SIG[2]-0.004:SIG[0]-0.004);if(sigOn)sigT0=ac.currentTime;rec=[];recT=0;applyOffset();camera.updateProjectionMatrix();camTh=pl.th;$('showName').hidden=true;
   $('menu').hidden=true;$('result').hidden=true;setHud(true);$('tut').hidden=!tut;
   $('pos').hidden=mode==='free';towerReset();document.body.classList.toggle('racing',mode!=='free');$('lapK').textContent=mode==='free'?'LAP ・ FREE':'LAP';$('timeK').textContent=mode==='free'?'LAP TIME':'TIME';
@@ -4198,16 +4200,42 @@ $('retryBtn').addEventListener('click',start);
 $('menuBtn').addEventListener('click',()=>toMenu('course'));
 $('rpBtn').addEventListener('click',()=>startReplay(sessRp,'result'));
 $('rpMenu').addEventListener('click',()=>startReplay(loadRp(),'menu'));
+/* track limits (2026-10-26, the user: with the wider drivable area (paved run-offs, the scanned walls) laps got far too
+   fast): all four wheels past the edge of the track (|off| > HW + half the car + 0.25 m) for 0.3 s is an offence.
+   Free run: that lap is not recorded (no best / ranking / ghost / gold / replay / achievements). Race: the lap cannot be a
+   best lap; 3 warnings, then +5 s per offence on the total time, and the finishing position takes it into account. */
+const TL={out:0,hit:false,bad:false,n:0,pen:0,lapBad:[]};
+function tlReset(){TL.out=0;TL.hit=false;TL.bad=false;TL.n=0;TL.pen=0;TL.lapBad=[];tlHud();}
+function tlLap(){TL.bad=false;tlHud();}
+function tlHud(){const e=$('time');if(e)e.classList.toggle('tlbad',TL.bad);const w=$('tlw');if(!w)return;
+  const on=mode==='race'&&TL.n>0;w.hidden=!on;if(on)w.textContent='トラックリミット '+Math.min(TL.n,3)+'/3'+(TL.pen?'　+'+TL.pen+'秒':'');}
+function tlCheck(dt){
+  if(state!=='race'||tut||pl.lap<1||preGreen()||(typeof scOn==='function'&&scOn())||!HW){TL.out=0;TL.hit=false;return;}
+  if(typeof P2P!=='undefined'&&P2P&&pl.idx>=P2P.fin)return;
+  const lim=HW[pl.idx]+CAR.body.w*0.5+0.25;
+  if(Math.abs(pl.off)>lim){TL.out+=dt;if(TL.out>0.3&&!TL.hit){TL.hit=true;tlHit();}}
+  else{TL.out=0;TL.hit=false;}
+}
+function tlHit(){
+  TL.bad=true;
+  if(mode==='free'){showMsg('トラックリミット　このラップは無効',true,2.2);radioSay('tl_free',['トラックリミットだ。この周のタイムは記録されない','4輪ともラインの外に出た。この周は無効だ','コースの外を走ってる。タイムは取り消しだ'],4,'alert',4);}
+  else{TL.n++;if(TL.n>3)TL.pen+=5;
+    showMsg(TL.n<=3?'トラックリミット　警告 '+TL.n+'/3':'トラックリミット　+5秒ペナルティ',true,2.2);
+    radioSay('tl_race',TL.n<3?[()=>'トラックリミットの警告だ（'+TL.n+'回目）。ラインの内側を守れ']:TL.n===3?['警告3回目だ。次からはタイムペナルティになるぞ']:[()=>'5秒加算のペナルティだ。合計 +'+TL.pen+'秒'],4,'alert',3);}
+  try{tone(520,.12,'square',.05,0);tone(390,.16,'square',.05,.13);}catch(e){}
+  tlHud();
+}
 function showMsg(t,small,dur){const m=$('msg');m.textContent=t;m.classList.toggle('small',!!small);msgT=dur||0;}
 function pop(t,cls){const p=$('pop');p.textContent=t;p.className='hud show '+cls;popT=0.9;}
 function finish(){
   liveWrite('');state='finish';
-  finishRank=1+AI.filter(a=>!a.out&&a.fin).length;plFin=raceT;
+  const tlEta=a=>{if(a.fin)return 0;const fs=(typeof P2P!=='undefined'&&P2P)?P2P.fin*ds:(LAPS+SCL)*L;return (fs-a.s)/Math.max(a.v,10);};
+  finishRank=1+AI.filter(a=>!a.out&&(a.fin||(TL.pen>0&&!a.gh&&tlEta(a)<TL.pen))).length;plFin=raceT+TL.pen;
   $('rCourse').textContent='FINISH ・ '+C.name+' ・ '+CAR.name+' ・ '+(GR.on?'ゴースト対戦':'AI '+aiLv().n);
   $('rPos').innerHTML=finishRank+'<span>位 / '+(1+AI.filter(a=>!a.out).length)+'台</span>';
-  const bl=Math.min(...laps);
-  $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===bl?'best':''}">${fmt(t)}</td></tr>`).join('')
-    +`<tr><td>TOTAL</td><td>${fmt(raceT-raceT0)}</td></tr><tr><td>タイヤ</td><td>${tyreStat.n>1?'平均 '+Math.round(tyreStat.sum/tyreStat.n)+'°C ・ 適温 '+Math.round(tyreStat.ok/tyreStat.n*100)+'%':'—'}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
+  const bl=Math.min(...laps.filter((t,i)=>!TL.lapBad[i]));
+  $('rTable').innerHTML=laps.map((t,i)=>`<tr><td>LAP ${i+1}${TL.lapBad[i]?' <small style="display:inline;color:#ff7a6a">トラックリミット（無効）</small>':''}${lapSectors[i]?`<small>${lapSectors[i].map((v,j)=>'S'+(j+1)+' '+fmtS(v)).join('　')}</small>`:''}</td><td class="${t===bl?'best':''}">${fmt(t)}</td></tr>`).join('')
+    +(TL.pen?`<tr><td>トラックリミット</td><td>+${TL.pen}秒（${TL.n}回）</td></tr>`:'')+`<tr><td>TOTAL</td><td>${fmt(raceT-raceT0+TL.pen)}</td></tr><tr><td>タイヤ</td><td>${tyreStat.n>1?'平均 '+Math.round(tyreStat.sum/tyreStat.n)+'°C ・ 適温 '+Math.round(tyreStat.ok/tyreStat.n*100)+'%':'—'}</td></tr><tr><td>コーナー GREAT</td><td>${score.great} / ${score.total}</td></tr><tr><td>自己ベスト</td><td>${fmt(best)}</td></tr><tr><td>ゴールドタイム<small>${CAR.short||CAR.name} ・ ${WEATHERS[wxSel].n}</small></td><td>${fmt(goldTime())}${ACHS&&ACHS.gold[C.id]?' ✓':''}</td></tr>`;
   if(GR.on)$('rTable').insertAdjacentHTML('afterbegin',grResultRows());
   renderResultRank();$('rpBtn').hidden=!sessRp;
   if(!tut)finCineStart();
@@ -5301,7 +5329,7 @@ function renderSectors(){
   }
   $('secs').innerHTML=h;
 }
-function sectorHit(k){
+function sectorHit(k,bad){
   const t=raceT-lapStart;
   while(curSplits.length<k-1)curSplits.push(null);  // a missed marker (e.g. after R) leaves a gap
   curSplits[k-1]=t;
@@ -5310,11 +5338,13 @@ function sectorHit(k){
   $('splitN').textContent=k<4?'SECTOR '+k:'LAP';$('splitT').textContent=fmt(t);
   const e=$('splitD');e.textContent=d==null?'':fmtD(d);e.className=d==null?'':d<=0?'fast':'slow';
   $('split').classList.add('show');splitT=2.4;radioSector(k,t);
+  if(k===4&&bad){lapSectors.push(null);curSplits=[];renderSectors();return;}
   if(k===4){lastSplits=curSplits.slice();lapSectors.push(lastSplits.map((v,i)=>v==null?null:v-(i&&lastSplits[i-1]!=null?lastSplits[i-1]:0)));curSplits=[];}
   renderSectors();
 }
-function recordLap(lt,announce){
-  laps.push(lt);$('last').textContent=fmt(lt);
+function recordLap(lt,announce,bad){
+  laps.push(lt);TL.lapBad[laps.length-1]=!!bad;$('last').textContent=fmt(lt)+(bad?' ✕':'');
+  if(bad){achLapStart();if(announce)showMsg('トラックリミット　'+fmt(lt)+' は記録しません',true,2.2);rdLap={over:0,slow:0,dirt:0,centre:0,centreN:0,worst:[null,null,null,null],said:{}};return;}
   const prevBest=best,recT=mode==='free'&&announce?fxRecordTime():null;
   if(best==null||lt<best){best=lt;try{localStorage.setItem(bestKey(C),String(lt));}catch(e){}
     if(lastSplits&&lastSplits.every(v=>v!=null)){bestSplits=lastSplits.slice();try{localStorage.setItem(splitKey(C),JSON.stringify(bestSplits));}catch(e){}}
@@ -5475,6 +5505,7 @@ function updatePlayer(dt,canDrive){
       }
     }
   }
+  tlCheck(dt);
   // laps (point-to-point: the start line begins the run, the finish line ends it)
   if((prev>N*0.8&&pl.idx<N*0.2)||(P2P&&prev<P2P.fin&&pl.idx>=P2P.fin&&pl.idx-prev<60)){
     pl.lap++;
@@ -5482,21 +5513,22 @@ function updatePlayer(dt,canDrive){
       pl.maxLap=pl.lap;
       if(mode==='free'){
         if(pl.lap>=2){
-          const lt=raceT-lapStart;sectorHit(4);recordLap(lt,true);
+          const lt=raceT-lapStart,bad=TL.bad;sectorHit(4,bad);recordLap(lt,true,bad);
+          if(!bad){
           if(!ownGhost||lt<ownGhost.t){ownGhost={t:lt,d:rec.slice()};try{localStorage.setItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id),JSON.stringify(ownGhost));}catch(e){}
           }
           if(ghostInfo&&ghostInfo.rec!=null&&lt<ghostInfo.rec&&ghost&&ghost!==ownGhost&&ghostInfo.name!==PLAYER){achFlag('ghost');chEv('ghost',{course:C.id,car:CAR.id});}
           if(!ghostInfo||ghostInfo.rec==null||lt<ghostInfo.rec){ghost=ownGhost&&ownGhost.t===lt?ownGhost:{t:lt,d:rec.slice()};ghostInfo={name:PLAYER||'あなた',car:CAR.id,t:lt,rec:lt};setGhostCar(CAR.id);renderGhostTag();}
           if(best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rec,4);
-          rpLap(lt);
+          rpLap(lt);}
         }
-        lapStart=raceT;rec=[];recT=0;rpRec=[];rpT=0;achLapStart();
+        lapStart=raceT;rec=[];recT=0;rpRec=[];rpT=0;achLapStart();tlLap();
       }else{
         if(pl.lap>=2&&pl.lap-1<=SCL){   // the safety-car lap is done: the race (and its lap 1) starts here, rolling
           lapStart=raceT;raceT0=raceT;curSplits=[];rpRec=[];rpT=0;renderSectors();if(GR.on)grGreen();}
-        else if(pl.lap>=2){const lt=raceT-lapStart;sectorHit(4);lapStart=raceT;recordLap(lt,pl.lap<=LAPS+SCL);
-          if(pl.lap>=3&&best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rpRec,6);   // flying laps only: lap 1 starts from the grid (with the safety car: a rolling start, so it counts)
-          rpLap(lt);}
+        else if(pl.lap>=2){const lt=raceT-lapStart,bad=TL.bad;sectorHit(4,bad);lapStart=raceT;recordLap(lt,pl.lap<=LAPS+SCL,bad);tlLap();
+          if(!bad&&pl.lap>=3&&best!=null&&lt<=best+1e-9)uploadGhost(C,CAR,lt,rpRec,6);   // flying laps only: lap 1 starts from the grid (with the safety car: a rolling start, so it counts)
+          if(bad){rpRec=[];rpT=0;}else rpLap(lt);}
         if(pl.lap===LAPS+SCL&&LAPS>1)showMsg('FINAL LAP',true,2);
         if(pl.lap>LAPS+SCL)finish();
       }
