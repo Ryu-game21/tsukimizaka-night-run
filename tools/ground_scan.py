@@ -240,7 +240,7 @@ def main():
                     if miss > 2 and oo[j] > hw[k]: break
             pv[k, sd] = e
     pv = np.minimum.reduce([np.roll(pv, -1, 0), pv, np.roll(pv, 1, 0)])   # neighbours agree (no 4 m tongues)
-    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(), 'pp': np.round(pv[:, 0], 1).tolist(), 'pn': np.round(pv[:, 1], 1).tolist(),
+    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(), 'pv': base64.b64encode(np.clip(np.floor(pv * 2), 0, 255).astype(np.uint8).tobytes()).decode(),   # 0.5 m, pairs (+NR, -NR)
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode(),
            'fl': base64.b64encode(zlib.compress(fl_enc(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')

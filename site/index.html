@@ -1437,6 +1437,7 @@ function groundApply(c){
   for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
     RWP[i]=Math.max(HW[i]+0.3,g.wp[k]*(1-f)+g.wp[k2]*f);RWN[i]=Math.max(HW[i]+0.3,g.wn[k]*(1-f)+g.wn[k2]*f);}
   // how far the pavement really goes (pit-exit lanes, paved run-off): off the band but on asphalt is not dirt
+  if(g.pv&&!g.pp){const b=atob(g.pv);g.pp=[];g.pn=[];for(let k=0;k*2+1<b.length;k++){g.pp.push(b.charCodeAt(k*2)/2);g.pn.push(b.charCodeAt(k*2+1)/2);}}
   if(g.pp&&g.pp.length===M){PVP=new Float32Array(N);PVN=new Float32Array(N);
     for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
       PVP[i]=Math.min(RWP[i],Math.max(HW[i],Math.min(g.pp[k],g.pp[k2])));PVN[i]=Math.min(RWN[i],Math.max(HW[i],Math.min(g.pn[k],g.pn[k2])));}}
