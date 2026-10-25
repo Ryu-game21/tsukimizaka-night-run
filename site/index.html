@@ -138,6 +138,28 @@ body.cine .hud:not(#msg):not(#fxBan),body.cine .pad,body.cine .vbar,body.cine #m
 #tl .secs .cur{color:var(--lcd)}
 #tl .secs .fast{color:var(--green);text-shadow:0 0 8px rgba(106,216,138,.5)}
 #tl .secs .slow{color:var(--red);text-shadow:0 0 8px rgba(255,90,70,.4)}
+#battle{left:50%;top:35%;transform:translateX(-50%);display:grid;justify-items:center;gap:3px;opacity:0;transition:opacity .3s;pointer-events:none}
+#battle.on{opacity:1}
+#battle .row{display:flex;align-items:center;gap:10px;height:34px;padding:0 14px 0 0;background:linear-gradient(90deg,rgba(6,10,22,0),rgba(6,10,22,.62) 18%,rgba(6,10,22,.62) 82%,rgba(6,10,22,0));transition:opacity .2s}
+#battle .row:empty,#battle .row.off{display:none}
+#battle .tg{width:34px;height:24px;display:grid;place-items:center;transform:skewX(-14deg);font:700 13px/1 var(--f-dot);color:#061019;background:var(--bc);box-shadow:0 0 10px var(--bc)}
+#battle .tg span{transform:skewX(14deg)}
+#battle .nm{font:700 15px/1 var(--f-body);letter-spacing:.06em;color:#e9eef8;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+#battle .dv{font:italic 700 30px/1 var(--f-dot);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#fff;text-shadow:0 0 1px #000,0 2px 4px rgba(0,0,0,.9),0 0 14px var(--bg),0 0 3px var(--bc)}
+#battle .dv small{font-size:16px;margin-left:2px;color:var(--bc)}
+#battle .ah{--bc:#5fd4ff;--bg:rgba(60,190,255,.45)}
+#battle .bh{--bc:#ffc04d;--bg:rgba(255,170,40,.4)}
+#battle.warn .bh{--bc:#ff4a3d;--bg:rgba(255,50,40,.75)}
+#battle.warn .bh .tg{animation:bwarn .3s steps(2) infinite}
+#battle.warn .bh .dv{animation:bwarn .3s steps(2) infinite}
+@keyframes bwarn{50%{opacity:.35}}
+#battle .goal{--bc:#ffd23a;--bg:rgba(255,190,0,.7);height:40px;margin-bottom:4px}
+#battle .goal .tg{width:40px;height:28px;background:conic-gradient(#fff 0 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/10px 10px;box-shadow:0 0 12px rgba(255,210,58,.8)}
+#battle .goal .nm{font:700 16px/1 var(--f-dot);letter-spacing:.32em;color:#ffd23a}
+#battle .goal .dv{font-size:36px}
+#slip{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 168px);transform:translateX(-50%) scale(.92);padding:4px 12px 6px;border-radius:3px;background:rgba(8,20,32,.55);border:1px solid rgba(110,200,255,.45);color:#bfe6ff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.32em;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-shadow:0 0 8px rgba(80,180,255,.8)}
+#slip.on{opacity:1;transform:translateX(-50%) scale(1)}#slip i{display:block;height:2px;margin-top:4px;background:linear-gradient(90deg,#4fc3ff,#b9f0ff);width:0;box-shadow:0 0 6px #4fc3ff}
+body.phl #slip{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
 #split{top:calc(env(safe-area-inset-top,0px) + 178px);left:50%;transform:translateX(-50%);display:flex;align-items:baseline;gap:12px;padding:6px 14px;background:var(--panel);border:1px solid var(--line);border-radius:3px;opacity:0;transition:opacity .25s;white-space:nowrap}
 #split.show{opacity:1}
 #split .sn{font-size:13px;color:var(--dim);letter-spacing:.14em;text-shadow:none}
@@ -597,6 +619,8 @@ body.phl .press{display:none}
 <canvas class="hud" id="gauge" hidden></canvas>
 <div class="hud" id="msg"></div>
 <div class="hud" id="pop"></div>
+<div class="hud" id="slip" aria-hidden="true">SLIPSTREAM<i></i></div>
+<div class="hud" id="battle" aria-hidden="true"><div class="row goal off" id="btGoal"><span class="tg"></span><span class="nm">GOAL</span><span class="dv"><b></b><small>m</small></span></div><div class="row ah off" id="btA"><span class="tg"><span>▲</span></span><span class="nm"></span><span class="dv"><b></b><small>m</small></span></div><div class="row bh off" id="btB"><span class="tg"><span>▼</span></span><span class="nm"></span><span class="dv"><b></b><small>m</small></span></div></div>
 <div class="hud" id="split" aria-live="polite"><span class="sn" id="splitN"></span><b id="splitT"></b><em id="splitD"></em></div>
 <div class="hud" id="hint" hidden>C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了</div>
 <div class="vbar"><button class="vbtn" id="viewBtn" type="button" hidden>視点</button><button class="vbtn" id="endBtn" type="button" hidden>終了</button></div>
@@ -1411,7 +1435,7 @@ function loadTrack(c){
    (wp = +NR side, wn = -NR side) where a barrier, a step, a drop or the edge of the model really is. Before this the
    car rode the road plane out to one symmetric wall distance, so it floated over gravel traps, sank into berms and
    drove through barriers on one side while hitting thin air on the other. Courses without a file keep RW. */
-const GROUND={};let RWP=null,RWN=null,GDY=null,PVP=null,PVN=null;
+const GROUND={};let RWP=null,RWN=null,GDY=null,PVP=null,PVN=null,COV=null;
 function groundLoad(c){
   if(!c.model||GROUND[c.id]||GROUND['_'+c.id])return;GROUND['_'+c.id]=1;
   fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
@@ -1437,6 +1461,8 @@ function groundApply(c){
   for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
     RWP[i]=Math.max(HW[i]+0.3,g.wp[k]*(1-f)+g.wp[k2]*f);RWN[i]=Math.max(HW[i]+0.3,g.wn[k]*(1-f)+g.wn[k2]*f);}
   // how far the pavement really goes (pit-exit lanes, paved run-off): off the band but on asphalt is not dirt
+  // roof over the road (tunnel / overpass): per game sample, for the reverb
+  COV=null;if(g.cv){const b=atob(g.cv);if(b.length===M){COV=new Float32Array(N);for(let i=0;i<N;i++){const k=Math.round(GK[i])%M;COV[i]=b.charCodeAt(k);}}}
   if(g.pv&&!g.pp){const b=atob(g.pv);g.pp=[];g.pn=[];for(let k=0;k*2+1<b.length;k++){g.pp.push(b.charCodeAt(k*2)/2);g.pn.push(b.charCodeAt(k*2+1)/2);}}
   if(g.pp&&g.pp.length===M){PVP=new Float32Array(N);PVN=new Float32Array(N);
     for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
@@ -1555,6 +1581,7 @@ function buildCourse(ci){
   makeEnv(E);
   const outward=new Int8Array(N);for(let i=0;i<N;i++)outward[i]=(NR[i].x*(P[i].x-CX)+NR[i].z*(P[i].z-CZ))>0?1:-1;
   if(C.model)buildModelCourse(E,minY);
+  buildFinish();
   if(!C.model){
 
   // road
@@ -2218,6 +2245,33 @@ function setTime(t){
 try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;if(o.gfx==='high'||o.gfx==='std')opts.gfx=o.gfx;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
+/* the finish line (2026-10-25): on the scanned circuits a chequered strip across the road at the line (the procedural
+   courses already have one with a gantry); on the final lap of a race a lit FINISH gate stands over the line on every
+   course and pulses (finishTick). */
+let FINGATE=null;
+function buildFinish(){
+  const o={},mk=(s0,l)=>{sample(s0,l,o);return new THREE.Vector3(o.x,o.y+.045,o.z);},hw=HW[0];
+  if(C.model){
+    const chk=canvasTex(256,32,(g)=>{for(let x=0;x<32;x++)for(let y=0;y<4;y++){g.fillStyle=(x+y)%2?'#f2f2f2':'#121212';g.fillRect(x*8,y*8,8,8);}});
+    const a=mk(-.9,-hw),b=mk(-.9,hw),c=mk(.9,-hw),d=mk(.9,hw),geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute([a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,d.x,d.y,d.z],3));
+    geo.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,0,1,1,1],2));geo.setIndex([0,2,1,1,2,3]);geo.computeVertexNormals();
+    const m=new THREE.MeshLambertMaterial({map:chk,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+    world.add(new THREE.Mesh(geo,m));
+  }
+  const g=new THREE.Group();sample(0,0,o);g.position.set(o.x,o.y,o.z);g.rotation.y=TH[0];
+  const w=2*(hw+1.4),glow=new THREE.MeshBasicMaterial({color:0xffd23a,transparent:true,opacity:.9,fog:false});
+  for(const x of[-(hw+1.4),hw+1.4]){const p=new THREE.Mesh(new THREE.BoxGeometry(.35,7.2,.35),glow);p.position.set(x,3.6,0);g.add(p);}
+  const ban=canvasTex(1024,128,(c,W,H)=>{for(let x=0;x<64;x++)for(let y=0;y<2;y++){c.fillStyle=(x+y)%2?'#f4f4f4':'#101010';c.fillRect(x*16,y*16,16,16);c.fillRect(x*16,H-32+y*16,16,16);}
+    c.fillStyle='#0a0c16';c.fillRect(0,32,W,H-64);c.font='900 54px system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#ffd23a';c.shadowColor='#ffb000';c.shadowBlur=18;c.fillText('F I N I S H',W/2,H/2+2);});
+  const bm=new THREE.MeshBasicMaterial({map:ban,transparent:true,opacity:.95,fog:false,side:THREE.DoubleSide});
+  const b=new THREE.Mesh(new THREE.PlaneGeometry(w,w/8),bm);b.position.y=7.2+w/16;b.rotation.y=Math.PI;g.add(b);
+  g.visible=false;world.add(g);FINGATE={g,glow,bm};
+}
+function finishTick(){
+  if(!FINGATE)return;const on=mode!=='free'&&state==='race'&&pl.lap-SCL>=LAPS&&!grOut();
+  FINGATE.g.visible=on;if(on){const k=.65+.35*Math.sin(performance.now()/180);FINGATE.glow.opacity=k;FINGATE.bm.opacity=.75+.25*k;}
+}
 function sample(s,lane,out){
   const f=wrap(s)/ds,i=Math.floor(f)%N,j=(i+1)%N,t=f-Math.floor(f);
   out.x=P[i].x+(P[j].x-P[i].x)*t+NR[i].x*lane;out.z=P[i].z+(P[j].z-P[i].z)*t+NR[i].z*lane;
@@ -2228,7 +2282,7 @@ function nearest(x,z,from,win){
   for(let k=-win;k<=win;k++){const i=(from+k+N)%N,dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}
   return bi;
 }
-function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.beta=0;pl.steer=0;pl.off=lane;pl.gear=1;}
+function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.beta=0;pl.slip=0;pl.steer=0;pl.off=lane;pl.gear=1;}
 function resetRace(){
   const ln=W*0.22,grid=[[-9,ln],[-17,-ln],[-25,ln]];
   AI.forEach((a,k)=>{a.s=grid[k][0];a.lane=a.laneT=grid[k][1];a.v=0;a.fin=0;a.skillC=a.skill*C.ai;});
@@ -2594,7 +2648,7 @@ function makeVoice(car,out,full){
   if(full&&(car.turbo||car.sc)){v.tw=ac.createOscillator();v.tw.type='sine';v.tg=gainN(0);v.tw.connect(v.tg);v.tg.connect(out);v.tw.start();}
   return v;
 }
-function killVoice(v){if(!v)return;['osc','osc2','sub','nz','nz2','lfo','tw'].forEach(k=>{try{v[k]&&v[k].stop();}catch(e){}});try{v.out.disconnect();v.tg&&v.tg.disconnect();v.ikg&&v.ikg.disconnect();}catch(e){}}
+function killVoice(v){if(!v)return;(v.extra||[]).forEach(n=>{try{n.stop();}catch(e){}});['osc','osc2','sub','nz','nz2','lfo','tw'].forEach(k=>{try{v[k]&&v[k].stop();}catch(e){}});try{v.out.disconnect();v.tg&&v.tg.disconnect();v.ikg&&v.ikg.disconnect();}catch(e){}}
 function setVoice(v,rpm,thr,level,pitch){
   const t=ac.currentTime,p=v.p,f=rpm/60*ORDER[v.car.cyl]*(pitch||1),r=rpm/v.car.red;
   v.osc.frequency.setTargetAtTime(f,t,.012);v.sub.frequency.setTargetAtTime(f*.5,t,.012);
@@ -2607,9 +2661,16 @@ function setVoice(v,rpm,thr,level,pitch){
 }
 function rebuildVoices(){
   if(!A)return;
-  killVoice(A.v);A.v=makeVoice(CAR,A.duck,true);s2Build();
+  killVoice(A.v);A.v=makeVoice(CAR,A.duck,true);s2Build();if(pulseReady)pulseBuild();
   (A.ai||[]).forEach(x=>{killVoice(x.v);try{x.pan.disconnect();}catch(e){}});
-  A.ai=AI.map(a=>{const pan=ac.createPanner();pan.panningModel='equalpower';pan.distanceModel='inverse';pan.refDistance=5;pan.rolloffFactor=1.5;pan.maxDistance=500;pan.connect(A.cabinIn);return{pan,v:makeVoice(a.car,pan,false),prevD:null};});
+  // rivals: positioned in 3D (HRTF on computers), duller with distance (air), with their own combustion rasp,
+  // overrun pops when they lift and a dip at each upshift
+  const hrtf=!matchMedia('(pointer:coarse)').matches;
+  A.ai=AI.map(a=>{const pan=ac.createPanner();pan.panningModel=hrtf?'HRTF':'equalpower';pan.distanceModel='inverse';pan.refDistance=5;pan.rolloffFactor=1.5;pan.maxDistance=500;pan.connect(A.cabinIn);
+    if(A.rv){const sg=gainN(.6);pan.connect(sg);sg.connect(A.rv.send);}
+    const air=filt('lowpass',16000,.6),dk=gainN(1);dk.connect(air);air.connect(pan);
+    const v=makeVoice(a.car,dk,false),nz=loopSrc(A.noise),bp=filt('bandpass',500,1.1),ng=gainN(0);nz.connect(bp);bp.connect(ng);ng.connect(v.amp);
+    v.extra=[nz];return{pan,air,dk,v,nz,bp,ng,prevD:null,thr:0,g:1,popT:0};});
   boost=0;
 }
 function initAudio(){
@@ -2635,7 +2696,94 @@ function initAudio(){
   A.grav=layer(A.noise,[filt('lowpass',900,.6),filt('highpass',120,.7)],A.cabinIn);
   A.scr=layer(A.noise,[filt('bandpass',2200,2.2)],A.cabinIn);
   A.wet=layer(A.noise,[filt('bandpass',2800,.5)],A.cabinIn);
+  // kerb ridges (a buzz whose rate follows the speed), sliding scrub, wind buffeting, and the whoosh of walls going by
+  { const o=ac.createOscillator();o.type='square';const lp=filt('lowpass',260,.8),g=gainN(0);o.connect(lp);lp.connect(g);g.connect(A.cabinIn);o.start();A.kerb={o,g,lp}; }
+  A.slide=layer(A.noise,[filt('bandpass',560,1.6)],A.cabinIn);
+  { const l=ac.createOscillator();l.frequency.value=3.1;const lg=gainN(0);l.connect(lg);lg.connect(A.wind.gain);l.start();A.buf=lg; }
+  A.whoosh=layer(A.noise,[filt('bandpass',1300,.9)],A.cabinIn);
+  { const m=gainN(1);m.connect(A.cabinIn);A.turb=layer(A.brown,[filt('lowpass',320,.8)],m);const l=ac.createOscillator();l.frequency.value=7.3;const lg=gainN(.45);l.connect(lg);lg.connect(m.gain);l.start(); }   // buffeting in the wake
+  rvInit();pulseLoad();
   rebuildVoices();setAmbient();
+}
+/* reverb (2026-10-25): two convolvers with impulse responses made here (no files) - a short slap of the walls and
+   stands along the track, and a long tunnel ring. The engine, its pops and the rivals are sent in; how much comes back
+   follows the place: walls close by (ground.json walls), a roof overhead (ground.json cv), street circuits a little more,
+   and much less from the driver's seat (the cabin is closed). */
+function mkIR(sec,decay,pre,taps,dark){
+  const sr=ac.sampleRate,n=Math.floor(sr*sec),b=ac.createBuffer(2,n,sr);
+  for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);let lp=0;
+    for(let i=0;i<n;i++){const t=i/sr;if(t<pre){d[i]=0;continue;}const w=Math.random()*2-1;lp+=(w-lp)*(1-dark*Math.min(1,t/sec*1.5));d[i]=lp*Math.exp(-(t-pre)/decay);}
+    (taps||[]).forEach(([t,g])=>{const i=Math.floor((t+(ch?.0031:0))*sr);if(i<n)d[i]+=g*(ch?.9:1);});}
+  return b;}
+function rvInit(){
+  const R=A.rv={};
+  R.send=gainN(1);R.short=ac.createConvolver();R.long=ac.createConvolver();
+  R.short.buffer=mkIR(.7,.12,.012,[[.019,.5],[.033,.35],[.047,.3],[.071,.22],[.094,.14]],.55);
+  R.long.buffer=mkIR(2.2,.55,.02,[[.028,.45],[.052,.4],[.081,.35],[.113,.3],[.151,.24],[.197,.2]],.75);
+  R.sg=gainN(0);R.lg=gainN(0);R.hp=filt('highpass',90,.7);
+  R.send.connect(R.hp);R.hp.connect(R.short);R.hp.connect(R.long);R.short.connect(R.sg);R.long.connect(R.lg);R.sg.connect(A.master);R.lg.connect(A.master);
+  A.eng.connect(R.send);R.cov=0;R.wall=0;
+}
+/* combustion pulses (2026-10-25): an AudioWorklet fires one pressure pulse per firing - a damped ring at the exhaust's
+   pitch plus a puff of noise - with the cylinder-to-cylinder unevenness of each layout (cross-plane V8 lope, boxer
+   off-beat, rotary snap), then rings it through a short feedback delay like the exhaust pipe. It sits under the
+   older harmonic voice: it carries the idle and the low revs, the voice carries the top end. If worklets are not
+   allowed (an embedding that blocks them), nothing changes. */
+const PULSE={  // pat: pulse strength per firing over a cycle; rough: random spread; pipe: Hz of the ring; dec: ring length (cycles); nz: noise share; fb: pipe feedback
+  4:{pat:[1,.92,1.05,.9],rough:.07,pipe:180,dec:2.2,nz:.3,fb:.38},
+  3:{pat:[1,.85,1.1],rough:.1,pipe:150,dec:2.4,nz:.35,fb:.4},
+  6:{pat:[1,.96,1.02,.95,1.04,.97],rough:.05,pipe:210,dec:2,nz:.25,fb:.34},
+  8:{pat:[1,.94,1.03,.92,1.05,.95,1,.93],rough:.05,pipe:260,dec:1.6,nz:.28,fb:.32},
+  v8x:{pat:[1.25,.7,1.05,.62,1.18,.74,.98,.66],rough:.08,pipe:120,dec:2.8,nz:.25,fb:.45},
+  10:{pat:[1,.93,1.04,.91,1.02,.95,1.05,.9,1,.94],rough:.04,pipe:300,dec:1.5,nz:.28,fb:.3},
+  12:{pat:[1,.97,1.02,.96,1.01,.98,1.03,.97,1,.96,1.02,.98],rough:.03,pipe:330,dec:1.4,nz:.22,fb:.28},
+  flat4:{pat:[1.2,.72,1.12,.76],rough:.09,pipe:150,dec:2.6,nz:.32,fb:.44},
+  flat6:{pat:[1.08,.86,1.02,.9,1.1,.84],rough:.08,pipe:200,dec:2,nz:.4,fb:.36},
+  rotary:{pat:[1,.98],rough:.05,pipe:420,dec:1.1,nz:.5,fb:.25},
+};
+const PULSE_SRC=`class P extends AudioWorkletProcessor{
+static get parameterDescriptors(){return[{name:'freq',defaultValue:30},{name:'load',defaultValue:.3},{name:'gain',defaultValue:0},{name:'pipe',defaultValue:180}];}
+constructor(o){super();const c=o.processorOptions||{};this.pat=c.pat||[1];this.rough=c.rough||.05;this.dec=c.dec||2;this.nz=c.nz||.3;this.fb=c.fb||.35;
+ this.ph=0;this.k=0;this.e=0;this.amp=0;this.rp=0;this.buf=new Float32Array(4096);this.w=0;this.lp=0;this.port.onmessage=e=>{if(e.data&&e.data.stop)this.done=true;};}
+process(_,outs,p){if(this.done)return false;const out=outs[0][0],sr=sampleRate,F=p.freq,Ld=p.load,G=p.gain,Pp=p.pipe;
+ for(let i=0;i<out.length;i++){const f=F.length>1?F[i]:F[0],ld=Ld.length>1?Ld[i]:Ld[0],g=G.length>1?G[i]:G[0],pp=Pp.length>1?Pp[i]:Pp[0];
+  this.ph+=f/sr;if(this.ph>=1){this.ph-=1;const a=this.pat[this.k%this.pat.length];this.k++;
+   this.amp=a*(1+(Math.random()*2-1)*this.rough)*(.35+.65*ld);this.e=1;this.rp=0;}
+  const tau=Math.min(.03,this.dec/Math.max(20,f)*.5),d=Math.exp(-1/(sr*tau));
+  this.e*=d;this.rp+=pp/sr;const n=Math.random()*2-1;this.lp+=(n-this.lp)*.25;
+  let x=this.amp*this.e*(Math.sin(6.2832*this.rp)*(1-this.nz)+this.lp*this.nz*2.2);
+  const L=Math.min(4095,Math.max(8,Math.round(sr/pp))),r=(this.w-L+4096)&4095;x+=this.fb*this.buf[r];this.buf[this.w]=x;this.w=(this.w+1)&4095;
+  out[i]=Math.tanh(x*1.4)*g;}
+ return true;}}
+registerProcessor('eng-pulse',P);`;
+let pulseReady=null;
+function pulseLoad(){if(pulseReady!==null||!ac||!ac.audioWorklet)return;pulseReady=false;
+  try{const u=URL.createObjectURL(new Blob([PULSE_SRC],{type:'application/javascript'}));
+    ac.audioWorklet.addModule(u).then(()=>{pulseReady=true;pulseBuild();}).catch(e=>{console.warn('pulse worklet',e);});}catch(e){}}
+function pulseKill(){if(A&&A.pulse){try{A.pulse.node.port.postMessage({stop:true});A.pulse.node.disconnect();A.pulse.out.disconnect();}catch(e){}A.pulse=null;}}
+function pulseBuild(){
+  pulseKill();if(!pulseReady||!A||!CAR)return;const c=PULSE[CAR.cyl];if(!c)return;
+  try{const node=new AudioWorkletNode(ac,'eng-pulse',{numberOfInputs:0,outputChannelCount:[1],processorOptions:c});
+    const hp=filt('highpass',35,.7),lp=filt('lowpass',2400,.6),out=gainN(1);node.connect(hp);hp.connect(lp);lp.connect(out);out.connect(A.duck);
+    A.pulse={node,lp,out,c};}catch(e){console.warn('pulse',e);}
+}
+function pulseFrame(t,rpm,thr,level){
+  const P=A.pulse;if(!P)return;const c=P.c,r=rpm/CAR.red,f=rpm/60*ORDER[CAR.cyl],pr=P.node.parameters;
+  pr.get('freq').setTargetAtTime(f,t,.012);pr.get('load').setTargetAtTime(thr,t,.04);
+  pr.get('pipe').setTargetAtTime(c.pipe*(.85+.4*r),t,.05);
+  // strongest at idle and low revs, giving way to the harmonic voice as the revs rise
+  const w=Math.max(.18,1-r*1.1);pr.get('gain').setTargetAtTime(level*w*(.55+.45*thr)*1.6,t,.04);
+  P.lp.frequency.setTargetAtTime(900+2600*r*(.5+.5*thr),t,.05);
+}
+function rvFrame(dt,t,fp,live){
+  const R=A.rv;if(!R||!C)return;
+  let cov=0,wall=0;
+  if(live&&COV)cov=COV[pl.idx]||0;
+  if(live&&RWP&&RWN){const dw=Math.max(0,Math.min(RWP[pl.idx]-pl.off,RWN[pl.idx]+pl.off));wall=Math.max(0,Math.min(1,1-(dw-1.5)/9));}
+  R.cov+=(cov-R.cov)*Math.min(1,dt*4);R.wall+=(wall-R.wall)*Math.min(1,dt*3);
+  const street=/marinabay|madring|albertpark|yas|wangan/.test(C.id)?1:0,cab=fp?.35:1,menu=state==='menu'?.5:1;
+  R.sg.gain.setTargetAtTime((.05+.05*street+.22*R.wall)*(1-R.cov)*cab*menu,t,.15);
+  R.lg.gain.setTargetAtTime(.5*R.cov*cab,t,.12);
 }
 /* sound mix (設定「音のバランス」, fpr-mix): engine / UI and effect sounds / commentary / menu music, each 0-1.5.
    While the menu is up the demo car's engine is held at 30% so the menu sounds and music are clear. */
@@ -2869,6 +3017,7 @@ function audioFrame(dt,rpmT,gear){
   }
   if(typeof gear==='number')lastGear=gear;
   setVoice(A.v,rpmS,thrS,state==='menu'?.17:.26);
+  pulseFrame(t,rpmS,thrS,state==='menu'?.17:.26);
   if(S2on())s2Frame(dt,t,thr,rpmS,thrS,fp,live);
   else{if(A.engDry)s2Off(t);
   // supercharger: belt-driven, so its whine follows engine speed directly (no lag, no blow-off)
@@ -2890,11 +3039,17 @@ function audioFrame(dt,rpmT,gear){
   const sp=Math.abs(pl.v);
   A.sq.gain.setTargetAtTime(live?Math.min(.32,sqAmt*.38):0,t,.05);
   A.sqf.frequency.setTargetAtTime(880+Math.random()*160+sp*2.5,t,.04);
-  A.wind.gain.setTargetAtTime(live?Math.min(.36,Math.pow(sp/85,2)*(fp?.2:.32)+Math.min(.12,wind.ms/18*.12)*(fp?.5:1)):0,t,.1);
+  A.wind.gain.setTargetAtTime(live?Math.min(.36,Math.pow(sp/85,2)*(fp?.2:.32)+Math.min(.12,wind.ms/18*.12)*(fp?.5:1))*(1-.55*(pl.slip||0)):0,t,.1);
+  if(A.turb)A.turb.gain.setTargetAtTime(live?.22*(pl.slip||0)*Math.min(1,sp/50)*(fp?.6:1):0,t,.08);
   A.road.gain.setTargetAtTime(live?Math.min(.28,sp/90*.24):0,t,.1);
   A.grav.gain.setTargetAtTime(live?offAmt*Math.min(.38,sp/30*.38):0,t,.05);
   A.scr.gain.setTargetAtTime(live?scrapeAmt*Math.min(.3,sp/25*.3):0,t,.04);
   A.wet.gain.setTargetAtTime(live&&wxSel==='rain'?Math.min(.2,sp/70*.2):0,t,.1);
+  if(A.kerb){const hw=HW?HW[pl.idx]:5,ao=Math.abs(pl.off),onK=live&&cornerAt&&cornerAt[pl.idx]>=0&&ao>hw-.9&&ao<hw+.45&&sp>4;
+    A.kerb.o.frequency.setTargetAtTime(Math.max(4,sp/.55),t,.03);A.kerb.g.gain.setTargetAtTime(onK?Math.min(.32,.1+sp/60*.22)*(fp?1.3:1):0,t,.03);
+    const sl=live?Math.max(0,Math.abs(pl.beta||0)-.06):0;A.slide.gain.setTargetAtTime(Math.min(.3,sl*2.2*Math.min(1,sp/20)),t,.05);
+    A.buf.gain.setTargetAtTime(live?Math.min(.08,Math.pow(sp/85,2)*.05)*(fp?.6:1):0,t,.2);
+    const wl=A.rv?A.rv.wall:0;A.whoosh.gain.setTargetAtTime(live?Math.min(.16,wl*Math.pow(sp/70,2)*.12)*(fp?.5:1):0,t,.08);}
   A.cabin.frequency.setTargetAtTime(fp?1600:16000,t,.1);
   A.amb.gain.setTargetAtTime(ambOn?(fp?.4:.75):0,t,.4);
   // rival engines: positioned in 3D, with a little Doppler as they pass
@@ -2905,8 +3060,20 @@ function audioFrame(dt,rpmT,gear){
     const d=camera.position.distanceTo(m),vr=x.prevD==null?0:(d-x.prevD)/Math.max(dt,1e-3);x.prevD=d;
     const pitch=Math.max(.75,Math.min(1.3,343/(343+vr)));
     const c=a.car,kmh=a.v*3.6;let g=1;while(g<c.gears&&kmh>=c.gearTop[g-1]*.97)g++;
-    setVoice(x.v,Math.max(950,c.red*kmh/c.gearTop[g-1]),a.thr||.4,aiOn&&!a.out?(a.gh?.15:.2):0,pitch);
+    const on=aiOn&&!a.out,thr=a.thr||.4,rpm=Math.max(950,c.red*kmh/c.gearTop[g-1]),lvl=on?(a.gh?.15:.2):0;
+    setVoice(x.v,rpm,thr,lvl,pitch);
+    // air absorbs the top end with distance; the rasp follows the firing rate
+    x.air.frequency.setTargetAtTime(Math.max(1400,16000/(1+d/60)),t,.1);
+    const fr=rpm/60*ORDER[c.cyl]*pitch;x.bp.frequency.setTargetAtTime(Math.min(6000,fr*2.3),t,.03);
+    x.ng.gain.setTargetAtTime(c.cyl==='ev'?0:(x.v.p.noise||.15)*(.3+.7*thr)*.7,t,.05);
+    if(on&&g>x.g&&a.v>5){x.dk.gain.cancelScheduledValues(t);x.dk.gain.setValueAtTime(.3,t);x.dk.gain.linearRampToValueAtTime(1,t+.12);}
+    x.g=g;
+    // lifting at high revs: a few pops from that car (only when it is close enough to hear them)
+    if(on&&thr<.5&&x.thr>=.5&&rpm>c.red*.55&&d<90&&c.cyl!=='ev'){const P=S2CFG[c.id]||{},n=1+Math.floor(Math.random()*((P.bark||.5)*4));let w=t+.03;
+      for(let k=0;k<n;k++){burstAt(w,.06,s2R(700,1800),'bandpass',.5*s2R(.5,1),.8,x.pan);w+=s2R(.04,.12);}}
+    x.thr=thr;
   });
+  rvFrame(dt,t,fp,live);
   if(ambOn)ambientTick(dt);
   updateBgm();
   setListener();
@@ -4840,6 +5007,9 @@ function updateAI(dt,active){
     const gap=pprog-a.s,lat=Math.abs(pl.off-a.lane);
     if(state!=='menu'&&gap>0&&gap<14&&lat<2.4){target=Math.min(target,pl.v*0.97+2);a.laneT=pl.off>0?-lmax:lmax;}
     for(const b of AI){if(b===a)continue;const g2=b.s-a.s;if(g2>0&&g2<10&&Math.abs(b.lane-a.lane)<2.2){target=Math.min(target,b.v+1);a.laneT=b.lane>0?-lmax*0.9:lmax*0.9;}}
+    // tow behind the player or another rival: a little more top speed on the straights
+    if(state==='race'&&!scOn()){let ts=slipOf(pprog-a.s,Math.abs(pl.off-a.lane),a.v);for(const b of AI){if(b===a||b.gh||b.out)continue;ts=Math.max(ts,slipOf(b.s-a.s,Math.abs(b.lane-a.lane),a.v));}
+      if(ts>0&&cornerAt[i]<0)target*=1+.04*ts;}
     if(scOn()){target=scAITarget(a,target);a.laneT=a.lane;}
     a.thr=a.v<target-0.5?.85:.2;
     if(a.v<target)a.v=Math.min(target,a.v+Math.max(0.6,CAR.acc*DL.a*(1-Math.pow(a.v/CAR.vmax,2))-CAR.k*a.v*a.v)*dt);else a.v=Math.max(target,a.v-CAR.brake*WEATHERS[wxSel].brake*0.8*dt);
@@ -4850,12 +5020,25 @@ function updateAI(dt,active){
   }
 }
 function place(a,o){a.mesh.position.set(o.x,o.y,o.z);const i=o.i;a.mesh.lookAt(o.x+T[i].x,o.y+SL[i],o.z+T[i].z);}
+/* slipstream (2026-10-25): close behind a rival (not a ghost) on the same line at speed, the drag drops up to 40% and the top
+   speed rises up to 5%; in corners the following car loses a little downforce (dirty air). Rivals get the same tow
+   behind the player or each other (updateAI). HUD #slip, a quieter wind and a turbulent rumble (audioFrame). */
+function slipOf(gap,lat,sp){if(gap<2||gap>38||lat>1.7||sp<16)return 0;return Math.min(1,(1-(gap-3)/35))*Math.min(1,(1.7-lat)/.8)*Math.min(1,(sp-16)/20);}
+function slipUpdate(dt,sp){
+  let s=0;
+  if(mode!=='free'&&state==='race'&&!(typeof scOn==='function'&&scOn())){const pp=(pl.lap-1)*L+pl.idx*ds;
+    for(const a of AI){if(a.gh||a.out||!a.mesh||!a.mesh.visible)continue;s=Math.max(s,slipOf(a.s-pp,Math.abs(a.lane-pl.off),sp));}}
+  pl.slip=(pl.slip||0)+(s-(pl.slip||0))*Math.min(1,dt*(s>(pl.slip||0)?2.5:4));
+  const el=$('slip');if(el){const on=pl.slip>.18;if(on!==el.classList.contains('on'))el.classList.toggle('on',on);if(on)el.lastChild.style.width=Math.round(pl.slip*100)+'%';}
+  if(pl.slip>.6&&sp>40)radioSay('slip',['スリップストリームに入った。横に出れば抜けるぞ','いいトウだ。ブレーキング手前で並べ','前の車の真後ろだ、速度が伸びてる'],1,'',45);
+}
 function updatePlayer(dt,canDrive){
   const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'&&!FIN.on?1:0);
   const kst=keys.left-keys.right,gst=!kst&&GY.on?gyroSteer():0,st=canDrive?(kst||gst):0;
   pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6)));
   const v=pl.v,sp=Math.abs(v);let a=0;
   const D=CAR.drive;
+  slipUpdate(dt,sp);const sl=pl.slip||0;
   // traction: rear/mid drive spins up a little off the line, 4WD bites
   const trac=tractionOf(CAR,sp);
   // turbo lag: early single-turbo cars wait for boost after the throttle opens
@@ -4864,7 +5047,7 @@ function updatePlayer(dt,canDrive){
   let mtK=1;if(neutral)mtK=0;else if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,CAR.gearTop[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
-  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):(neutral?0:22);
+  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/(CAR.vmax*(1+.05*sl)),2)):(neutral?0:22);
   if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfK(CAR,sp)-1)):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
@@ -4874,14 +5057,16 @@ function updatePlayer(dt,canDrive){
   }else pl.eb=0;
   // wind: drag works on the airspeed (head/tail wind along the heading); crosswind pushes the car sideways a little
   const wv=windNow(dt),hx=Math.sin(pl.th),hz=Math.cos(pl.th),wAlong=wv.x*hx+wv.z*hz,va=v-wAlong;
-  a-=CAR.k*va*Math.abs(va);
+  a-=CAR.k*va*Math.abs(va)*(1-.4*sl);   // in a tow the drag drops (slipUpdate)
   if(wind.ms){const wCross=wv.x*hz-wv.z*hx;pl.windDrift=wCross*Math.abs(wCross)*0.0011*Math.min(1,sp/15);}else pl.windDrift=0;
   if(offTrack(pl.idx,pl.off))a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
-  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp);
+  // dirty air: right behind a car in a corner, the wings work less (only cars with downforce feel it)
+  const dirty=sl>.15&&cornerAt[pl.idx]>=0?.06*sl*Math.min(1,(dfK(CAR,sp)-1)*4):0;
+  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp)*(1-dirty);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
@@ -5175,6 +5360,39 @@ function towerEntries(){
   list.sort((x,y)=>(x.fin&&y.fin)?x.fin-y.fin:x.fin?-1:y.fin?1:y.s-x.s);
   return list;
 }
+/* battle HUD (2026-10-25, 湾岸ミッドナイト風, user's revision): in the middle of the screen, just numbers - the gap to the car
+   in front (▲) and behind (▼) in metres; red and beeping faster as the car behind closes in. On the final lap the goal
+   distance shows once the line is about in sight (last 400 m), with a chime. */
+const BT={els:null,prev:{},beepT:0,last500:false,on:false};
+function btRow(id,on,name,d){const r=$(id);if(r.classList.contains('off')===on)r.classList.toggle('off',!on);if(!on)return;
+  if(name!=null){const n=r.querySelector('.nm');if(n.textContent!==name)n.textContent=name;}const b=r.querySelector('.dv b'),t=String(d);if(b.textContent!==t)b.textContent=t;}
+function battleTick(){
+  const box=$('battle');if(!box)return;const now=performance.now()/1000,dt=Math.min(.5,BT.t?now-BT.t:.05);if(BT.t&&dt<.05)return;BT.t=now;
+  const show=mode!=='free'&&(state==='race'||state==='count')&&!grOut();
+  if(show!==BT.on){BT.on=show;box.classList.toggle('on',show);if(!show){box.classList.remove('warn');BT.prev={};['btGoal','btA','btB'].forEach(i=>$(i).classList.add('off'));}}
+  if(!show)return;
+  const list=towerEntries(),total=LAPS*L,base=SCL*L,me=list.find(e=>e.me);
+  // the goal: only once it is about in sight (final lap, last 400 m), a chime at 400 m
+  const left=Math.max(0,base+total-me.s),last=pl.lap-SCL>=LAPS,near=last&&left<400&&state==='race';
+  btRow('btGoal',near,null,Math.round(left));
+  if(near&&!BT.last500){BT.last500=true;if(A)[880,1175,1568].forEach((f,k)=>tone(f,.12,'square',.07,k*.1));}
+  if(!last)BT.last500=false;
+  // nearest in front / behind (by distance covered, any lap)
+  let ahead=null,behind=null;
+  list.forEach(e=>{if(e.me||e.fin)return;const d=e.s-me.s;if(d>=0&&(!ahead||d<ahead.d))ahead={e,d};if(d<0&&(!behind||-d<behind.d))behind={e,d:-d};});
+  // just the numbers: the gap to the car in front and to the one behind
+  // with who it is: the car (rivals) or the player's name (ghosts)
+  btRow('btA',!!ahead,ahead&&ahead.e.name,ahead&&Math.round(ahead.d));btRow('btB',!!behind,behind&&behind.e.name,behind&&Math.round(behind.d));
+  // closing speed of the car behind -> warning and beeps
+  let warn=false;
+  if(behind&&state==='race'&&!(typeof scOn==='function'&&scOn())){const k=behind.e.id,pv=BT.prev[k],cl=pv==null?0:(pv-behind.d)/Math.max(dt,1e-3);
+    BT.prev[k]=behind.d;BT.cl=(BT.cl||0)+(cl-(BT.cl||0))*Math.min(1,dt*3);
+    warn=behind.d<8||(behind.d<35&&BT.cl>.6);
+    if(warn&&A){BT.beepT-=dt;if(BT.beepT<=0){const near=Math.max(0,Math.min(1,(behind.d-4)/30));BT.beepT=.12+.75*near;
+      if(behind.d<8){tone(1480,.06,'square',.06);tone(1110,.06,'square',.05,.07);}else tone(1320,.05,'square',.055);}}
+  }else BT.prev={};
+  if(warn!==box.classList.contains('warn'))box.classList.toggle('warn',warn);
+}
 function towerTick(){
   const tw=$('tower'),off=state==='menu'||state==='replay'||grOut();
   const list=off?[]:towerEntries(),pos=Math.max(1,list.findIndex(e=>e.me)+1);towerPos=pos;
@@ -5427,6 +5645,7 @@ function frame(now){
     $('loading').hidden=!busy.length;
     if(busy.length)$('loading').textContent='3Dモデル読み込み中 '+busy.join('・');
   }
+  battleTick();finishTick();
   rigFrame(dt);
   if(GFX.on&&GFX.comp){gfxFrame(dt);GFX.comp.render(dt);}else renderer.render(scene,camera);
   mirFrame();
