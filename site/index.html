@@ -1460,7 +1460,7 @@ function vegTex(kind){
       const lit=0.5-Math.sin(a)*d*0.5+(cx-W/2)/W*0.3,v=Math.round(48+lit*120+r()*34-(y/H)*30);el(x,y,1.8+r()*4,1.3+r()*2.6,r()*3,`rgb(${v},${v},${v})`);}
   }else if(kind==='hydrangea'){
     for(let i=0;i<1600;i++){const x=W*0.06+r()*W*0.88,y=H*0.3+r()*H*0.7;if(Math.hypot((x-W/2)/(W*0.46),(y-H*0.75)/(H*0.48))>1)continue;el(x,y,4+r()*7,3+r()*4,r()*3,`hsl(${95+r()*30},${32+r()*18}%,${14+r()*18}%)`);}
-    const pal=[[222,45,70],[268,35,70],[330,38,74],[210,38,62],[285,28,74]];
+    const pal=[[224,52,70],[268,40,68],[318,36,70],[212,46,62],[285,34,72]];
     for(let k=0;k<12;k++){const p=pal[Math.floor(r()*pal.length)],cx=W*0.18+r()*W*0.64,cy=H*0.5+r()*H*0.3,R=12+r()*9;
       for(let i=0;i<170;i++){const a=r()*6.28,d=Math.sqrt(r())*R,sy=Math.sin(a)*d/R;g.fillStyle=`hsl(${p[0]+r()*16-8},${p[1]}%,${p[2]-8-sy*12+r()*12}%)`;g.beginPath();g.arc(cx+Math.cos(a)*d,cy+Math.sin(a)*d,1.4+r()*1.8,0,7);g.fill();}}
     for(let i=0;i<500;i++){const x=W*0.06+r()*W*0.88,y=H*0.62+r()*H*0.38;if(Math.hypot((x-W/2)/(W*0.46),(y-H*0.75)/(H*0.48))>1)continue;el(x,y,4+r()*6,2.5+r()*3,r()*3,`hsl(${95+r()*30},${30+r()*15}%,${12+r()*14}%)`);}   // leaves over the lower flowers
@@ -1472,7 +1472,7 @@ function vegTex(kind){
       g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.25,H-len*0.6,x0+lean,H-len);g.stroke();}
     for(let i=0;i<16;i++){const x0=W/2+(r()*2-1)*26,lean=(r()*2-1)*60,len=H*(0.78+r()*0.2),tx=x0+lean,ty=H-len;
       g.strokeStyle='hsl(42,22%,42%)';g.lineWidth=1.4;g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.4,H-len*0.5,tx,ty);g.stroke();
-      for(let j=0;j<90;j++){const t=r(),px=tx+(r()*2-1)*9*t+lean*0.1*t,py=ty+t*H*0.24;el(px,py,1.1,3.6,0.35*Math.sign(lean)+(r()-0.5)*0.4,`hsl(${36+r()*10},${28+r()*14}%,${62+r()*16}%)`);}}
+      for(let j=0;j<90;j++){const t=r(),px=tx+(r()*2-1)*9*t+lean*0.1*t,py=ty+t*H*0.24;el(px,py,1.1,3.6,0.35*Math.sign(lean)+(r()-0.5)*0.4,`hsl(${40+r()*8},${24+r()*12}%,${58+r()*16}%)`);}}
   }
   const t=new THREE.CanvasTexture(c);t.anisotropy=renderer.capabilities.getMaxAnisotropy();VEG[kind]=t;return t;
 }
@@ -1490,7 +1490,7 @@ function vegMat(kind){   // a card seen edge-on fades out (no thin slivers): its
   m.onBeforeCompile=sh=>{
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 cn;varying float vFace;').replace('#include <project_vertex>',
       '#include <project_vertex>\n{mat4 mm=modelMatrix;\n#ifdef USE_INSTANCING\nmm=mm*instanceMatrix;\n#endif\nvec3 wn=normalize(mat3(mm)*cn);vec3 wp=(mm*vec4(position,1.0)).xyz;vFace=abs(dot(wn,normalize(cameraPosition-wp)));}');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vFace;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.a*=smoothstep(0.08,0.42,vFace);');};
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vFace;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.a*=smoothstep(0.14,0.5,vFace);');};
   return m;}
 function vegDetail(m){
   if(!VEG.detail){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d'),r=vegRand(99),im=g.createImageData(256,256);
@@ -1521,14 +1521,17 @@ function sceneryAt(c){
   return{k,zone:s=>{const km=s/k/1000;for(const z of sc.zones)if(km>=z[1]&&km<z[2])return z[0];return '';},
     view:s=>sc.spots.some(p=>/v/.test(p[2])&&Math.abs(s-p[0]*1000*k)<260)};
 }
-function sceneryTreeFilter(c){
-  const Z=sceneryAt(c);if(!Z)return()=>true;
-  // nearest drawn sample by a 40 m hash grid
+function sceneryNearest(R){   // nearest drawn course sample (40 m hash grid, R cells around): (x,z) -> [index, distance] or null
   const G={},cell=40,key=(x,z)=>Math.floor(x/cell)+','+Math.floor(z/cell);
   for(let i=0;i<N;i+=2){if(!visI(i))continue;const k=key(P[i].x,P[i].z);(G[k]=G[k]||[]).push(i);}
-  return(x,y,z,n)=>{let bi=-1,bd=1e18;const cx=Math.floor(x/cell),cz=Math.floor(z/cell);
-    for(let a=-5;a<=5;a++)for(let b=-5;b<=5;b++){const L=G[(cx+a)+','+(cz+b)];if(L)for(const i of L){const dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}}
-    if(bi<0)return true;const d=Math.sqrt(bd),s=bi>P2P.end?0:bi*ds,zn=Z.zone(s),h=((n*2654435761)>>>0)/4294967296;
+  return(x,z)=>{let bi=-1,bd=1e18;const cx=Math.floor(x/cell),cz=Math.floor(z/cell);
+    for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++){const L=G[(cx+a)+','+(cz+b)];if(L)for(const i of L){const dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}}
+    return bi<0?null:[bi,Math.sqrt(bd)];};
+}
+function sceneryTreeFilter(c){
+  const Z=sceneryAt(c);if(!Z)return()=>true;
+  const near=sceneryNearest(5);
+  return(x,y,z,n)=>{const nb=near(x,z);if(!nb)return true;const bi=nb[0],d=nb[1],s=bi>P2P.end?0:bi*ds,zn=Z.zone(s),h=((n*2654435761)>>>0)/4294967296;
     if(zn&&zn!=='hydrangea'&&d<30)return false;                 // room for the roadside trees / grass
     if(zn==='susuki'&&d<220&&h<0.75)return false;                // the open grassland near the summit
     if(Z.view(s)&&d<240&&y<P[bi].y-2)return false;               // the views: nothing below the road
@@ -1557,9 +1560,34 @@ function railsReal(){
   refl.forEach(([i,sd],k)=>{const j=((i%N)+N)%N,p=P[j],n=NR[j];d.position.set(p.x+n.x*sd*(RAIL+0.12),p.y+BK[j]*sd*RAIL+0.98,p.z+n.z*sd*(RAIL+0.12));d.rotation.set(0,TH[j],0);d.updateMatrix();rf.setMatrixAt(k,d.matrix);});
   world.add(pm,rf);
 }
+/* plants stand on the land mesh itself (review round 3: tufts floating over a hill): its triangles near the road rasterised
+   to a 1.5 m height grid once per course; the roadside estimate (sideY) only where the grid has nothing. */
+function terrGrid(){
+  const T=TERR[C.id];if(!T||T.userData.grid)return T&&T.userData.grid;
+  const land=T.children.find(o=>o.userData.terrain);if(!land)return null;
+  const pos=land.geometry.attributes.position.array,ix=land.geometry.index.array,cs=1.5,near=new Set(),H=new Map(),K=(a,b)=>(a+40000)*80000+(b+40000);
+  for(let i=0;i<N;i++){if(!visI(i))continue;const a=Math.floor(P[i].x/20),b=Math.floor(P[i].z/20);for(let u=-2;u<=2;u++)for(let v=-2;v<=2;v++)near.add(K(a+u,b+v));}
+  for(let t=0;t<ix.length;t+=3){const A=ix[t]*3,B=ix[t+1]*3,Cc=ix[t+2]*3,ax=pos[A],az=pos[A+2],bx=pos[B],bz=pos[B+2],cx=pos[Cc],cz=pos[Cc+2];
+    if(!near.has(K(Math.floor((ax+bx+cx)/60),Math.floor((az+bz+cz)/60))))continue;
+    const den=(bz-cz)*(ax-cx)+(cx-bx)*(az-cz);if(Math.abs(den)<1e-9)continue;
+    for(let gx=Math.ceil(Math.min(ax,bx,cx)/cs);gx*cs<=Math.max(ax,bx,cx);gx++)for(let gz=Math.ceil(Math.min(az,bz,cz)/cs);gz*cs<=Math.max(az,bz,cz);gz++){
+      const x=gx*cs,z=gz*cs,l1=((bz-cz)*(x-cx)+(cx-bx)*(z-cz))/den,l2=((cz-az)*(x-cx)+(ax-cx)*(z-cz))/den,l3=1-l1-l2;
+      if(l1<-1e-6||l2<-1e-6||l3<-1e-6)continue;const y=l1*pos[A+1]+l2*pos[B+1]+l3*pos[Cc+1],k=K(gx,gz);if(!H.has(k)||H.get(k)<y)H.set(k,y);}}
+  const g=(x,z)=>{const v=H.get(K(Math.round(x/cs),Math.round(z/cs)));return v===undefined?null:v;};
+  T.userData.grid=g;return g;
+}
+function groundDry(Z){   // the susuki zone: dry grass on the ground within 60 m of the road (the map colours; the aerial photo shows its own)
+  const T=TERR[C.id];if(!T||T.userData.dry)return;T.userData.dry=1;
+  const land=T.children.find(o=>o.userData.terrain);if(!land)return;
+  const ca=land.geometry.attributes.color,arr=ca.isInterleavedBufferAttribute?ca.data.array:ca.array,st=ca.isInterleavedBufferAttribute?4:3,pos=land.geometry.attributes.position.array,near=sceneryNearest(2);
+  for(let i=0;i<pos.length/3;i++){const nb=near(pos[i*3],pos[i*3+2]);if(!nb||nb[1]>60||nb[0]>P2P.end||Z.zone(nb[0]*ds)!=='susuki')continue;
+    const f=Math.min(1,(60-nb[1])/25),v=0.85+((i*7919)%11)/50;
+    arr[i*st]=Math.round(arr[i*st]*(1-f)+104*v*f);arr[i*st+1]=Math.round(arr[i*st+1]*(1-f)+96*v*f);arr[i*st+2]=Math.round(arr[i*st+2]*(1-f)+62*v*f);}
+  if(ca.isInterleavedBufferAttribute)ca.data.needsUpdate=true;else ca.needsUpdate=true;
+}
 function buildScenery(){
   const Z=sceneryAt(C);if(!Z||!TSIDE[C.id])return;   // needs the roadside ground (built again when the terrain arrives)
-  railsReal();
+  railsReal();groundDry(Z);const gh=terrGrid();
   // shade under the cherry / green tunnels: dappled light multiplied over the road
   {if(!VEG.dapple){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d'),r=vegRand(5);g.fillStyle='rgb(150,150,156)';g.fillRect(0,0,256,256);
      for(let i=0;i<70;i++){const x=r()*256,y=r()*256,R=3+r()*11,gr=g.createRadialGradient(x,y,0,x,y,R);gr.addColorStop(0,'rgba(255,250,236,0.95)');gr.addColorStop(1,'rgba(255,250,236,0)');g.fillStyle=gr;
@@ -1570,7 +1598,7 @@ function buildScenery(){
    for(let i=0;i<P2P.end;){if(!tun(i)){i++;continue;}let b=i;while(b<P2P.end&&tun(b))b++;
      ribbon(k=>[RAIL+0.5,BK[k]*(RAIL+0.5)+0.04,-RAIL-0.5,-BK[k]*(RAIL+0.5)+0.04],dm2,9,i,b);i=b;}}
   const o={},dm=new THREE.Object3D(),col=new THREE.Color(),rnd=(()=>{let a=12345;return()=>((a=Math.imul(a^a>>>15,2246822507)+0x9e3779b9|0)>>>0)/4294967296;})();
-  const S1=(P2P.end-5)*ds,put=(s,lane,up)=>{sample(s,lane,o);dm.position.set(o.x,sideY(s,lane)+(up||0),o.z);return dm;};
+  const S1=(P2P.end-5)*ds,put=(s,lane,up)=>{sample(s,lane,o);const y=gh&&Math.abs(lane)>RAIL?gh(o.x,o.z):null;dm.position.set(o.x,(y!=null?y:sideY(s,lane))+(up||0),o.z);return dm;};
   // hydrangea bushes just outside the rail
   {const L=[];for(let s=0;s<S1;s+=2.2)if(Z.zone(s)==='hydrangea')for(const sd of[1,-1])if(rnd()<0.9)L.push([s+rnd()*2,sd*(RAIL+0.6+rnd()*1.0)]);
    const m=new THREE.InstancedMesh(vegGeo(3),vegMat('hydrangea'),L.length);
@@ -1582,32 +1610,37 @@ function buildScenery(){
      s+=grp*3+3+rnd()*(zn==='maple'?12:6);}
    const trunkG=new THREE.CylinderGeometry(0.13,0.36,1,8);trunkG.translate(0,0.5,0);
    const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x2f2721}),L.length);
-   const brG=new THREE.CylinderGeometry(0.045,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material,L.length*3),tip=new THREE.Vector3();let c4=0;
-   const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*4),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
+   const brG=new THREE.CylinderGeometry(0.045,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material,L.length*8),tip=new THREE.Vector3();let c4=0;
+   const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*8),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
    const pal={sakura:[0xf0cbd8,0xe8b8ca,0xf5d6e0,0xdfa9bd],green:[0x4a7e34,0x416f2c,0x55893c,0x37612a],maple:[0xb8452a,0xc9772e,0xcfa040,0x963b22,0xa39a4a,0x6f7a3a,0x5e7535]};
    let c2=0,c3=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.2+p[3]+rnd()*1.6),sz=0.65+rnd()*0.7,h=(tun?4.4+rnd()*1.4:2.6+rnd()*2.4)*(0.8+sz*0.3);
      put(p[0],lane,0);dm.rotation.set((rnd()-0.5)*0.1,0,(rnd()-0.5)*0.1);dm.scale.set(0.7+sz*0.5,h+0.8,0.7+sz*0.5);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);
      const pl=pal[p[2]],nq=2+Math.floor(rnd()*3),base=put(p[0],lane,0).position.clone(),hb=h*(tun?0.55+rnd()*0.15:0.45+rnd()*0.15),i0=Math.floor(wrap(p[0])/ds)%N,inYaw=Math.atan2(-NR[i0].x*p[1],-NR[i0].z*p[1]);
-     for(let q=0;q<nq;q++){const r=((tun?3.0:2.4)+rnd()*1.6)*sz*(q?0.75:1);
+     for(let q=0;q<nq;q++){const r=((tun?3.6:2.4)+rnd()*1.6)*sz*(q?0.75:1);
        // a branch: from the trunk at hb, opened 30-60 deg; in the tunnels the first ones reach over the road
        const yaw=(tun&&q<2)?inYaw+(rnd()-0.5)*0.9:rnd()*6.28,tilt=(tun&&q<2?0.5+rnd()*0.35:0.5+rnd()*0.5),len=(tun&&q<2?h*0.75:h*0.5)*(0.8+rnd()*0.4);
        const cy=base.y+(tun?5.6:2.2)+r*0.75,bl=Math.min(len*1.5,Math.max(len,(cy-base.y-hb)/Math.cos(tilt)));   // long enough to reach a crown high over the road
-       dm.position.set(base.x,base.y+hb,base.z);dm.rotation.set(tilt,yaw,0,'YXZ');dm.scale.set(1+sz*0.25,bl,1+sz*0.25);dm.updateMatrix();
-       if(c4<L.length*3)branches.setMatrixAt(c4++,dm.matrix);tip.set(0,bl,0).applyEuler(dm.rotation).add(dm.position);
-       dm.position.set(tip.x,Math.max(tip.y-r*0.4,tun?base.y+5.4:-1e9),tip.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(r*2,r*(1.4+rnd()*0.5),r*2);dm.updateMatrix();   // a crown's bottom (cards stand on it) stays clear of the roof and the chase camera
-       crowns.setMatrixAt(c2,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);crowns.setColorAt(c2++,col);}
+       const w=1+sz*0.25,over=tun&&q<2,t2=over?Math.min(1.35,tilt*1.3):tilt*0.5,y2=yaw+(rnd()-0.5)*0.6;
+       dm.position.set(base.x,base.y+hb,base.z);dm.rotation.set(tilt,yaw,0,'YXZ');dm.scale.set(w,bl*0.55,w);dm.updateMatrix();
+       branches.setMatrixAt(c4++,dm.matrix);tip.set(0,bl*0.55,0).applyEuler(dm.rotation).add(dm.position);const mid=tip.clone();
+       dm.position.copy(mid);dm.rotation.set(t2,y2,0,'YXZ');dm.scale.set(w*0.62,bl*0.55,w*0.62);dm.updateMatrix();
+       branches.setMatrixAt(c4++,dm.matrix);tip.set(0,bl*0.55,0).applyEuler(dm.rotation).add(dm.position);
+       {const rm=r*0.55;dm.position.set(mid.x,Math.max(mid.y-rm*0.45,tun?base.y+5.4:-1e9),mid.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(rm*2*(rnd()<0.5?-1:1),rm*1.5,rm*2);dm.updateMatrix();   // a smaller clump on the way
+        crowns.setMatrixAt(c2,dm.matrix);col.setHex(pal[p[2]][Math.floor(rnd()*pal[p[2]].length)]).multiplyScalar(0.8+rnd()*0.2);crowns.setColorAt(c2++,col);}
+       dm.position.set(tip.x,Math.max(tip.y-r*0.4,tun?base.y+5.4:-1e9),tip.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(r*2*(rnd()<0.5?-1:1)*(0.85+rnd()*0.3),r*(1.4+rnd()*0.5),r*2*(0.85+rnd()*0.3));dm.updateMatrix();   // a crown's bottom (cards stand on it) stays clear of the roof and the chase camera
+       crowns.setMatrixAt(c2,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]).multiplyScalar(0.88+rnd()*0.24);crowns.setColorAt(c2++,col);}
      if(tun)for(let q=0;q<2;q++){put(p[0]+(rnd()-0.5)*4,lane-p[1]*(3.5+q*2.5+rnd()),h+1.4+rnd()*0.8);dm.rotation.set(0,rnd()*6,0);const w=6+rnd()*3;dm.scale.set(w,1,w*0.8);dm.updateMatrix();
        canopy.setMatrixAt(c3,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);canopy.setColorAt(c3++,col);}});
    crowns.count=c2;canopy.count=c3;branches.count=c4;world.add(trunks,branches,crowns,canopy);}
-  {const L=[];for(let s=0;s<S1;s+=1.1){if(Z.zone(s)==='susuki')continue;for(const sd of[1,-1])L.push([s+rnd()*1.1,sd*(RAIL+0.3+Math.pow(rnd(),1.5)*4)]);}
+  {const L=[];for(let s=0;s<S1;s+=0.7){const dry=Z.zone(s)==='susuki';for(const sd of[1,-1])for(let q=0;q<(dry?2:1);q++)L.push([s+rnd()*0.7,sd*(RAIL+0.3+Math.pow(rnd(),1.5)*(dry?9:4)),dry]);}
    const m=new THREE.InstancedMesh(vegGeo(2),vegMat('grass'),L.length);
    L.forEach((p,k)=>{put(p[0],p[1],-0.08);const sz=0.7+rnd()*0.7;dm.scale.set(sz*1.6,sz*0.6,sz*1.6);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
-     col.setHSL(0.2,0.1,0.75+rnd()*0.2);m.setColorAt(k,col);});world.add(m);}
+     if(p[2])col.setHSL(0.11,0.45,0.85+rnd()*0.15);else col.setHSL(0.2,0.1,0.58+rnd()*0.18);m.setColorAt(k,col);});world.add(m);}   // dry grass under the susuki
   // pampas grass (susuki) tufts, thick at the roadside and out over the slopes near the summit
-  {const L=[];for(let s=0;s<S1;s+=0.55)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*0.6,sd*(RAIL+0.4+Math.pow(rnd(),2.2)*22)]);}
+  {const L=[];for(let s=0;s<S1;s+=0.55)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*0.6,sd*(RAIL+0.4+Math.pow(rnd(),2.2)*13)]);}
    const m=new THREE.InstancedMesh(vegGeo(3),vegMat('susuki'),L.length);
    L.forEach((p,k)=>{put(p[0],p[1],-0.1);const sz=0.6+rnd()*0.7;dm.scale.set(sz*1.8,sz*(1.1+rnd()*1.1),sz*1.8);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
-     col.setHSL(0.1,0.15,0.68+rnd()*0.18);m.setColorAt(k,col);});world.add(m);}
+     col.setHSL(0.1,0.15,0.6+rnd()*0.16);m.setColorAt(k,col);});world.add(m);}
   // km posts (left side) and the spot signs (brown: sights, blue: parking)
   const postM=new THREE.MeshLambertMaterial({color:0x8a8e96}),postG=new THREE.CylinderGeometry(0.05,0.05,2.2,6);
   const board=(txt,w,h,bg,fg,s,lane,y)=>{const tex=canvasTex(Math.round(w*128),Math.round(h*128),(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.strokeStyle=fg;g.lineWidth=6;g.strokeRect(5,5,W-10,H-10);
