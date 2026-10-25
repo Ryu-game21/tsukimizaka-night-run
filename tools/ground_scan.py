@@ -127,6 +127,14 @@ class Grid:
         return hit
 
 
+def fl_enc(fq):
+    """floor rows (int8, 0.05 m, -128 = none) -> 0.1 m (rounded down) as the change from the previous point (raw where
+    that one is -128, and for the first point); -128 stays -128. The game's groundLoad undoes this."""
+    bad = fq == -128; q = np.where(bad, 0, np.floor(fq.astype(int) / 2)).astype(int)
+    d = q.copy(); d[1:] = np.where(bad[:-1], q[1:], q[1:] - q[:-1])
+    return np.where(bad, -128, np.clip(d, -127, 127)).astype(np.int8)
+
+
 def main():
     cid = sys.argv[1]; c = json.load(open(os.path.join(ROOT, 'work/ground', cid + '.course.json')))
     P = np.array(c['pts'], float).reshape(-1, 3); n = len(P); hw = np.array(c['hw'], float); bank = np.array(c['bank'], float)
@@ -214,7 +222,7 @@ def main():
     c2 = np.bincount(m2[m2 >= 0], minlength=len(names)); c2[list(load_model.decal)] = 0; c2[names.index(road)] = 0; side = names[int(c2.argmax())]
     out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode(),
-           'fl': base64.b64encode(zlib.compress(np.ascontiguousarray(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
+           'fl': base64.b64encode(zlib.compress(fl_enc(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
     json.dump(out, open(dst, 'w'), separators=(',', ':'))
     # report against the old symmetric wall

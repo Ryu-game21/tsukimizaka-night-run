@@ -1420,7 +1420,9 @@ function groundLoad(c){
       g.a=new Int8Array(ab);
       const inflate=b64=>{const b=atob(b64),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
         return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();};
-      return(g.fl?inflate(g.fl).then(f=>{g.f=new Int8Array(f);}).catch(()=>{}):Promise.resolve()).then(()=>{GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});});}).catch(()=>{});
+      // floor rows: 0.1 m, each point stored as the change from the previous one (raw after a -128 or at the first)
+      return(g.fl?inflate(g.fl).then(f=>{const d=new Int8Array(f),S=g.lat,o=new Int16Array(d.length);
+        for(let i=0;i<d.length;i++){const p=i-S;o[i]=d[i]===-128?-999:(p<0||o[p]===-999)?d[i]:o[p]+d[i];}g.f=o;}).catch(()=>{}):Promise.resolve()).then(()=>{GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});});}).catch(()=>{});
 }
 function groundApply(c){
   RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;
@@ -1454,7 +1456,7 @@ function groundUnder(){
   for(let k=0;k<M;k++){const a=(k-1+M)%M,b=(k+1)%M;let tx=pt[b*3]-pt[a*3],tz=pt[b*3+2]-pt[a*3+2];const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;
     const nx=tz,nz=-tx;
     for(let c=0;c<nc;c++){const j=cs[c],off=j*g.step,f=g.f[k*S+(j+S-1)/2],o=k*nc+c,x=pt[k*3]+nx*off,z=pt[k*3+2]+nz*off;
-      ok[o]=f!==-128;pos[o*3]=x;pos[o*3+1]=pt[k*3+1]+bk[k]*off+f*0.05-0.25;pos[o*3+2]=z;uv[o*2]=x/12;uv[o*2+1]=z/12;}}
+      ok[o]=f!==-999;pos[o*3]=x;pos[o*3+1]=pt[k*3+1]+bk[k]*off+f*0.1-0.25;pos[o*3+2]=z;uv[o*2]=x/12;uv[o*2+1]=z/12;}}
   const ir=[],is=[],hw=C.hw;
   for(let k=0;k<M;k++){const k2=(k+1)%M,h=Math.min(hw[k],hw[k2])+1;for(let c=0;c<nc-1;c++){const p=k*nc+c,q=k2*nc+c;
     if(ok[p]&&ok[p+1]&&ok[q]&&ok[q+1])(Math.max(Math.abs(cs[c]),Math.abs(cs[c+1]))*g.step<=h?ir:is).push(p,q,p+1,p+1,q,q+1);}}
