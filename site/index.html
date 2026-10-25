@@ -138,6 +138,9 @@ body.cine .hud:not(#msg):not(#fxBan),body.cine .pad,body.cine .vbar,body.cine #m
 #tl .secs .cur{color:var(--lcd)}
 #tl .secs .fast{color:var(--green);text-shadow:0 0 8px rgba(106,216,138,.5)}
 #tl .secs .slow{color:var(--red);text-shadow:0 0 8px rgba(255,90,70,.4)}
+#slip{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 168px);transform:translateX(-50%) scale(.92);padding:4px 12px 6px;border-radius:3px;background:rgba(8,20,32,.55);border:1px solid rgba(110,200,255,.45);color:#bfe6ff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.32em;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-shadow:0 0 8px rgba(80,180,255,.8)}
+#slip.on{opacity:1;transform:translateX(-50%) scale(1)}#slip i{display:block;height:2px;margin-top:4px;background:linear-gradient(90deg,#4fc3ff,#b9f0ff);width:0;box-shadow:0 0 6px #4fc3ff}
+body.phl #slip{bottom:calc(env(safe-area-inset-bottom,0px) + 118px)}
 #split{top:calc(env(safe-area-inset-top,0px) + 178px);left:50%;transform:translateX(-50%);display:flex;align-items:baseline;gap:12px;padding:6px 14px;background:var(--panel);border:1px solid var(--line);border-radius:3px;opacity:0;transition:opacity .25s;white-space:nowrap}
 #split.show{opacity:1}
 #split .sn{font-size:13px;color:var(--dim);letter-spacing:.14em;text-shadow:none}
@@ -597,6 +600,7 @@ body.phl .press{display:none}
 <canvas class="hud" id="gauge" hidden></canvas>
 <div class="hud" id="msg"></div>
 <div class="hud" id="pop"></div>
+<div class="hud" id="slip" aria-hidden="true">SLIPSTREAM<i></i></div>
 <div class="hud" id="split" aria-live="polite"><span class="sn" id="splitN"></span><b id="splitT"></b><em id="splitD"></em></div>
 <div class="hud" id="hint" hidden>C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了</div>
 <div class="vbar"><button class="vbtn" id="viewBtn" type="button" hidden>視点</button><button class="vbtn" id="endBtn" type="button" hidden>終了</button></div>
@@ -2230,7 +2234,7 @@ function nearest(x,z,from,win){
   for(let k=-win;k<=win;k++){const i=(from+k+N)%N,dx=P[i].x-x,dz=P[i].z-z,d=dx*dx+dz*dz;if(d<bd){bd=d;bi=i;}}
   return bi;
 }
-function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.beta=0;pl.steer=0;pl.off=lane;pl.gear=1;}
+function placePlayer(s,lane){const o=sample(s,lane,{});pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=0;pl.beta=0;pl.slip=0;pl.steer=0;pl.off=lane;pl.gear=1;}
 function resetRace(){
   const ln=W*0.22,grid=[[-9,ln],[-17,-ln],[-25,ln]];
   AI.forEach((a,k)=>{a.s=grid[k][0];a.lane=a.laneT=grid[k][1];a.v=0;a.fin=0;a.skillC=a.skill*C.ai;});
@@ -2649,6 +2653,7 @@ function initAudio(){
   A.slide=layer(A.noise,[filt('bandpass',560,1.6)],A.cabinIn);
   { const l=ac.createOscillator();l.frequency.value=3.1;const lg=gainN(0);l.connect(lg);lg.connect(A.wind.gain);l.start();A.buf=lg; }
   A.whoosh=layer(A.noise,[filt('bandpass',1300,.9)],A.cabinIn);
+  { const m=gainN(1);m.connect(A.cabinIn);A.turb=layer(A.brown,[filt('lowpass',320,.8)],m);const l=ac.createOscillator();l.frequency.value=7.3;const lg=gainN(.45);l.connect(lg);lg.connect(m.gain);l.start(); }   // buffeting in the wake
   rvInit();pulseLoad();
   rebuildVoices();setAmbient();
 }
@@ -2986,7 +2991,8 @@ function audioFrame(dt,rpmT,gear){
   const sp=Math.abs(pl.v);
   A.sq.gain.setTargetAtTime(live?Math.min(.32,sqAmt*.38):0,t,.05);
   A.sqf.frequency.setTargetAtTime(880+Math.random()*160+sp*2.5,t,.04);
-  A.wind.gain.setTargetAtTime(live?Math.min(.36,Math.pow(sp/85,2)*(fp?.2:.32)+Math.min(.12,wind.ms/18*.12)*(fp?.5:1)):0,t,.1);
+  A.wind.gain.setTargetAtTime(live?Math.min(.36,Math.pow(sp/85,2)*(fp?.2:.32)+Math.min(.12,wind.ms/18*.12)*(fp?.5:1))*(1-.55*(pl.slip||0)):0,t,.1);
+  if(A.turb)A.turb.gain.setTargetAtTime(live?.22*(pl.slip||0)*Math.min(1,sp/50)*(fp?.6:1):0,t,.08);
   A.road.gain.setTargetAtTime(live?Math.min(.28,sp/90*.24):0,t,.1);
   A.grav.gain.setTargetAtTime(live?offAmt*Math.min(.38,sp/30*.38):0,t,.05);
   A.scr.gain.setTargetAtTime(live?scrapeAmt*Math.min(.3,sp/25*.3):0,t,.04);
@@ -4953,6 +4959,9 @@ function updateAI(dt,active){
     const gap=pprog-a.s,lat=Math.abs(pl.off-a.lane);
     if(state!=='menu'&&gap>0&&gap<14&&lat<2.4){target=Math.min(target,pl.v*0.97+2);a.laneT=pl.off>0?-lmax:lmax;}
     for(const b of AI){if(b===a)continue;const g2=b.s-a.s;if(g2>0&&g2<10&&Math.abs(b.lane-a.lane)<2.2){target=Math.min(target,b.v+1);a.laneT=b.lane>0?-lmax*0.9:lmax*0.9;}}
+    // tow behind the player or another rival: a little more top speed on the straights
+    if(state==='race'&&!scOn()){let ts=slipOf(pprog-a.s,Math.abs(pl.off-a.lane),a.v);for(const b of AI){if(b===a||b.gh||b.out)continue;ts=Math.max(ts,slipOf(b.s-a.s,Math.abs(b.lane-a.lane),a.v));}
+      if(ts>0&&cornerAt[i]<0)target*=1+.04*ts;}
     if(scOn()){target=scAITarget(a,target);a.laneT=a.lane;}
     a.thr=a.v<target-0.5?.85:.2;
     if(a.v<target)a.v=Math.min(target,a.v+Math.max(0.6,CAR.acc*DL.a*(1-Math.pow(a.v/CAR.vmax,2))-CAR.k*a.v*a.v)*dt);else a.v=Math.max(target,a.v-CAR.brake*WEATHERS[wxSel].brake*0.8*dt);
@@ -4963,12 +4972,25 @@ function updateAI(dt,active){
   }
 }
 function place(a,o){a.mesh.position.set(o.x,o.y,o.z);const i=o.i;a.mesh.lookAt(o.x+T[i].x,o.y+SL[i],o.z+T[i].z);}
+/* slipstream (2026-10-25): close behind a rival (not a ghost) on the same line at speed, the drag drops up to 40% and the top
+   speed rises up to 5%; in corners the following car loses a little downforce (dirty air). Rivals get the same tow
+   behind the player or each other (updateAI). HUD #slip, a quieter wind and a turbulent rumble (audioFrame). */
+function slipOf(gap,lat,sp){if(gap<2||gap>38||lat>1.7||sp<16)return 0;return Math.min(1,(1-(gap-3)/35))*Math.min(1,(1.7-lat)/.8)*Math.min(1,(sp-16)/20);}
+function slipUpdate(dt,sp){
+  let s=0;
+  if(mode!=='free'&&state==='race'&&!(typeof scOn==='function'&&scOn())){const pp=(pl.lap-1)*L+pl.idx*ds;
+    for(const a of AI){if(a.gh||a.out||!a.mesh||!a.mesh.visible)continue;s=Math.max(s,slipOf(a.s-pp,Math.abs(a.lane-pl.off),sp));}}
+  pl.slip=(pl.slip||0)+(s-(pl.slip||0))*Math.min(1,dt*(s>(pl.slip||0)?2.5:4));
+  const el=$('slip');if(el){const on=pl.slip>.18;if(on!==el.classList.contains('on'))el.classList.toggle('on',on);if(on)el.lastChild.style.width=Math.round(pl.slip*100)+'%';}
+  if(pl.slip>.6&&sp>40)radioSay('slip',['スリップストリームに入った。横に出れば抜けるぞ','いいトウだ。ブレーキング手前で並べ','前の車の真後ろだ、速度が伸びてる'],1,'',45);
+}
 function updatePlayer(dt,canDrive){
   const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'&&!FIN.on?1:0);
   const kst=keys.left-keys.right,gst=!kst&&GY.on?gyroSteer():0,st=canDrive?(kst||gst):0;
   pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6)));
   const v=pl.v,sp=Math.abs(v);let a=0;
   const D=CAR.drive;
+  slipUpdate(dt,sp);const sl=pl.slip||0;
   // traction: rear/mid drive spins up a little off the line, 4WD bites
   const trac=tractionOf(CAR,sp);
   // turbo lag: early single-turbo cars wait for boost after the throttle opens
@@ -4977,7 +4999,7 @@ function updatePlayer(dt,canDrive){
   let mtK=1;if(neutral)mtK=0;else if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,CAR.gearTop[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
-  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/CAR.vmax,2)):(neutral?0:22);
+  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/(CAR.vmax*(1+.05*sl)),2)):(neutral?0:22);
   if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfK(CAR,sp)-1)):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
@@ -4987,14 +5009,16 @@ function updatePlayer(dt,canDrive){
   }else pl.eb=0;
   // wind: drag works on the airspeed (head/tail wind along the heading); crosswind pushes the car sideways a little
   const wv=windNow(dt),hx=Math.sin(pl.th),hz=Math.cos(pl.th),wAlong=wv.x*hx+wv.z*hz,va=v-wAlong;
-  a-=CAR.k*va*Math.abs(va);
+  a-=CAR.k*va*Math.abs(va)*(1-.4*sl);   // in a tow the drag drops (slipUpdate)
   if(wind.ms){const wCross=wv.x*hz-wv.z*hx;pl.windDrift=wCross*Math.abs(wCross)*0.0011*Math.min(1,sp/15);}else pl.windDrift=0;
   if(offTrack(pl.idx,pl.off))a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
-  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp);
+  // dirty air: right behind a car in a corner, the wings work less (only cars with downforce feel it)
+  const dirty=sl>.15&&cornerAt[pl.idx]>=0?.06*sl*Math.min(1,(dfK(CAR,sp)-1)*4):0;
+  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp)*(1-dirty);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
