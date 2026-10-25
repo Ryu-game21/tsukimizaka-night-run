@@ -70,6 +70,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `ground`（`GROUND`/`groundLoad`/`groundApply`/`gDy`、`RWP`/`RWN`、`tracks/<id>/ground.json`）… 3Dモデルのあるコースは、`tools/ground_scan.py <id>` が道の外まで実際の地面の高さ（道の平面からの差、1m 刻み）と左右別々の壁の位置（ガードレール・フェンス・木・段差・崖・モデルの端・ほかの区間との中間）を出す。
   ゲームは車の高さに `gDy` を足し、壁は `pl.off` の符号で `RWP`（+NR 側）/`RWN`（-NR 側）。ゲームの点とスキャンの点は位置で対応づける（`GDY.K`）。`work/ground/export.js` で index.html からコースの点を書き出してから走らせ、`tools/ground_view.py` で上から確かめる。
   コースの点（pts/hw/bank）を変えたら ground.json も作り直す。
+  モデルのメッシュ同士のすき間（3m以下で両側の高さがほぼ同じ）は地面として埋めて数える。ground.json の `road` はバンド上でいちばん多い不透明な面のマテリアル名で、ゲームはそのマテリアルで実際の地面の 0.25m 下に壁から壁までの下敷き（`groundUnder`/`UNDER`）を敷き、すき間から下の緑の板が見えないようにする（2026-10-25、鈴鹿1コーナー手前の緑の三角）。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
   挙動（2026-10-25 試作）：`DF[車]`（200km/h での追加グリップの割合、`dfK`）のダウンフォース、`vCorner` で推奨速度・AI のラインにも反映。向き `pl.th` と進む向き（`pl.th-pl.beta`）を分け、前輪の限界でアンダー、

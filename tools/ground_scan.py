@@ -28,6 +28,7 @@ from glblib import triangles  # noqa: E402
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 LAT = 0.5          # lateral sample step (m)
 MAXO = 45.0        # furthest scan from the centre line (m)
+GAP = 3.0          # longest crack between meshes that still counts as ground (m)
 STORE = 1.0        # lateral step of the stored height grid (m)
 CELL = 4.0
 
@@ -49,14 +50,17 @@ def png_bytes(path, n):
 def load_model(url):
     d = os.path.join(ROOT, 'site', os.path.dirname(url)); J = json.load(open(os.path.join(ROOT, 'site', url)))
     B = b''.join(png_bytes(os.path.join(d, p['file']), p['bytes']) for p in J['extras']['geoPng'])
-    tris = [t for m, t, _ in triangles(J, B)]   # everything: decals on the asphalt are ground, fences / glass / trees are barriers
-    return np.concatenate(tris).astype(np.float64)
+    parts = triangles(J, B)   # everything: decals on the asphalt are ground, fences / glass / trees are barriers
+    names = sorted(set(m for m, _, _ in parts)); mid = np.concatenate([np.full(len(t), names.index(m)) for m, t, _ in parts])
+    alpha = {m.get('name'): m.get('alphaMode', 'OPAQUE') for m in J['materials']}
+    load_model.decal = {k for k, nm in enumerate(names) if alpha.get(nm, 'OPAQUE') != 'OPAQUE'}   # tyre marks, lines
+    return np.concatenate([t for _, t, _ in parts]).astype(np.float64), mid, names
 
 
 class Grid:
-    def __init__(self, V):
+    def __init__(self, V, mid):
         self.V = V; e1 = V[:, 1] - V[:, 0]; e2 = V[:, 2] - V[:, 0]; n = np.cross(e1, e2)
-        ln = np.linalg.norm(n, axis=1); ok = ln > 1e-9; self.V = V = V[ok]; n = n[ok] / ln[ok, None]
+        ln = np.linalg.norm(n, axis=1); ok = ln > 1e-9; self.V = V = V[ok]; self.mid = mid[ok]; n = n[ok] / ln[ok, None]
         self.ny = np.abs(n[:, 1]); self.ymin = V[:, :, 1].min(1); self.ymax = V[:, :, 1].max(1)
         lo = np.floor(V[:, :, [0, 2]].min(1) / CELL).astype(int); hi = np.floor(V[:, :, [0, 2]].max(1) / CELL).astype(int)
         span = (hi - lo + 1).prod(1); big = span > 400
@@ -82,10 +86,10 @@ class Grid:
         if not ti: return np.zeros(0, int), np.zeros(0, int)
         return np.concatenate(pi), np.concatenate(ti)
 
-    def heights(self, xs, zs, lo, hi):
-        """top walkable surface height in [lo, hi] at each (x, z); nan where none"""
+    def heights(self, xs, zs, lo, hi, mat=False):
+        """top walkable surface height in [lo, hi] at each (x, z); nan where none (mat: also the material id there, -1)"""
         pi, ti = self.cand(xs, zs); out = np.full(len(xs), np.nan)
-        if not len(pi): return out
+        if not len(pi): return (out, np.full(len(xs), -1)) if mat else out
         V = self.V[ti]; px = xs[pi]; pz = zs[pi]
         x0, z0 = V[:, 0, 0], V[:, 0, 2]; x1, z1 = V[:, 1, 0] - x0, V[:, 1, 2] - z0; x2, z2 = V[:, 2, 0] - x0, V[:, 2, 2] - z0
         d = x1 * z2 - x2 * z1; ok = np.abs(d) > 1e-12; d = np.where(ok, d, 1)
@@ -95,6 +99,12 @@ class Grid:
         ins &= (y >= lo[pi]) & (y <= hi[pi])
         if ins.any():
             np.fmax.at(out, pi[ins], y[ins])
+        if mat:
+            # the top opaque surface (tyre marks / lines are see-through decals on the asphalt)
+            dec = np.isin(self.mid[ti], list(getattr(load_model, 'decal', ()))); i2 = ins & ~dec; o2 = np.full(len(xs), np.nan)
+            if i2.any(): np.fmax.at(o2, pi[i2], y[i2])
+            m = np.full(len(xs), -1); top = i2 & (y >= o2[pi] - 1e-9); m[pi[top]] = self.mid[ti[top]]
+            return out, m
         return out
 
     def barrier(self, ax, az, bx, bz, ga, gb):
@@ -124,7 +134,7 @@ def main():
     if c.get('rw'): rw_old = np.maximum(rw_old, np.array(c['rw'], float))
     T = np.roll(P, -1, 0) - np.roll(P, 1, 0); T[:, 1] = 0; T /= np.linalg.norm(T, axis=1, keepdims=True)
     NRm = np.c_[T[:, 2], np.zeros(n), -T[:, 0]]           # same as the game: NR = (t.z, 0, -t.x)
-    G = Grid(load_model(c['model'])); kd = cKDTree(P[:, [0, 2]])
+    V, mid, names = load_model(c['model']); G = Grid(V, mid); kd = cKDTree(P[:, [0, 2]])
     offs = np.arange(LAT, MAXO + 1e-9, LAT); no = len(offs)
     S = int(MAXO / STORE); wl = np.zeros(n); wr = np.zeros(n); dyg = np.zeros((n, 2 * S + 1)); rep = {'inband': [], 'dyband': []}
     for k in range(n):
@@ -133,9 +143,18 @@ def main():
             # the ground at the centre too (start of the scan)
             g = G.heights(np.r_[P[k, 0], xs], np.r_[P[k, 2], zs], np.r_[P[k, 1] - 1.5, yp - 4], np.r_[P[k, 1] + 1.0, yp + 2.5])
             g0, g = g[0], g[1:]
-            # a single missing sample is a crack between triangles of the (simplified) model, not the edge of the world
-            nanm = np.isnan(g); lone = nanm & ~np.r_[nanm[1:], True] & ~np.r_[True, nanm[:-1]]
-            if lone.any(): g[lone] = (np.r_[g[1:], np.nan] + np.r_[np.nan, g[:-1]])[lone] / 2
+            # a short run of missing samples (up to GAP m) with ground at about the same height on both sides is a crack
+            # between meshes of the (simplified) model, not the edge of the world (Suzuka turn 1: the asphalt and the
+            # grass don't meet - the game fills the crack with a dark sheet, groundUnder)
+            nanm = np.isnan(g); j = 0
+            while j < no:
+                if not nanm[j]: j += 1; continue
+                e = j
+                while e < no and nanm[e]: e += 1
+                a = g[j - 1] if j > 0 else g0
+                if e < no and (e - j) * LAT <= GAP and not np.isnan(a) and abs(g[e] - a) < 0.3:
+                    g[j:e] = a + (g[e] - a) * (np.arange(j, e) - j + 1) / (e - j + 1)
+                j = e
             if np.isnan(g0): g0 = P[k, 1]
             # another stretch of the circuit closer than this one?
             dd, jj = kd.query(np.c_[xs, zs]); di = np.minimum(np.abs(jj - k), n - np.abs(jj - k))
@@ -166,7 +185,12 @@ def main():
     wr = np.maximum(band, np.minimum.reduce([np.roll(wr, -1), wr, np.roll(wr, 1)]))
     # walls are on the +NR side (wl) and -NR side (wr): + offset = NR = left/right as the game's pl.off sign
     q = np.clip(np.round(dyg / 0.05), -127, 127).astype(np.int8)
-    out = {'v': 1, 'step': STORE, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
+    # the asphalt: the most common top surface across the band (the game lays the crack-filling sheet in it)
+    ks = np.arange(0, n, 3); fr = np.array([-0.6, -0.3, 0, 0.3, 0.6])
+    o = (hw[ks, None] * fr[None]).ravel(); kk = np.repeat(ks, len(fr))
+    _, mm = G.heights(P[kk, 0] + NRm[kk, 0] * o, P[kk, 2] + NRm[kk, 2] * o, P[kk, 1] + bank[kk] * o - 0.5, P[kk, 1] + bank[kk] * o + 0.5, mat=True)
+    cnt = np.bincount(mm[mm >= 0], minlength=len(names)); cnt[list(load_model.decal)] = 0; road = names[int(cnt.argmax())]
+    out = {'v': 1, 'step': STORE, 'road': road, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode()}   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
     json.dump(out, open(dst, 'w'), separators=(',', ':'))
@@ -182,7 +206,7 @@ def main():
     within = np.array(within)
     print(f'{cid}: {n} pts | old wall drove through a barrier/edge at {pass_p}+{pass_n} side-points, '
           f'blocked open ground >3 m early at {inv_p}+{inv_n} | height off by >0.3 m inside the old wall at {int(np.sum(within > .3))} side-points (max {within.max():.2f} m) '
-          f'| obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
+          f'| road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
     if rep['inband']: print('  inside band:', rep['inband'][:12])
     if rep['dyband']: print('  band height:', rep['dyband'][:12])
 
