@@ -1447,17 +1447,19 @@ const VEG={};
 function vegRand(seed){let a=seed|0;return()=>((a=Math.imul(a^a>>>15,2246822507)+0x9e3779b9|0)>>>0)/4294967296;}
 function vegTex(kind){
   if(VEG[kind])return VEG[kind];
-  const W=256,H=kind==='conifer'?512:256,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),r=vegRand(kind.length*977+7);
+  const W=kind==='crown'?512:256,H=kind==='conifer'||kind==='crown'?512:256,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),r=vegRand(kind.length*977+7);
   const el=(x,y,a,b,rot,col)=>{g.fillStyle=col;g.beginPath();g.ellipse(x,y,a,b,rot,0,7);g.fill();};
   if(kind==='conifer'){
     g.fillStyle='#3a2a1d';g.fillRect(W/2-4,H*0.5,8,H*0.5);
     for(let i=0;i<4200;i++){const t=Math.pow(r(),0.85),y=6+t*H*0.84,half=6+t*W*0.42,u=(r()*2-1)*Math.sqrt(r()),x=W/2+u*half;
       const edge=Math.abs(u),l=7+r()*8+edge*11+(x>W/2?4:0);el(x,y+edge*edge*10,2.5+r()*5,1.5+r()*2.5,(u<0?0.45:-0.45)+(r()-0.5)*0.5,`hsl(${95+r()*35},${18+r()*18}%,${l}%)`);}
   }else if(kind==='crown'){
-    const cl=[];for(let k=0;k<11;k++){const a=r()*6.28,d=Math.sqrt(r())*0.3;cl.push([W/2+Math.cos(a)*d*W,H*0.5+Math.sin(a)*d*H*0.8-k*1.5,W*(0.1+r()*0.07)]);}
-    cl.sort((a,b)=>a[1]-b[1]);   // back (upper) clumps first, front ones over them
-    for(const[cx,cy,R]of cl)for(let i=0;i<520;i++){const a=r()*6.28,d=Math.sqrt(r()),x=cx+Math.cos(a)*d*R,y=cy+Math.sin(a)*d*R*0.85;
-      const lit=0.5-Math.sin(a)*d*0.5+(cx-W/2)/W*0.3,v=Math.round(48+lit*120+r()*34-(y/H)*30);el(x,y,1.8+r()*4,1.3+r()*2.6,r()*3,`rgb(${v},${v},${v})`);}
+    // four different, lopsided clumps in a 2 x 2 atlas (each instance picks one: attribute uvo)
+    for(let q=0;q<4;q++){const ox=(q&1)*256,oy=(q>>1)*256,S=256,lx=(r()-0.5)*0.22,n=7+Math.floor(r()*8),cl=[];
+      for(let k=0;k<n;k++){const a=r()*6.28,d=Math.sqrt(r())*0.3;cl.push([ox+S*(0.5+lx*(0.5+r()))+Math.cos(a)*d*S*(0.8+r()*0.5),oy+S*0.52+Math.sin(a)*d*S*0.75,S*(0.07+r()*0.1)]);}
+      cl.sort((a,b)=>a[1]-b[1]);   // back (upper) clumps first, front ones over them
+      for(const[cx,cy,R]of cl)for(let i=0;i<Math.round(R*R*0.09);i++){const a=r()*6.28,d=Math.sqrt(r()),x=cx+Math.cos(a)*d*R*(1+0.25*Math.sin(a*5+cx)),y=cy+Math.sin(a)*d*R*0.85;
+        if(x<ox+4||x>ox+S-4||y<oy+4||y>oy+S-4)continue;const lit=0.5-Math.sin(a)*d*0.5+(cx-ox-S/2)/S*0.3,v=Math.round(48+lit*120+r()*34-((y-oy)/S)*30);el(x,y,1.8+r()*4,1.3+r()*2.6,r()*3,`rgb(${v},${v},${v})`);}}
   }else if(kind==='hydrangea'){
     for(let i=0;i<1600;i++){const x=W*0.06+r()*W*0.88,y=H*0.3+r()*H*0.7;if(Math.hypot((x-W/2)/(W*0.46),(y-H*0.75)/(H*0.48))>1)continue;el(x,y,4+r()*7,3+r()*4,r()*3,`hsl(${95+r()*30},${32+r()*18}%,${14+r()*18}%)`);}
     const pal=[[224,52,70],[268,40,68],[318,36,70],[212,46,62],[285,34,72]];
@@ -1467,6 +1469,7 @@ function vegTex(kind){
   }else if(kind==='grass'){
     for(let i=0;i<260;i++){const x0=r()*W,lean=(r()*2-1)*40,len=H*(0.25+r()*0.7);g.strokeStyle=`hsl(${70+r()*30},${25+r()*20}%,${16+r()*20}%)`;g.lineWidth=1.5+r()*2.2;
       g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.3,H-len*0.6,x0+lean,H-len);g.stroke();}
+    g.globalCompositeOperation='source-atop';const gr=g.createLinearGradient(0,H*0.55,0,H);gr.addColorStop(0,'rgba(40,42,24,0)');gr.addColorStop(1,'rgba(40,42,24,0.95)');g.fillStyle=gr;g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';
   }else if(kind==='susuki'){
     for(let i=0;i<90;i++){const x0=W/2+(r()*2-1)*34,lean=(r()*2-1)*100,len=H*(0.45+r()*0.45);g.strokeStyle=`hsl(${50+r()*28},${22+r()*18}%,${26+r()*20}%)`;g.lineWidth=1.2+r()*1.6;
       g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.25,H-len*0.6,x0+lean,H-len);g.stroke();}
@@ -1486,9 +1489,9 @@ function vegGeo(cards,flat){   // crossed upright cards (base at y 0, 1 x 1), or
   g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('normal',new THREE.Float32BufferAttribute(nr,3));g.setAttribute('cn',new THREE.Float32BufferAttribute(cn,3));g.setIndex(idx);return g;
 }
 function vegMat(kind){   // a card seen edge-on fades out (no thin slivers): its own facing in 'cn', the lit normal stays up
-  const m=new THREE.MeshLambertMaterial({map:vegTex(kind),alphaTest:0.42});m.customProgramCacheKey=()=>'vegCard';
+  const m=new THREE.MeshLambertMaterial({map:vegTex(kind),alphaTest:0.42}),at=kind==='crown';m.customProgramCacheKey=()=>at?'vegCardA':'vegCard';
   m.onBeforeCompile=sh=>{
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 cn;varying float vFace;').replace('#include <project_vertex>',
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 cn;varying float vFace;'+(at?'attribute vec2 uvo;':'')).replace('#include <uv_vertex>','#include <uv_vertex>'+(at?'\nvUv=vUv*0.5+uvo;':'')).replace('#include <project_vertex>',
       '#include <project_vertex>\n{mat4 mm=modelMatrix;\n#ifdef USE_INSTANCING\nmm=mm*instanceMatrix;\n#endif\nvec3 wn=normalize(mat3(mm)*cn);vec3 wp=(mm*vec4(position,1.0)).xyz;vFace=abs(dot(wn,normalize(cameraPosition-wp)));}');
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vFace;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.a*=smoothstep(0.14,0.5,vFace);');};
   return m;}
@@ -1542,16 +1545,18 @@ function sceneryTreeFilter(c){
 function railsReal(){
   const R0=P2P?P2P.in0-N:0,R1=P2P?P2P.end:N,cut=(i,sd)=>{const k=((i%N)+N)%N;return Math.max(sideY(k*ds,sd*9.5)-(P[k].y+BK[k]*sd*9.5),sideY(k*ds,sd*12)-(P[k].y+BK[k]*sd*12)-0.4)>1.1;};
   const rm=new THREE.MeshStandardMaterial({color:0xd5d9da,metalness:.3,roughness:.5,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.3;}
-  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide});
+  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide}),gs=new THREE.MeshLambertMaterial({color:0x3b4529,side:THREE.DoubleSide});vegDetail(gs);
   const WB=[[0,.44],[.07,.52],[0,.6],[.07,.68],[0,.76]],posts=[],refl=[];
   for(const sd of[1,-1]){
     const on=[];for(let i=R0;i<=R1;i++)on.push(!cut(i,sd));
     for(let a=0;a<on.length;){let b=a;while(b<on.length&&on[b]===on[a])b++;if(!on[a]&&b-a<10)for(let q=a;q<b;q++)on[q]=true;a=b;}   // short cuts: keep the rail
+    for(let a=0;a<on.length;){let b=a;while(b<on.length&&on[b]===on[a])b++;if(on[a]&&b-a<12&&a>0&&b<on.length)for(let q=a;q<b;q++)on[q]=false;a=b;}   // and no stub of rail between two cuts
     for(let a=0;a<on.length;){let b=a;while(b<on.length&&on[b]===on[a])b++;const i0=R0+a,i1=R0+b-1;
       if(on[a]){for(let k=0;k<4;k++){const p=WB[k],q=WB[k+1];ribbon(i=>[sd*(RAIL-p[0]),BK[i]*sd*RAIL+p[1],sd*(RAIL-q[0]),BK[i]*sd*RAIL+q[1]],rm,10,i0,i1);}
         for(let i=i0;i<=i1;i++){posts.push([i,sd]);if(i%6===0)refl.push([i,sd]);}}
       else{ribbon(i=>[sd*(HALF+0.15),BK[i]*sd*HALF+0.012,sd*(HALF+0.55),BK[i]*sd*HALF+0.012],gd,10,i0,i1);   // the gutter (U字溝)
-        ribbon(i=>[sd*(HALF+0.55),BK[i]*sd*HALF+0.012,sd*(HALF+0.62),BK[i]*sd*HALF+0.16],gm,10,i0,i1);}
+        ribbon(i=>[sd*(HALF+0.55),BK[i]*sd*HALF+0.012,sd*(HALF+0.62),BK[i]*sd*HALF+0.16],gm,10,i0,i1);
+        ribbon(i=>[sd*(HALF+0.62),BK[i]*sd*HALF+0.16,sd*(RAIL+0.45),BK[i]*sd*HALF+0.75],gs,6,i0,i1);}   // the foot of the cut slope over the shoulder
       a=b;}
   }
   const pm=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07,0.07,0.95,8),new THREE.MeshLambertMaterial({color:0xc9cccd}),posts.length);
@@ -1608,14 +1613,14 @@ function buildScenery(){
   {const L=[];for(const sd of[1,-1])for(let s=0;s<S1;){const zn=Z.zone(s);if(zn!=='sakura'&&zn!=='green'&&zn!=='maple'){s+=4;continue;}
      const grp=1+Math.floor(rnd()*3);for(let q=0;q<grp;q++)L.push([s+q*(2.5+rnd()*2),sd,zn,zn==='maple'&&rnd()<0.45?2.5+rnd()*5:rnd()*1.2]);
      s+=grp*3+3+rnd()*(zn==='maple'?12:6);}
-   const trunkG=new THREE.CylinderGeometry(0.13,0.36,1,8);trunkG.translate(0,0.5,0);
+   const trunkG=new THREE.CylinderGeometry(0.09,0.2,1,7);trunkG.translate(0,0.5,0);
    const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x2f2721}),L.length);
-   const brG=new THREE.CylinderGeometry(0.045,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material,L.length*8),tip=new THREE.Vector3();let c4=0;
+   const brG=new THREE.CylinderGeometry(0.045,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material.clone(),L.length*8),tip=new THREE.Vector3();let c4=0;
    const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*8),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
    const pal={sakura:[0xf0cbd8,0xe8b8ca,0xf5d6e0,0xdfa9bd],green:[0x4a7e34,0x416f2c,0x55893c,0x37612a],maple:[0xb8452a,0xc9772e,0xcfa040,0x963b22,0xa39a4a,0x6f7a3a,0x5e7535]};
    let c2=0,c3=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.2+p[3]+rnd()*1.6),sz=0.65+rnd()*0.7,h=(tun?4.4+rnd()*1.4:2.6+rnd()*2.4)*(0.8+sz*0.3);
-     put(p[0],lane,0);dm.rotation.set((rnd()-0.5)*0.1,0,(rnd()-0.5)*0.1);dm.scale.set(0.7+sz*0.5,h+0.8,0.7+sz*0.5);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);
-     const pl=pal[p[2]],nq=2+Math.floor(rnd()*3),base=put(p[0],lane,0).position.clone(),hb=h*(tun?0.55+rnd()*0.15:0.45+rnd()*0.15),i0=Math.floor(wrap(p[0])/ds)%N,inYaw=Math.atan2(-NR[i0].x*p[1],-NR[i0].z*p[1]);
+     put(p[0],lane,0);dm.rotation.set((rnd()-0.5)*0.1,0,(rnd()-0.5)*0.1);dm.scale.set(0.8+sz*0.4,h+0.8,0.8+sz*0.4);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);col.setScalar(0.85+rnd()*0.3);trunks.setColorAt(k,col);
+     const pl=pal[p[2]],nq=2+Math.floor(rnd()*3),base=put(p[0],lane,0).position.clone(),hb=h*(tun?0.4+rnd()*0.3:0.3+rnd()*0.35),i0=Math.floor(wrap(p[0])/ds)%N,inYaw=Math.atan2(-NR[i0].x*p[1],-NR[i0].z*p[1]);
      for(let q=0;q<nq;q++){const r=((tun?3.6:2.4)+rnd()*1.6)*sz*(q?0.75:1);
        // a branch: from the trunk at hb, opened 30-60 deg; in the tunnels the first ones reach over the road
        const yaw=(tun&&q<2)?inYaw+(rnd()-0.5)*0.9:rnd()*6.28,tilt=(tun&&q<2?0.5+rnd()*0.35:0.5+rnd()*0.5),len=(tun&&q<2?h*0.75:h*0.5)*(0.8+rnd()*0.4);
@@ -1631,11 +1636,14 @@ function buildScenery(){
        crowns.setMatrixAt(c2,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]).multiplyScalar(0.88+rnd()*0.24);crowns.setColorAt(c2++,col);}
      if(tun)for(let q=0;q<2;q++){put(p[0]+(rnd()-0.5)*4,lane-p[1]*(3.5+q*2.5+rnd()),h+1.4+rnd()*0.8);dm.rotation.set(0,rnd()*6,0);const w=6+rnd()*3;dm.scale.set(w,1,w*0.8);dm.updateMatrix();
        canopy.setMatrixAt(c3,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);canopy.setColorAt(c3++,col);}});
+   for(const im of[crowns,canopy]){const n=im.count,a=new Float32Array(n*2);for(let k=0;k<n*2;k++)a[k]=rnd()<0.5?0:0.5;im.geometry.setAttribute('uvo',new THREE.InstancedBufferAttribute(a,2));}
    crowns.count=c2;canopy.count=c3;branches.count=c4;world.add(trunks,branches,crowns,canopy);}
   {const L=[];for(let s=0;s<S1;s+=0.7){const dry=Z.zone(s)==='susuki';for(const sd of[1,-1])for(let q=0;q<(dry?2:1);q++)L.push([s+rnd()*0.7,sd*(RAIL+0.3+Math.pow(rnd(),1.5)*(dry?9:4)),dry]);}
-   const m=new THREE.InstancedMesh(vegGeo(2),vegMat('grass'),L.length);
-   L.forEach((p,k)=>{put(p[0],p[1],-0.08);const sz=0.7+rnd()*0.7;dm.scale.set(sz*1.6,sz*0.6,sz*1.6);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
-     if(p[2])col.setHSL(0.11,0.45,0.85+rnd()*0.15);else col.setHSL(0.2,0.1,0.58+rnd()*0.18);m.setColorAt(k,col);});world.add(m);}   // dry grass under the susuki
+   const m=new THREE.InstancedMesh(vegGeo(2),vegMat('grass'),L.length);let k=0;
+   L.forEach(p=>{if(Math.sin(p[0]*0.13+p[1])+Math.sin(p[0]*0.041)<-0.8)return;   // gaps between patches
+     put(p[0],p[1],-0.08);if(gh){const x=dm.position.x,z=dm.position.z,a=gh(x+1.5,z),b=gh(x,z+1.5),c0=gh(x,z);if(a!=null&&b!=null&&c0!=null&&Math.hypot(a-c0,b-c0)/1.5>0.7)return;}
+     dm.scale.set(0.5+rnd()*1.3,0.25+rnd()*0.45,0.5+rnd()*1.3);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
+     if(p[2])col.setHSL(0.11,0.45,0.85+rnd()*0.15);else col.setHSL(0.2,0.1,0.58+rnd()*0.18);m.setColorAt(k++,col);});m.count=k;world.add(m);}   // dry grass under the susuki
   // pampas grass (susuki) tufts, thick at the roadside and out over the slopes near the summit
   {const L=[];for(let s=0;s<S1;s+=0.55)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*0.6,sd*(RAIL+0.4+Math.pow(rnd(),2.2)*13)]);}
    const m=new THREE.InstancedMesh(vegGeo(3),vegMat('susuki'),L.length);
@@ -1665,7 +1673,8 @@ function terrainShow(c){
     g.setAttribute('color',new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint8Array(b,o3,j.nv*4),4),3,0,true));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(b,o1,j.ni),1));g.computeVertexNormals();g.computeBoundingSphere();
     const grp=new THREE.Group();grp.userData.keep=true;
-    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(G>R+8&&G>B){   // greens: darker and less saturated (a forest seen from the road, not a lawn)
+    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(Math.abs(R-91)<=1&&Math.abs(G-86)<=1&&Math.abs(B-76)<=1){ca[i*4]=56;ca[i*4+1]=62;ca[i*4+2]=38;}   // the road's corridor: roadside grass
+       else if(G>R+8&&G>B){   // greens: darker and less saturated (a forest seen from the road, not a lawn)
        const L=(R+G+B)/3,v=0.62+((i*7919)%13)/80;ca[i*4]=Math.round((R*0.7+L*0.3)*v);ca[i*4+1]=Math.round((G*0.7+L*0.3)*v);ca[i*4+2]=Math.round((B*0.7+L*0.3)*v);}}}
     const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));vegDetail(land.material);land.userData.terrain=true;grp.add(land);
     // forest: tall dark conifers (sugi / hinoki), base on the ground
