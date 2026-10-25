@@ -833,6 +833,7 @@ body.phl .press{display:none}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (()=>{
+if(location.hash==='#dev')window.__ev=s=>eval(s);   // test hook for checking the look in a real browser (only with #dev)
 const $=id=>document.getElementById(id);
 let N=1200,RC=null,vcD=null;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
 
@@ -1439,6 +1440,56 @@ async function pngData(ab,n){
 /* real ground for courses built from map data (2026-10-25, tools/real_course.py -> tracks/<id>/terrain.json + terrain0.png):
    the land from GSI elevation (corridor just under the road, the far land drawn closer so it fits the camera range), its colours,
    the forest beside the road and the sea. Kept across course changes like the circuit models (userData.keep). */
+/* vegetation as textured crossed cards (2026-10-25, the user: "too cheap"): foliage painted on canvases with an alpha cut-out
+   (conifer, broadleaf crown tinted per instance, hydrangea, susuki), normals pointing up so a plant is lit like a canopy
+   rather than like a flat board, one InstancedMesh per kind. vegDetail: a fine/coarse noise multiplied into the ground. */
+const VEG={};
+function vegRand(seed){let a=seed|0;return()=>((a=Math.imul(a^a>>>15,2246822507)+0x9e3779b9|0)>>>0)/4294967296;}
+function vegTex(kind){
+  if(VEG[kind])return VEG[kind];
+  const W=256,H=kind==='conifer'?512:256,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),r=vegRand(kind.length*977+7);
+  const el=(x,y,a,b,rot,col)=>{g.fillStyle=col;g.beginPath();g.ellipse(x,y,a,b,rot,0,7);g.fill();};
+  if(kind==='conifer'){
+    g.fillStyle='#3a2a1d';g.fillRect(W/2-4,H*0.5,8,H*0.5);
+    for(let i=0;i<4200;i++){const t=Math.pow(r(),0.85),y=6+t*H*0.84,half=6+t*W*0.42,u=(r()*2-1)*Math.sqrt(r()),x=W/2+u*half;
+      const edge=Math.abs(u),l=10+r()*10+edge*16+(x>W/2?5:0);el(x,y+edge*edge*10,2.5+r()*5,1.5+r()*2.5,(u<0?0.45:-0.45)+(r()-0.5)*0.5,`hsl(${100+r()*30},${28+r()*22}%,${l}%)`);}
+  }else if(kind==='crown'){
+    for(let i=0;i<3800;i++){const a=r()*6.28,d=Math.pow(r(),0.6)*0.47,x=W/2+Math.cos(a)*d*W*(0.9+r()*0.2),y=H*0.52+Math.sin(a)*d*H*0.86;
+      const v=Math.round(118+(1-y/H)*95+r()*40);el(x,y,2+r()*5,1.5+r()*3.5,r()*3,`rgb(${v},${v},${v})`);}
+  }else if(kind==='hydrangea'){
+    for(let i=0;i<1600;i++){const x=W*0.06+r()*W*0.88,y=H*0.3+r()*H*0.7;if(Math.hypot((x-W/2)/(W*0.46),(y-H*0.75)/(H*0.48))>1)continue;el(x,y,4+r()*7,3+r()*4,r()*3,`hsl(${95+r()*30},${32+r()*18}%,${14+r()*18}%)`);}
+    const pal=[[330,62,78],[215,62,72],[265,45,72],[300,35,88],[205,55,62],[345,55,70]];
+    for(let k=0;k<30;k++){const p=pal[Math.floor(r()*pal.length)],cx=W*0.14+r()*W*0.72,cy=H*0.4+r()*H*0.42,R=9+r()*13;
+      for(let i=0;i<90;i++){const a=r()*6.28,d=Math.sqrt(r())*R;g.fillStyle=`hsl(${p[0]+r()*16-8},${p[1]}%,${p[2]-10+r()*18}%)`;g.beginPath();g.arc(cx+Math.cos(a)*d,cy+Math.sin(a)*d,1.4+r()*1.8,0,7);g.fill();}}
+  }else if(kind==='susuki'){
+    for(let i=0;i<90;i++){const x0=W/2+(r()*2-1)*34,lean=(r()*2-1)*100,len=H*(0.45+r()*0.45);g.strokeStyle=`hsl(${50+r()*28},${22+r()*18}%,${26+r()*20}%)`;g.lineWidth=1.2+r()*1.6;
+      g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.25,H-len*0.6,x0+lean,H-len);g.stroke();}
+    for(let i=0;i<16;i++){const x0=W/2+(r()*2-1)*26,lean=(r()*2-1)*60,len=H*(0.78+r()*0.2),tx=x0+lean,ty=H-len;
+      g.strokeStyle='hsl(42,22%,42%)';g.lineWidth=1.4;g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.4,H-len*0.5,tx,ty);g.stroke();
+      for(let j=0;j<80;j++){const t=r(),px=tx+(r()*2-1)*9*t+lean*0.1*t,py=ty+t*H*0.24;el(px,py,1.1,3.6,0.35*Math.sign(lean)+(r()-0.5)*0.4,`hsl(${32+r()*16},${22+r()*20}%,${70+r()*20}%)`);}}
+  }
+  const t=new THREE.CanvasTexture(c);t.anisotropy=renderer.capabilities.getMaxAnisotropy();VEG[kind]=t;return t;
+}
+function vegGeo(cards,flat){   // crossed upright cards (base at y 0, 1 x 1), or one flat card (a canopy seen from below)
+  const g=new THREE.BufferGeometry(),pos=[],uv=[],idx=[],nr=[];
+  if(flat){pos.push(-.5,0,-.5,.5,0,-.5,.5,0,.5,-.5,0,.5);uv.push(0,0,1,0,1,1,0,1);idx.push(0,1,2,0,2,3);}
+  else for(let k=0;k<cards;k++){const a=k*Math.PI/cards,cx=Math.cos(a)*0.5,cz=Math.sin(a)*0.5,b=pos.length/3;
+    pos.push(-cx,0,-cz,cx,0,cz,cx,1,cz,-cx,1,-cz);uv.push(0,0,1,0,1,1,0,1);idx.push(b,b+1,b+2,b,b+2,b+3);}
+  for(let i=0;i<pos.length/3;i++)nr.push(0,1,0);
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('normal',new THREE.Float32BufferAttribute(nr,3));g.setIndex(idx);return g;
+}
+function vegMat(kind){return new THREE.MeshLambertMaterial({map:vegTex(kind),alphaTest:0.42,side:THREE.DoubleSide});}
+function vegDetail(m){
+  if(!VEG.detail){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d'),r=vegRand(99),im=g.createImageData(256,256);
+    for(let i=0;i<256*256;i++){const x=i%256,y=i>>8,v=118+(Math.sin(x*0.21+y*0.07)+Math.sin(y*0.19-x*0.05))*6+r()*28;im.data[i*4]=v;im.data[i*4+1]=v+4;im.data[i*4+2]=v-6;im.data[i*4+3]=255;}
+    g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=renderer.capabilities.getMaxAnisotropy();VEG.detail=t;}
+  m.customProgramCacheKey=()=>'terrDetail';
+  m.onBeforeCompile=sh=>{sh.uniforms.detail={value:VEG.detail};
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform sampler2D detail;').replace('#include <map_fragment>',
+      '#include <map_fragment>\n{float dd=length(vWP-cameraPosition);vec3 d1=texture2D(detail,vWP.xz*0.21).rgb;vec3 d2=texture2D(detail,vWP.xz*0.027).rgb;vec3 d3=texture2D(detail,vWP.xz*0.0031).rgb;'+
+      'diffuseColor.rgb*=mix(vec3(1.0),d1*2.05,0.5*(1.0-smoothstep(30.0,260.0,dd)))*mix(vec3(1.0),d2*2.05,0.4)*mix(vec3(1.0),d3*2.05,0.35);}');};
+}
 const TERR={},TSIDE={};
 // the real ground beside the road (terrain.json side: per course point, both sides, at sideOffs metres; 0.25 m from the road plane)
 function sideY(s,lane){
@@ -1475,34 +1526,30 @@ function buildScenery(){
   const o={},dm=new THREE.Object3D(),col=new THREE.Color(),rnd=(()=>{let a=12345;return()=>((a=Math.imul(a^a>>>15,2246822507)+0x9e3779b9|0)>>>0)/4294967296;})();
   const S1=(P2P.end-5)*ds,put=(s,lane,up)=>{sample(s,lane,o);dm.position.set(o.x,sideY(s,lane)+(up||0),o.z);return dm;};
   // hydrangea bushes just outside the rail
-  {const L=[];for(let s=0;s<S1;s+=2.6)if(Z.zone(s)==='hydrangea')for(const sd of[1,-1])if(rnd()<0.85)L.push([s+rnd()*2,sd*(RAIL+0.7+rnd()*0.9)]);
-   const pal=[0xe7a1c9,0x93b4ea,0xb59be2,0xf0e6f2,0xd583b0,0x7f9fe0];
-   const m=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.75,1),new THREE.MeshLambertMaterial({color:0xffffff}),L.length);
-   L.forEach((p,k)=>{put(p[0],p[1],0.3);const sz=0.6+rnd()*0.45;dm.scale.set(sz*1.25,sz,sz*1.25);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
-     col.setHex(rnd()<0.22?0x3f6b34:pal[Math.floor(rnd()*pal.length)]);m.setColorAt(k,col);});world.add(m);}
-  // broadleaf trees: cherry tunnel, green tunnel, autumn maples (canopies leaning over the road in the tunnels)
-  {const L=[];for(let s=0;s<S1;s+=7){const zn=Z.zone(s);if(zn!=='sakura'&&zn!=='green'&&zn!=='maple')continue;
-     for(const sd of[1,-1]){if(rnd()<0.12)continue;L.push([s+rnd()*4,sd,zn]);}}
-   const trunkG=new THREE.CylinderGeometry(0.18,0.32,1,6);trunkG.translate(0,0.5,0);
-   const crownG=new THREE.IcosahedronGeometry(1,1);
-   const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x4a3a2c}),L.length),crowns=new THREE.InstancedMesh(crownG,new THREE.MeshLambertMaterial({color:0xffffff}),L.length*3);
-   const pal={sakura:[0xf6dbe6,0xf2c6d8,0xfbe9f0],green:[0x4f8a3c,0x5f9a45,0x3f7a34],maple:[0xd2401f,0xe8762a,0xf0a830,0xb8321c,0x9a7a2c]};
-   let c2=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.6+rnd()*2.5),h=tun?3.4+rnd()*1.2:3+rnd()*2;
-     put(p[0],lane,0);dm.rotation.set(0,0,0);dm.scale.set(1,h+1.2,1);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);
-     for(let q=0;q<3;q++){const inward=tun?[0.8,2.6,4.4][q]:[-0.8,0,0.8][q],r=tun?2.2+rnd()*0.9:1.8+rnd()*0.9;
-       put(p[0]+(rnd()-0.5)*3.5,lane-p[1]*inward,h+r*0.4+(tun?q*0.35:q*0.5));dm.scale.set(r,r*0.7,r);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();crowns.setMatrixAt(c2,dm.matrix);
-       const pl=pal[p[2]];col.setHex(pl[Math.floor(rnd()*pl.length)]);crowns.setColorAt(c2++,col);}});
-   crowns.count=c2;world.add(trunks,crowns);}
-  // pampas grass (susuki): olive blade tufts with pale, tilted plumes
-  {const L=[];for(let s=0;s<S1;s+=1.6)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*1.6,sd*(RAIL+0.6+Math.pow(rnd(),1.8)*16)]);}
-   const bg=new THREE.ConeGeometry(0.4,1.1,5,1,true);bg.translate(0,0.55,0);
-   const pg=new THREE.ConeGeometry(0.07,0.75,4);pg.translate(0,0.375,0);
-   const blades=new THREE.InstancedMesh(bg,new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide}),L.length),plumes=new THREE.InstancedMesh(pg,new THREE.MeshLambertMaterial({color:0xffffff}),L.length*4);
-   let pn=0;L.forEach((p,k)=>{const sz=0.8+rnd()*0.5;put(p[0],p[1],-0.15);const bx=dm.position.x,by=dm.position.y,bz=dm.position.z;
-     dm.scale.set(sz,sz,sz);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();blades.setMatrixAt(k,dm.matrix);col.setHSL(0.17+rnd()*0.04,0.3,0.32+rnd()*0.1);blades.setColorAt(k,col);
-     for(let q=0;q<4;q++){const a=rnd()*6.28,t=0.25+rnd()*0.35;dm.position.set(bx+Math.cos(a)*0.15,by+sz*(0.9+rnd()*0.5),bz+Math.sin(a)*0.15);dm.rotation.set(Math.cos(a)*t,0,Math.sin(a)*t);dm.scale.set(1,sz*(0.9+rnd()*0.4),1);dm.updateMatrix();
-       plumes.setMatrixAt(pn,dm.matrix);col.setHSL(0.1+rnd()*0.03,0.3+rnd()*0.15,0.68+rnd()*0.15);plumes.setColorAt(pn++,col);}});
-   plumes.count=pn;world.add(blades,plumes);}
+  {const L=[];for(let s=0;s<S1;s+=2.2)if(Z.zone(s)==='hydrangea')for(const sd of[1,-1])if(rnd()<0.9)L.push([s+rnd()*2,sd*(RAIL+0.6+rnd()*1.0)]);
+   const m=new THREE.InstancedMesh(vegGeo(3),vegMat('hydrangea'),L.length);
+   L.forEach((p,k)=>{put(p[0],p[1],-0.1);const sz=0.85+rnd()*0.5;dm.scale.set(sz*2.0,sz*1.35,sz*2.0);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
+     col.setHSL(0,0,0.85+rnd()*0.15);m.setColorAt(k,col);});world.add(m);}
+  // broadleaf trees: cherry tunnel, green tunnel, autumn maples; in the tunnels a canopy over the road (flat cards seen from below)
+  {const L=[];for(let s=0;s<S1;s+=6){const zn=Z.zone(s);if(zn!=='sakura'&&zn!=='green'&&zn!=='maple')continue;
+     for(const sd of[1,-1]){if(rnd()<0.1)continue;L.push([s+rnd()*4,sd,zn]);}}
+   const trunkG=new THREE.CylinderGeometry(0.16,0.3,1,7);trunkG.translate(0,0.5,0);
+   const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x3e3128}),L.length);
+   const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*2),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
+   const pal={sakura:[0xffe8f0,0xf9d6e4,0xffeef4,0xf3c4d6],green:[0x6fa84e,0x5d9a42,0x7cb35a,0x4f8a3c],maple:[0xe0451f,0xf07a28,0xf4ad32,0xc93a1c,0xd9a23a,0x9c8a3a]};
+   let c2=0,c3=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.4+rnd()*2.2),h=tun?3.6+rnd()*1.2:3.2+rnd()*2;
+     put(p[0],lane,0);dm.rotation.set(0,0,(tun?-p[1]*0.12:0));dm.scale.set(1,h+0.8,1);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);
+     const pl=pal[p[2]];
+     for(let q=0;q<2;q++){const r=(tun?3.4:2.8)+rnd()*1.4,inw=tun?q*2.2:q*0.8;put(p[0]+(rnd()-0.5)*2.5,lane-p[1]*inw,h-r*0.35);dm.rotation.set(0,rnd()*6,0);dm.scale.set(r*2,r*1.7,r*2);dm.updateMatrix();
+       crowns.setMatrixAt(c2,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);crowns.setColorAt(c2++,col);}
+     if(tun)for(let q=0;q<2;q++){put(p[0]+(rnd()-0.5)*4,lane-p[1]*(3.5+q*2.5+rnd()),h+1.4+rnd()*0.8);dm.rotation.set(0,rnd()*6,0);const w=6+rnd()*3;dm.scale.set(w,1,w*0.8);dm.updateMatrix();
+       canopy.setMatrixAt(c3,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);canopy.setColorAt(c3++,col);}});
+   crowns.count=c2;canopy.count=c3;world.add(trunks,crowns,canopy);}
+  // pampas grass (susuki) tufts, thick at the roadside and out over the slopes near the summit
+  {const L=[];for(let s=0;s<S1;s+=1.4)if(Z.zone(s)==='susuki')for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*1.4,sd*(RAIL+0.5+Math.pow(rnd(),1.7)*18)]);}
+   const m=new THREE.InstancedMesh(vegGeo(3),vegMat('susuki'),L.length);
+   L.forEach((p,k)=>{put(p[0],p[1],-0.1);const sz=0.8+rnd()*0.5;dm.scale.set(sz*1.8,sz*(1.6+rnd()*0.5),sz*1.8);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
+     col.setHSL(0.1,0.15,0.8+rnd()*0.2);m.setColorAt(k,col);});world.add(m);}
   // km posts (left side) and the spot signs (brown: sights, blue: parking)
   const postM=new THREE.MeshLambertMaterial({color:0x8a8e96}),postG=new THREE.CylinderGeometry(0.05,0.05,2.2,6);
   const board=(txt,w,h,bg,fg,s,lane,y)=>{const tex=canvasTex(Math.round(w*128),Math.round(h*128),(g,W,H)=>{g.fillStyle=bg;g.fillRect(0,0,W,H);g.strokeStyle=fg;g.lineWidth=6;g.strokeRect(5,5,W-10,H-10);
@@ -1527,14 +1574,14 @@ function terrainShow(c){
     g.setAttribute('color',new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint8Array(b,o3,j.nv*4),4),3,0,true));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(b,o1,j.ni),1));g.computeVertexNormals();g.computeBoundingSphere();
     const grp=new THREE.Group();grp.userData.keep=true;
-    const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));land.userData.terrain=true;grp.add(land);
+    const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));vegDetail(land.material);land.userData.terrain=true;grp.add(land);
     // forest: tall dark conifers (sugi / hinoki), base on the ground
-    const tr=new Float32Array(b,o2,j.nt*4),cg=new THREE.ConeGeometry(2.3,13,6);cg.translate(0,6.2,0);
+    const tr=new Float32Array(b,o2,j.nt*4),cg=vegGeo(2);
     // the candidates are in random order: without the aerial photo every 3rd one stands (terrainPhoto replaces them with the
     // ones on real forest)
-    const trees=new THREE.InstancedMesh(cg,new THREE.MeshLambertMaterial({color:0xffffff}),j.nt),d=new THREE.Object3D(),cc=new THREE.Color();
-    const plant=(i,k,col)=>{const s=tr[i*4+3];d.position.set(tr[i*4],tr[i*4+1]-0.3,tr[i*4+2]);d.rotation.set(0,i*2.4,0);d.scale.set(s,s*(0.9+((i*37)%11)/25),s);d.updateMatrix();
-      trees.setMatrixAt(k,d.matrix);if(col)cc.copy(col);else cc.setHSL(0.30+((i*13)%7)/100,0.34,0.11+((i*29)%10)/140);trees.setColorAt(k,cc);};
+    const trees=new THREE.InstancedMesh(cg,vegMat('conifer'),j.nt),d=new THREE.Object3D(),cc=new THREE.Color();
+    const plant=(i,k,col)=>{const s=tr[i*4+3];d.position.set(tr[i*4],tr[i*4+1]-0.5,tr[i*4+2]);d.rotation.set(0,i*2.4,0);d.scale.set(s*6,s*15*(0.9+((i*37)%11)/25),s*6);d.updateMatrix();
+      trees.setMatrixAt(k,d.matrix);if(col)cc.copy(col);else cc.setHSL(0.25+((i*13)%7)/100,0.15,0.78+((i*29)%10)/50);trees.setColorAt(k,cc);};
     const keep=sceneryTreeFilter(c);let n=0;for(let i=0;i<j.nt;i+=3)if(keep(tr[i*4],tr[i*4+1],tr[i*4+2],i))plant(i,n++);trees.count=n;
     grp.add(trees);
     if(c.geo)terrainPhoto(c,land,trees,tr,j.nt,plant,keep);
@@ -1575,7 +1622,7 @@ function terrainPhoto(c,land,trees,tr,nt,plant,keep){
     for(let i=0;i<nt&&n<15000;i++){const x=tr[i*4],z=tr[i*4+2],u=(x-x0)/(x1-x0),v=(z-z0)/(z1-z0);if(u<=0||u>=1||v<=0||v>=1)continue;
       const o=(Math.floor(v*H)*W+Math.floor(u*W))*4,R=px[o],G=px[o+1],B=px[o+2];
       if(!(G>R+3&&G>=B-4&&R+G+B<330)||!keep(x,tr[i*4+1],z,i))continue;
-      cc.setRGB(R/255*0.55,G/255*0.62,B/255*0.5);plant(i,n++,cc);}
+      cc.setRGB(Math.min(1,0.62+R/255*0.6),Math.min(1,0.62+G/255*0.6),Math.min(1,0.6+B/255*0.6));plant(i,n++,cc);}
     if(n>500){trees.count=n;trees.instanceMatrix.needsUpdate=true;if(trees.instanceColor)trees.instanceColor.needsUpdate=true;}
   });
 }
