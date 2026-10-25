@@ -144,13 +144,13 @@ def main():
     NRm = np.c_[T[:, 2], np.zeros(n), -T[:, 0]]           # same as the game: NR = (t.z, 0, -t.x)
     V, mid, names = load_model(c['model']); G = Grid(V, mid); kd = cKDTree(P[:, [0, 2]])
     offs = np.arange(LAT, MAXO + 1e-9, LAT); no = len(offs)
-    S = int(MAXO / STORE); wl = np.zeros(n); wr = np.zeros(n); dyg = np.zeros((n, 2 * S + 1)); flg = np.full((n, 2 * S + 1), np.nan); rep = {'inband': [], 'dyband': []}
+    S = int(MAXO / STORE); wl = np.zeros(n); wr = np.zeros(n); dyg = np.zeros((n, 2 * S + 1)); flg = np.full((n, 2 * S + 1), np.nan); TM = np.full((n, 2, no), -1, int); rep = {'inband': [], 'dyband': []}
     for k in range(n):
         for side, sg in ((0, 1), (1, -1)):
             o = sg * offs; xs = P[k, 0] + NRm[k, 0] * o; zs = P[k, 2] + NRm[k, 2] * o; yp = P[k, 1] + bank[k] * o
             # the ground at the centre too (start of the scan)
-            g = G.heights(np.r_[P[k, 0], xs], np.r_[P[k, 2], zs], np.r_[P[k, 1] - 1.5, yp - 4], np.r_[P[k, 1] + 1.0, yp + 2.5])
-            g0, g = g[0], g[1:]
+            g, gm = G.heights(np.r_[P[k, 0], xs], np.r_[P[k, 2], zs], np.r_[P[k, 1] - 1.5, yp - 4], np.r_[P[k, 1] + 1.0, yp + 2.5], mat=True)
+            g0, g = g[0], g[1:]; TM[k, side] = gm[1:]
             # a short run of missing samples (up to GAP m) with ground at about the same height on both sides is a crack
             # between meshes of the (simplified) model, not the edge of the world (Suzuka turn 1: the asphalt and the
             # grass don't meet - the game fills the crack with a dark sheet, groundUnder)
@@ -220,7 +220,27 @@ def main():
     fr2 = np.array([2.0, 3.5, 5.0]); o2 = np.r_[(hw[ks, None] + fr2[None]).ravel(), -(hw[ks, None] + fr2[None]).ravel()]; k2 = np.r_[np.repeat(ks, 3), np.repeat(ks, 3)]
     _, m2 = G.heights(P[k2, 0] + NRm[k2, 0] * o2, P[k2, 2] + NRm[k2, 2] * o2, P[k2, 1] + bank[k2] * o2 - 1.5, P[k2, 1] + bank[k2] * o2 + 0.5, mat=True)
     c2 = np.bincount(m2[m2 >= 0], minlength=len(names)); c2[list(load_model.decal)] = 0; c2[names.index(road)] = 0; side = names[int(c2.argmax())]
-    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
+    # how far the pavement really goes on each side (pit-exit lanes, paved run-off): the opaque surfaces that make up
+    # >= 3% of the band are "paved"; walk out from the centre while the top surface is one of them (a 1 m break is
+    # allowed), never past the wall. The game counts only beyond max(hw, this) as dirt.
+    inb = np.zeros(len(names)); oo = np.arange(1, no + 1) * LAT
+    for k in range(n):
+        for sd in range(2):
+            t = TM[k, sd][(oo <= hw[k]) & (TM[k, sd] >= 0)]; inb += np.bincount(t, minlength=len(names))
+    inb[list(load_model.decal)] = 0; inb[names.index(side)] = 0; paved = inb / max(1, inb.sum()) >= 0.03   # not the grass
+    pv = np.zeros((n, 2))
+    for k in range(n):
+        for sd, w in ((0, wl[k]), (1, wr[k])):
+            ok = (TM[k, sd] >= 0) & paved[np.maximum(TM[k, sd], 0)]; e = 0.0; miss = 0
+            for j in range(no):
+                if oo[j] > w: break
+                if ok[j]: e = oo[j]; miss = 0
+                else:
+                    miss += 1
+                    if miss > 2 and oo[j] > hw[k]: break
+            pv[k, sd] = e
+    pv = np.minimum.reduce([np.roll(pv, -1, 0), pv, np.roll(pv, 1, 0)])   # neighbours agree (no 4 m tongues)
+    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(), 'pp': np.round(pv[:, 0], 1).tolist(), 'pn': np.round(pv[:, 1], 1).tolist(),
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode(),
            'fl': base64.b64encode(zlib.compress(fl_enc(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
@@ -237,7 +257,7 @@ def main():
     within = np.array(within)
     print(f'{cid}: {n} pts | old wall drove through a barrier/edge at {pass_p}+{pass_n} side-points, '
           f'blocked open ground >3 m early at {inv_p}+{inv_n} | height off by >0.3 m inside the old wall at {int(np.sum(within > .3))} side-points (max {within.max():.2f} m) '
-          f'| road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) side {side} | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
+          f'| road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) side {side} | paved {[names[i] for i in np.nonzero(paved)[0]]} beyond hw+1 at {int(np.sum(pv[:, 0] > hw + 1) + np.sum(pv[:, 1] > hw + 1))} side-points | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
     if rep['inband']: print('  inside band:', rep['inband'][:12])
     if rep['dyband']: print('  band height:', rep['dyband'][:12])
 

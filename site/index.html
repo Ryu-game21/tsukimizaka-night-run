@@ -1411,7 +1411,7 @@ function loadTrack(c){
    (wp = +NR side, wn = -NR side) where a barrier, a step, a drop or the edge of the model really is. Before this the
    car rode the road plane out to one symmetric wall distance, so it floated over gravel traps, sank into berms and
    drove through barriers on one side while hitting thin air on the other. Courses without a file keep RW. */
-const GROUND={};let RWP=null,RWN=null,GDY=null;
+const GROUND={};let RWP=null,RWN=null,GDY=null,PVP=null,PVN=null;
 function groundLoad(c){
   if(!c.model||GROUND[c.id]||GROUND['_'+c.id])return;GROUND['_'+c.id]=1;
   fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
@@ -1425,7 +1425,7 @@ function groundLoad(c){
         for(let i=0;i<d.length;i++){const p=i-S;o[i]=d[i]===-128?-999:(p<0||o[p]===-999)?d[i]:o[p]+d[i];}g.f=o;}).catch(()=>{}):Promise.resolve()).then(()=>{GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});});}).catch(()=>{});
 }
 function groundApply(c){
-  RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;
+  RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;PVP=PVN=null;
   const g=GROUND[c.id];if(!g||!c.hw||g.wp.length!==c.hw.length){RWP.set(RW);RWN.set(RW);return;}
   const M=c.hw.length,pt=c.pts,GK=new Float32Array(N);
   // which scanned point each game sample sits at: the nearest one by position (the scan points are not evenly spaced
@@ -1436,6 +1436,10 @@ function groundApply(c){
     let f=((P[i].x-pt[bk*3])*ax+(P[i].z-pt[bk*3+2])*az)/ll;let k=bk;if(f<0){k=(bk-1+M)%M;f+=1;}GK[i]=k+Math.max(0,Math.min(.999,f));}
   for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
     RWP[i]=Math.max(HW[i]+0.3,g.wp[k]*(1-f)+g.wp[k2]*f);RWN[i]=Math.max(HW[i]+0.3,g.wn[k]*(1-f)+g.wn[k2]*f);}
+  // how far the pavement really goes (pit-exit lanes, paved run-off): off the band but on asphalt is not dirt
+  if(g.pp&&g.pp.length===M){PVP=new Float32Array(N);PVN=new Float32Array(N);
+    for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
+      PVP[i]=Math.min(RWP[i],Math.max(HW[i],Math.min(g.pp[k],g.pp[k2])));PVN[i]=Math.min(RWN[i],Math.max(HW[i],Math.min(g.pn[k],g.pn[k2])));}}
   GDY={M,S:g.lat,st:g.step,W:2*g.lat+1,a:g.a,K:GK};
   groundUnder();
 }
@@ -1464,6 +1468,8 @@ function groundUnder(){
   geo.setIndex(ir.concat(is));geo.addGroup(0,ir.length,0);geo.addGroup(ir.length,is.length,1);geo.computeVertexNormals();
   UNDER=new THREE.Mesh(geo,[mat,side]);UNDER.userData.under=true;world.add(UNDER);
 }
+// off the pavement (dirt / grass) at sample i, lateral offset off?
+function offTrack(i,off){const a=Math.abs(off);if(a<=HW[i])return false;const p=off>0?PVP:PVN;return !p||a>p[i];}
 // ground height above (+) or below (-) the road plane at sample i, lateral offset off (m)
 function gDy(i,off){
   const G=GDY;if(!G)return 0;
@@ -4620,7 +4626,7 @@ function radioTick(dt){
   if(!(opts.radio||(opts.cm&&CM.buf))||state!=='race'||tut||!rdRace)return;   // the race logic also feeds the commentary
   // what the lap is made of (free run advice)
   if(mode==='free'&&pl.lap>=1){const hw=HW[pl.idx];
-    if(Math.abs(pl.off)>hw)rdLap.dirt+=dt;
+    if(offTrack(pl.idx,pl.off))rdLap.dirt+=dt;
     if(cornerAt[pl.idx]>=0&&pl.v>8){rdLap.centre+=Math.abs(pl.off)/Math.max(hw,1)*dt;rdLap.centreN+=dt;}}
   rdRace.tick+=dt;if(rdRace.tick<0.25)return;const tk=rdRace.tick;rdRace.tick=0;
   if(mode==='race')radioRace(tk);
@@ -4854,7 +4860,7 @@ function updatePlayer(dt,canDrive){
   const wv=windNow(dt),hx=Math.sin(pl.th),hz=Math.cos(pl.th),wAlong=wv.x*hx+wv.z*hz,va=v-wAlong;
   a-=CAR.k*va*Math.abs(va);
   if(wind.ms){const wCross=wv.x*hz-wv.z*hx;pl.windDrift=wCross*Math.abs(wCross)*0.0011*Math.min(1,sp/15);}else pl.windDrift=0;
-  if(Math.abs(pl.off)>HW[pl.idx])a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
+  if(offTrack(pl.idx,pl.off))a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
@@ -4864,8 +4870,8 @@ function updatePlayer(dt,canDrive){
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
   tyreUpdate(dt,sp,pl.steer*k*sp*Math.sign(pl.v),thr&&!neutral,brk,trac);
-  sqAmt=Math.abs(pl.off)>HW[pl.idx]||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
-  offAmt=Math.abs(pl.off)>HW[pl.idx]?1:0;scrapeAmt=0;
+  sqAmt=offTrack(pl.idx,pl.off)||sp<7?0:Math.max(Math.min(1,(latR-.78)*4),brk&&pl.v>12?.35:0);
+  offAmt=offTrack(pl.idx,pl.off)?1:0;scrapeAmt=0;
   /* vehicle dynamics (2026-10-25): the heading turns at the steering's yaw rate, capped by the FRONT tyres (understeer);
      the direction of travel follows the heading only as fast as the tyres allow, so the difference is the slip angle
      (pl.beta). Braking moves weight forward (front grip up, rear down: the car rotates on the way into a corner),
@@ -4987,7 +4993,7 @@ function updatePlayer(dt,canDrive){
 }
 function updateCamera(dt){
   const fx=Math.sin(pl.th),fz=Math.cos(pl.th);let sx=0,sy=0;
-  if(!reduceMotion){const vib=Math.min(1,Math.abs(pl.v)/VMAX)*0.012+shake*0.08+(Math.abs(pl.off)>HW[pl.idx]?0.02:0);sx=(Math.random()-.5)*vib;sy=(Math.random()-.5)*vib;}
+  if(!reduceMotion){const vib=Math.min(1,Math.abs(pl.v)/VMAX)*0.012+shake*0.08+(offTrack(pl.idx,pl.off)?0.02:0);sx=(Math.random()-.5)*vib;sy=(Math.random()-.5)*vib;}
   shake=Math.max(0,shake-dt*2.5);
   const vid=VIEWS[view].id,sl=SL[pl.idx];
   camera.up.set(0,1,0);
