@@ -1411,7 +1411,7 @@ function loadTrack(c){
    (wp = +NR side, wn = -NR side) where a barrier, a step, a drop or the edge of the model really is. Before this the
    car rode the road plane out to one symmetric wall distance, so it floated over gravel traps, sank into berms and
    drove through barriers on one side while hitting thin air on the other. Courses without a file keep RW. */
-const GROUND={};let RWP=null,RWN=null,GDY=null,PVP=null,PVN=null;
+const GROUND={};let RWP=null,RWN=null,GDY=null,PVP=null,PVN=null,COV=null;
 function groundLoad(c){
   if(!c.model||GROUND[c.id]||GROUND['_'+c.id])return;GROUND['_'+c.id]=1;
   fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
@@ -1437,6 +1437,8 @@ function groundApply(c){
   for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
     RWP[i]=Math.max(HW[i]+0.3,g.wp[k]*(1-f)+g.wp[k2]*f);RWN[i]=Math.max(HW[i]+0.3,g.wn[k]*(1-f)+g.wn[k2]*f);}
   // how far the pavement really goes (pit-exit lanes, paved run-off): off the band but on asphalt is not dirt
+  // roof over the road (tunnel / overpass): per game sample, for the reverb
+  COV=null;if(g.cv){const b=atob(g.cv);if(b.length===M){COV=new Float32Array(N);for(let i=0;i<N;i++){const k=Math.round(GK[i])%M;COV[i]=b.charCodeAt(k);}}}
   if(g.pv&&!g.pp){const b=atob(g.pv);g.pp=[];g.pn=[];for(let k=0;k*2+1<b.length;k++){g.pp.push(b.charCodeAt(k*2)/2);g.pn.push(b.charCodeAt(k*2+1)/2);}}
   if(g.pp&&g.pp.length===M){PVP=new Float32Array(N);PVN=new Float32Array(N);
     for(let i=0;i<N;i++){const u=GK[i],k=Math.floor(u),f=u-k,k2=(k+1)%M;
@@ -2594,7 +2596,7 @@ function makeVoice(car,out,full){
   if(full&&(car.turbo||car.sc)){v.tw=ac.createOscillator();v.tw.type='sine';v.tg=gainN(0);v.tw.connect(v.tg);v.tg.connect(out);v.tw.start();}
   return v;
 }
-function killVoice(v){if(!v)return;['osc','osc2','sub','nz','nz2','lfo','tw'].forEach(k=>{try{v[k]&&v[k].stop();}catch(e){}});try{v.out.disconnect();v.tg&&v.tg.disconnect();v.ikg&&v.ikg.disconnect();}catch(e){}}
+function killVoice(v){if(!v)return;(v.extra||[]).forEach(n=>{try{n.stop();}catch(e){}});['osc','osc2','sub','nz','nz2','lfo','tw'].forEach(k=>{try{v[k]&&v[k].stop();}catch(e){}});try{v.out.disconnect();v.tg&&v.tg.disconnect();v.ikg&&v.ikg.disconnect();}catch(e){}}
 function setVoice(v,rpm,thr,level,pitch){
   const t=ac.currentTime,p=v.p,f=rpm/60*ORDER[v.car.cyl]*(pitch||1),r=rpm/v.car.red;
   v.osc.frequency.setTargetAtTime(f,t,.012);v.sub.frequency.setTargetAtTime(f*.5,t,.012);
@@ -2607,9 +2609,16 @@ function setVoice(v,rpm,thr,level,pitch){
 }
 function rebuildVoices(){
   if(!A)return;
-  killVoice(A.v);A.v=makeVoice(CAR,A.duck,true);s2Build();
+  killVoice(A.v);A.v=makeVoice(CAR,A.duck,true);s2Build();if(pulseReady)pulseBuild();
   (A.ai||[]).forEach(x=>{killVoice(x.v);try{x.pan.disconnect();}catch(e){}});
-  A.ai=AI.map(a=>{const pan=ac.createPanner();pan.panningModel='equalpower';pan.distanceModel='inverse';pan.refDistance=5;pan.rolloffFactor=1.5;pan.maxDistance=500;pan.connect(A.cabinIn);return{pan,v:makeVoice(a.car,pan,false),prevD:null};});
+  // rivals: positioned in 3D (HRTF on computers), duller with distance (air), with their own combustion rasp,
+  // overrun pops when they lift and a dip at each upshift
+  const hrtf=!matchMedia('(pointer:coarse)').matches;
+  A.ai=AI.map(a=>{const pan=ac.createPanner();pan.panningModel=hrtf?'HRTF':'equalpower';pan.distanceModel='inverse';pan.refDistance=5;pan.rolloffFactor=1.5;pan.maxDistance=500;pan.connect(A.cabinIn);
+    if(A.rv){const sg=gainN(.6);pan.connect(sg);sg.connect(A.rv.send);}
+    const air=filt('lowpass',16000,.6),dk=gainN(1);dk.connect(air);air.connect(pan);
+    const v=makeVoice(a.car,dk,false),nz=loopSrc(A.noise),bp=filt('bandpass',500,1.1),ng=gainN(0);nz.connect(bp);bp.connect(ng);ng.connect(v.amp);
+    v.extra=[nz];return{pan,air,dk,v,nz,bp,ng,prevD:null,thr:0,g:1,popT:0};});
   boost=0;
 }
 function initAudio(){
@@ -2635,7 +2644,93 @@ function initAudio(){
   A.grav=layer(A.noise,[filt('lowpass',900,.6),filt('highpass',120,.7)],A.cabinIn);
   A.scr=layer(A.noise,[filt('bandpass',2200,2.2)],A.cabinIn);
   A.wet=layer(A.noise,[filt('bandpass',2800,.5)],A.cabinIn);
+  // kerb ridges (a buzz whose rate follows the speed), sliding scrub, wind buffeting, and the whoosh of walls going by
+  { const o=ac.createOscillator();o.type='square';const lp=filt('lowpass',260,.8),g=gainN(0);o.connect(lp);lp.connect(g);g.connect(A.cabinIn);o.start();A.kerb={o,g,lp}; }
+  A.slide=layer(A.noise,[filt('bandpass',560,1.6)],A.cabinIn);
+  { const l=ac.createOscillator();l.frequency.value=3.1;const lg=gainN(0);l.connect(lg);lg.connect(A.wind.gain);l.start();A.buf=lg; }
+  A.whoosh=layer(A.noise,[filt('bandpass',1300,.9)],A.cabinIn);
+  rvInit();pulseLoad();
   rebuildVoices();setAmbient();
+}
+/* reverb (2026-10-25): two convolvers with impulse responses made here (no files) - a short slap of the walls and
+   stands along the track, and a long tunnel ring. The engine, its pops and the rivals are sent in; how much comes back
+   follows the place: walls close by (ground.json walls), a roof overhead (ground.json cv), street circuits a little more,
+   and much less from the driver's seat (the cabin is closed). */
+function mkIR(sec,decay,pre,taps,dark){
+  const sr=ac.sampleRate,n=Math.floor(sr*sec),b=ac.createBuffer(2,n,sr);
+  for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);let lp=0;
+    for(let i=0;i<n;i++){const t=i/sr;if(t<pre){d[i]=0;continue;}const w=Math.random()*2-1;lp+=(w-lp)*(1-dark*Math.min(1,t/sec*1.5));d[i]=lp*Math.exp(-(t-pre)/decay);}
+    (taps||[]).forEach(([t,g])=>{const i=Math.floor((t+(ch?.0031:0))*sr);if(i<n)d[i]+=g*(ch?.9:1);});}
+  return b;}
+function rvInit(){
+  const R=A.rv={};
+  R.send=gainN(1);R.short=ac.createConvolver();R.long=ac.createConvolver();
+  R.short.buffer=mkIR(.7,.12,.012,[[.019,.5],[.033,.35],[.047,.3],[.071,.22],[.094,.14]],.55);
+  R.long.buffer=mkIR(2.2,.55,.02,[[.028,.45],[.052,.4],[.081,.35],[.113,.3],[.151,.24],[.197,.2]],.75);
+  R.sg=gainN(0);R.lg=gainN(0);R.hp=filt('highpass',90,.7);
+  R.send.connect(R.hp);R.hp.connect(R.short);R.hp.connect(R.long);R.short.connect(R.sg);R.long.connect(R.lg);R.sg.connect(A.master);R.lg.connect(A.master);
+  A.eng.connect(R.send);R.cov=0;R.wall=0;
+}
+/* combustion pulses (2026-10-25): an AudioWorklet fires one pressure pulse per firing - a damped ring at the exhaust's
+   pitch plus a puff of noise - with the cylinder-to-cylinder unevenness of each layout (cross-plane V8 lope, boxer
+   off-beat, rotary snap), then rings it through a short feedback delay like the exhaust pipe. It sits under the
+   older harmonic voice: it carries the idle and the low revs, the voice carries the top end. If worklets are not
+   allowed (an embedding that blocks them), nothing changes. */
+const PULSE={  // pat: pulse strength per firing over a cycle; rough: random spread; pipe: Hz of the ring; dec: ring length (cycles); nz: noise share; fb: pipe feedback
+  4:{pat:[1,.92,1.05,.9],rough:.07,pipe:180,dec:2.2,nz:.3,fb:.38},
+  3:{pat:[1,.85,1.1],rough:.1,pipe:150,dec:2.4,nz:.35,fb:.4},
+  6:{pat:[1,.96,1.02,.95,1.04,.97],rough:.05,pipe:210,dec:2,nz:.25,fb:.34},
+  8:{pat:[1,.94,1.03,.92,1.05,.95,1,.93],rough:.05,pipe:260,dec:1.6,nz:.28,fb:.32},
+  v8x:{pat:[1.25,.7,1.05,.62,1.18,.74,.98,.66],rough:.08,pipe:120,dec:2.8,nz:.25,fb:.45},
+  10:{pat:[1,.93,1.04,.91,1.02,.95,1.05,.9,1,.94],rough:.04,pipe:300,dec:1.5,nz:.28,fb:.3},
+  12:{pat:[1,.97,1.02,.96,1.01,.98,1.03,.97,1,.96,1.02,.98],rough:.03,pipe:330,dec:1.4,nz:.22,fb:.28},
+  flat4:{pat:[1.2,.72,1.12,.76],rough:.09,pipe:150,dec:2.6,nz:.32,fb:.44},
+  flat6:{pat:[1.08,.86,1.02,.9,1.1,.84],rough:.08,pipe:200,dec:2,nz:.4,fb:.36},
+  rotary:{pat:[1,.98],rough:.05,pipe:420,dec:1.1,nz:.5,fb:.25},
+};
+const PULSE_SRC=`class P extends AudioWorkletProcessor{
+static get parameterDescriptors(){return[{name:'freq',defaultValue:30},{name:'load',defaultValue:.3},{name:'gain',defaultValue:0},{name:'pipe',defaultValue:180}];}
+constructor(o){super();const c=o.processorOptions||{};this.pat=c.pat||[1];this.rough=c.rough||.05;this.dec=c.dec||2;this.nz=c.nz||.3;this.fb=c.fb||.35;
+ this.ph=0;this.k=0;this.e=0;this.amp=0;this.rp=0;this.buf=new Float32Array(4096);this.w=0;this.lp=0;this.port.onmessage=e=>{if(e.data&&e.data.stop)this.done=true;};}
+process(_,outs,p){if(this.done)return false;const out=outs[0][0],sr=sampleRate,F=p.freq,Ld=p.load,G=p.gain,Pp=p.pipe;
+ for(let i=0;i<out.length;i++){const f=F.length>1?F[i]:F[0],ld=Ld.length>1?Ld[i]:Ld[0],g=G.length>1?G[i]:G[0],pp=Pp.length>1?Pp[i]:Pp[0];
+  this.ph+=f/sr;if(this.ph>=1){this.ph-=1;const a=this.pat[this.k%this.pat.length];this.k++;
+   this.amp=a*(1+(Math.random()*2-1)*this.rough)*(.35+.65*ld);this.e=1;this.rp=0;}
+  const tau=Math.min(.03,this.dec/Math.max(20,f)*.5),d=Math.exp(-1/(sr*tau));
+  this.e*=d;this.rp+=pp/sr;const n=Math.random()*2-1;this.lp+=(n-this.lp)*.25;
+  let x=this.amp*this.e*(Math.sin(6.2832*this.rp)*(1-this.nz)+this.lp*this.nz*2.2);
+  const L=Math.min(4095,Math.max(8,Math.round(sr/pp))),r=(this.w-L+4096)&4095;x+=this.fb*this.buf[r];this.buf[this.w]=x;this.w=(this.w+1)&4095;
+  out[i]=Math.tanh(x*1.4)*g;}
+ return true;}}
+registerProcessor('eng-pulse',P);`;
+let pulseReady=null;
+function pulseLoad(){if(pulseReady!==null||!ac||!ac.audioWorklet)return;pulseReady=false;
+  try{const u=URL.createObjectURL(new Blob([PULSE_SRC],{type:'application/javascript'}));
+    ac.audioWorklet.addModule(u).then(()=>{pulseReady=true;pulseBuild();}).catch(e=>{console.warn('pulse worklet',e);});}catch(e){}}
+function pulseKill(){if(A&&A.pulse){try{A.pulse.node.port.postMessage({stop:true});A.pulse.node.disconnect();A.pulse.out.disconnect();}catch(e){}A.pulse=null;}}
+function pulseBuild(){
+  pulseKill();if(!pulseReady||!A||!CAR)return;const c=PULSE[CAR.cyl];if(!c)return;
+  try{const node=new AudioWorkletNode(ac,'eng-pulse',{numberOfInputs:0,outputChannelCount:[1],processorOptions:c});
+    const hp=filt('highpass',35,.7),lp=filt('lowpass',2400,.6),out=gainN(1);node.connect(hp);hp.connect(lp);lp.connect(out);out.connect(A.duck);
+    A.pulse={node,lp,out,c};}catch(e){console.warn('pulse',e);}
+}
+function pulseFrame(t,rpm,thr,level){
+  const P=A.pulse;if(!P)return;const c=P.c,r=rpm/CAR.red,f=rpm/60*ORDER[CAR.cyl],pr=P.node.parameters;
+  pr.get('freq').setTargetAtTime(f,t,.012);pr.get('load').setTargetAtTime(thr,t,.04);
+  pr.get('pipe').setTargetAtTime(c.pipe*(.85+.4*r),t,.05);
+  // strongest at idle and low revs, giving way to the harmonic voice as the revs rise
+  const w=Math.max(.18,1-r*1.1);pr.get('gain').setTargetAtTime(level*w*(.55+.45*thr)*1.6,t,.04);
+  P.lp.frequency.setTargetAtTime(900+2600*r*(.5+.5*thr),t,.05);
+}
+function rvFrame(dt,t,fp,live){
+  const R=A.rv;if(!R||!C)return;
+  let cov=0,wall=0;
+  if(live&&COV)cov=COV[pl.idx]||0;
+  if(live&&RWP&&RWN){const dw=Math.max(0,Math.min(RWP[pl.idx]-pl.off,RWN[pl.idx]+pl.off));wall=Math.max(0,Math.min(1,1-(dw-1.5)/9));}
+  R.cov+=(cov-R.cov)*Math.min(1,dt*4);R.wall+=(wall-R.wall)*Math.min(1,dt*3);
+  const street=/marinabay|madring|albertpark|yas|wangan/.test(C.id)?1:0,cab=fp?.35:1,menu=state==='menu'?.5:1;
+  R.sg.gain.setTargetAtTime((.05+.05*street+.22*R.wall)*(1-R.cov)*cab*menu,t,.15);
+  R.lg.gain.setTargetAtTime(.5*R.cov*cab,t,.12);
 }
 /* sound mix (設定「音のバランス」, fpr-mix): engine / UI and effect sounds / commentary / menu music, each 0-1.5.
    While the menu is up the demo car's engine is held at 30% so the menu sounds and music are clear. */
@@ -2869,6 +2964,7 @@ function audioFrame(dt,rpmT,gear){
   }
   if(typeof gear==='number')lastGear=gear;
   setVoice(A.v,rpmS,thrS,state==='menu'?.17:.26);
+  pulseFrame(t,rpmS,thrS,state==='menu'?.17:.26);
   if(S2on())s2Frame(dt,t,thr,rpmS,thrS,fp,live);
   else{if(A.engDry)s2Off(t);
   // supercharger: belt-driven, so its whine follows engine speed directly (no lag, no blow-off)
@@ -2895,6 +2991,11 @@ function audioFrame(dt,rpmT,gear){
   A.grav.gain.setTargetAtTime(live?offAmt*Math.min(.38,sp/30*.38):0,t,.05);
   A.scr.gain.setTargetAtTime(live?scrapeAmt*Math.min(.3,sp/25*.3):0,t,.04);
   A.wet.gain.setTargetAtTime(live&&wxSel==='rain'?Math.min(.2,sp/70*.2):0,t,.1);
+  if(A.kerb){const hw=HW?HW[pl.idx]:5,ao=Math.abs(pl.off),onK=live&&cornerAt&&cornerAt[pl.idx]>=0&&ao>hw-.9&&ao<hw+.45&&sp>4;
+    A.kerb.o.frequency.setTargetAtTime(Math.max(4,sp/.55),t,.03);A.kerb.g.gain.setTargetAtTime(onK?Math.min(.32,.1+sp/60*.22)*(fp?1.3:1):0,t,.03);
+    const sl=live?Math.max(0,Math.abs(pl.beta||0)-.06):0;A.slide.gain.setTargetAtTime(Math.min(.3,sl*2.2*Math.min(1,sp/20)),t,.05);
+    A.buf.gain.setTargetAtTime(live?Math.min(.08,Math.pow(sp/85,2)*.05)*(fp?.6:1):0,t,.2);
+    const wl=A.rv?A.rv.wall:0;A.whoosh.gain.setTargetAtTime(live?Math.min(.16,wl*Math.pow(sp/70,2)*.12)*(fp?.5:1):0,t,.08);}
   A.cabin.frequency.setTargetAtTime(fp?1600:16000,t,.1);
   A.amb.gain.setTargetAtTime(ambOn?(fp?.4:.75):0,t,.4);
   // rival engines: positioned in 3D, with a little Doppler as they pass
@@ -2905,8 +3006,20 @@ function audioFrame(dt,rpmT,gear){
     const d=camera.position.distanceTo(m),vr=x.prevD==null?0:(d-x.prevD)/Math.max(dt,1e-3);x.prevD=d;
     const pitch=Math.max(.75,Math.min(1.3,343/(343+vr)));
     const c=a.car,kmh=a.v*3.6;let g=1;while(g<c.gears&&kmh>=c.gearTop[g-1]*.97)g++;
-    setVoice(x.v,Math.max(950,c.red*kmh/c.gearTop[g-1]),a.thr||.4,aiOn&&!a.out?(a.gh?.15:.2):0,pitch);
+    const on=aiOn&&!a.out,thr=a.thr||.4,rpm=Math.max(950,c.red*kmh/c.gearTop[g-1]),lvl=on?(a.gh?.15:.2):0;
+    setVoice(x.v,rpm,thr,lvl,pitch);
+    // air absorbs the top end with distance; the rasp follows the firing rate
+    x.air.frequency.setTargetAtTime(Math.max(1400,16000/(1+d/60)),t,.1);
+    const fr=rpm/60*ORDER[c.cyl]*pitch;x.bp.frequency.setTargetAtTime(Math.min(6000,fr*2.3),t,.03);
+    x.ng.gain.setTargetAtTime(c.cyl==='ev'?0:(x.v.p.noise||.15)*(.3+.7*thr)*.7,t,.05);
+    if(on&&g>x.g&&a.v>5){x.dk.gain.cancelScheduledValues(t);x.dk.gain.setValueAtTime(.3,t);x.dk.gain.linearRampToValueAtTime(1,t+.12);}
+    x.g=g;
+    // lifting at high revs: a few pops from that car (only when it is close enough to hear them)
+    if(on&&thr<.5&&x.thr>=.5&&rpm>c.red*.55&&d<90&&c.cyl!=='ev'){const P=S2CFG[c.id]||{},n=1+Math.floor(Math.random()*((P.bark||.5)*4));let w=t+.03;
+      for(let k=0;k<n;k++){burstAt(w,.06,s2R(700,1800),'bandpass',.5*s2R(.5,1),.8,x.pan);w+=s2R(.04,.12);}}
+    x.thr=thr;
   });
+  rvFrame(dt,t,fp,live);
   if(ambOn)ambientTick(dt);
   updateBgm();
   setListener();

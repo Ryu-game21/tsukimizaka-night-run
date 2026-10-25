@@ -100,6 +100,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `graphics quality`（`GFX`/`gfxSet`/`gfxScene`/`gfxFrame`/`gfxRoadLike`、設定 `opts.gfx`='high'|'std'、スタート準備の「画質」、既定はPC+WebGL2で高画質・スマホは標準）… 高画質は three r128 の EffectComposer（examples を jsdelivr から必要時に読む）：
   UnrealBloomPass（夜・夕方は強め）、色調・周辺減光・粒子・速度の放射ブラーのシェーダー、太陽の影（プレイヤーに追従、車だけ落とす）と車の下の接地影、雨で灰色の路面だけ濡らす（テクスチャの平均色で判定）。走行中に重いと自動で標準へ。
 - `/* ---------- audio` … WebAudio 合成のエンジン音（`PROF` が気筒形式ごとの音色）。
+  2026-10-25 の追加（録音なし）：残響 `rvInit`/`rvFrame`（`mkIR` で作ったインパルス応答の ConvolverNode 2つ。短い＝壁やスタンドの反射、長い＝トンネル。壁の近さ `RWP`/`RWN`、屋根 `COV`（ground.json `cv`：路面の上 2.5〜25m に面がある点）、市街地コースは少し多め、運転席視点は控えめ）。
+  燃焼パルス `PULSE`/`PULSE_SRC`/`pulseBuild`/`pulseFrame`（AudioWorklet を Blob URL で読み込む。1発ごとの圧力パルス＋排気管の短い帰還ディレイ、気筒形式ごとの不揃い `pat`。低〜中回転を受け持ち、高回転は従来の倍音の声。読み込めない環境では何も変わらない）。
+  ライバル：PC は HRTF、距離で高音がこもる `air`、燃焼のざらつき、アクセルオフの破裂音、シフトアップの途切れ。路面：縁石のブルブル `A.kerb`（コーナーで道の端）、横滑り `A.slide`（`pl.beta`）、風のゆらぎ `A.buf`、壁の近くの風切り `A.whoosh`。
 - `engine character`（`S2CFG`/`EXH`/`s2Frame`）… 車ごとの音の特徴と排気の炎。`S2CFG[車]` は bark（アクセルオフの破裂音の量）・style
   （pop/crackle パチパチ/burble ボコボコ/bang）・bov（ブローオフの大きさ）・flutter・als（アンチラグ）・shift（dct/seq/isr）・vtec（切替 rpm）・
   whine（ギア鳴き）・hybrid・scK。全車に燃焼のばらつき・回転の揺れ・メカ音、運転席視点では車内のこもり（`S2.cab`）と路面の継ぎ目。

@@ -240,7 +240,14 @@ def main():
                     if miss > 2 and oo[j] > hw[k]: break
             pv[k, sd] = e
     pv = np.minimum.reduce([np.roll(pv, -1, 0), pv, np.roll(pv, 1, 0)])   # neighbours agree (no 4 m tongues)
-    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(), 'pv': base64.b64encode(np.clip(np.floor(pv * 2), 0, 255).astype(np.uint8).tobytes()).decode(),   # 0.5 m, pairs (+NR, -NR)
+    # a roof over the road (bridge, overpass, tunnel, covered pit straight): any surface 2.5-25 m above the road at the
+    # centre or half way out - the game's reverb turns into a tunnel there (cv: 1 byte per point, 0 or 1)
+    fr3 = np.array([-0.5, 0, 0.5]); o3 = (hw[:, None] * fr3[None]).ravel(); k3 = np.repeat(np.arange(n), 3)
+    yp3 = P[k3, 1] + bank[k3] * o3
+    up = G.heights(P[k3, 0] + NRm[k3, 0] * o3, P[k3, 2] + NRm[k3, 2] * o3, yp3 + 2.5, yp3 + 25)
+    cv = (~np.isnan(up)).reshape(n, 3).sum(1) >= 2
+    cv = cv | (np.roll(cv, 1) & np.roll(cv, -1))           # fill single gaps
+    out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(), 'cv': base64.b64encode(cv.astype(np.uint8).tobytes()).decode(), 'pv': base64.b64encode(np.clip(np.floor(pv * 2), 0, 255).astype(np.uint8).tobytes()).decode(),   # 0.5 m, pairs (+NR, -NR)
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode(),
            'fl': base64.b64encode(zlib.compress(fl_enc(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
@@ -257,7 +264,7 @@ def main():
     within = np.array(within)
     print(f'{cid}: {n} pts | old wall drove through a barrier/edge at {pass_p}+{pass_n} side-points, '
           f'blocked open ground >3 m early at {inv_p}+{inv_n} | height off by >0.3 m inside the old wall at {int(np.sum(within > .3))} side-points (max {within.max():.2f} m) '
-          f'| road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) side {side} | paved {[names[i] for i in np.nonzero(paved)[0]]} beyond hw+1 at {int(np.sum(pv[:, 0] > hw + 1) + np.sum(pv[:, 1] > hw + 1))} side-points | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
+          f'| covered {int(cv.sum())} pts | road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) side {side} | paved {[names[i] for i in np.nonzero(paved)[0]]} beyond hw+1 at {int(np.sum(pv[:, 0] > hw + 1) + np.sum(pv[:, 1] > hw + 1))} side-points | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
     if rep['inband']: print('  inside band:', rep['inband'][:12])
     if rep['dyband']: print('  band height:', rep['dyband'][:12])
 
