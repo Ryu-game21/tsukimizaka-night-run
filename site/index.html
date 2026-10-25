@@ -3497,9 +3497,17 @@ function fxTimeScale(rdt){
   if(t>5.2){finCineEnd();return 1;}
   return t<2.2?.2:t<3?.2+.8*(t-2.2)/.8:1;
 }
+// keep a camera position inside the drivable area (between the side walls) and above the ground there
+function camKeepOut(v,up){
+  const i=nearest(v.x,v.z,pl.idx,40),n=NR[i],dx=v.x-P[i].x,dz=v.z-P[i].z;let off=dx*n.x+dz*n.z;
+  const w=((off>0?RWP:RWN)||RW)[i]-0.5;if(Math.abs(off)>w){const e=Math.abs(off)-w;v.x-=n.x*Math.sign(off)*e;v.z-=n.z*Math.sign(off)*e;off=Math.sign(off)*w;}
+  const gy=P[i].y+BK[i]*off+gDy(i,off)+(up||0.5);if(v.y<gy)v.y=gy;
+}
 function finCineStart(){
-  const i0=(pl.idx+Math.round(16/ds))%N,nx=T[i0].z,nz=-T[i0].x,side=(pl.off||0)>0?-1:1,off=HW[i0]+3.2;
-  FIN.cam=new THREE.Vector3(P[i0].x+nx*off*side,P[i0].y+1.0,P[i0].z+nz*off*side);FIN.cam2=null;FIN.on=true;FIN.t=0;FIN.snap=true;
+  // trackside, just past the line, on the side with more room; never inside a wall (inside the band edge if there is no room)
+  const i0=(pl.idx+Math.round(16/ds))%N,nx=NR[i0].x,nz=NR[i0].z,wp=(RWP||RW)[i0],wn=(RWN||RW)[i0];
+  const side=wp>=wn?1:-1,room=(side>0?wp:wn)-1.3,off=room>=HW[i0]+1?Math.min(HW[i0]+3.2,room):HW[i0]-0.6,h=room>=HW[i0]+1?1.0:0.75;
+  FIN.cam=new THREE.Vector3(P[i0].x+nx*off*side,P[i0].y+BK[i0]*off*side+gDy(i0,off*side)+h,P[i0].z+nz*off*side);FIN.cam2=null;FIN.on=true;FIN.t=0;FIN.snap=true;
   document.body.classList.add('cine');fxBanner('fin',finishRank===1?'WINNER':'CHECKERED FLAG',finishRank===1?'優勝 ・ '+fmt(raceT-raceT0):finishRank+'位 ・ '+fmt(raceT-raceT0),C.name);
   if(A){A.slo.frequency.cancelScheduledValues(ac.currentTime);A.slo.frequency.setTargetAtTime(520,ac.currentTime,.08);A.slo.frequency.setTargetAtTime(20000,ac.currentTime+2.4,.5);}
   uiSnd('finish');
@@ -3511,7 +3519,7 @@ function finCineEnd(){
 }
 function finCam(){
   const car=playerCar.position;
-  if(FIN.t>2.7&&!FIN.cam2){const fx=Math.sin(pl.th),fz=Math.cos(pl.th);FIN.cam2=new THREE.Vector3(car.x-fx*7+fz*2.5,car.y+2.2,car.z-fz*7-fx*2.5);FIN.snap=true;}
+  if(FIN.t>2.7&&!FIN.cam2){const fx=Math.sin(pl.th),fz=Math.cos(pl.th);FIN.cam2=new THREE.Vector3(car.x-fx*7+fz*2.5,car.y+2.2,car.z-fz*7-fx*2.5);camKeepOut(FIN.cam2,1.2);FIN.snap=true;}
   const cp=FIN.cam2||FIN.cam;camera.position.copy(cp);FIN.look.set(car.x,car.y+.7,car.z);camera.lookAt(FIN.look);
   const d=cp.distanceTo(car);return FIN.cam2?Math.max(14,Math.min(50,2*Math.atan(7/d)*180/Math.PI)):Math.max(18,Math.min(48,2*Math.atan(6.5/d)*180/Math.PI));
 }
@@ -3723,6 +3731,7 @@ function updateReplayCam(dt){
     camera.rotateZ(-pl.steer*Math.min(1,Math.abs(pl.v)/40)*0.025);fovT=72+Math.min(1,Math.abs(pl.v)/VMAX)*12;
   }
   if(Math.abs(camera.fov-fovT)>0.05){camera.fov=snap?fovT:camera.fov+(fovT-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();}
+  if(camera.near!==0.05){camera.near=0.05;camera.updateProjectionMatrix();}   // replays: as before (cockpit cam)
   wheelSpin.rotation.z=pl.steer*1.9;
 }
 
@@ -4967,6 +4976,7 @@ function updateCamera(dt){
   }else if(CHASE[vid]){
     const c=CHASE[vid],bx=Math.sin(camTh),bz=Math.cos(camTh);
     camera.position.set(pl.x-bx*c.back+sx*0.5,pl.y-sl*c.back+c.up+sy*0.5,pl.z-bz*c.back);
+    camKeepOut(camera.position,0.6);
     camera.lookAt(pl.x+fx*c.ahead,pl.y+c.ly+sl*c.ahead,pl.z+fz*c.ahead);
     if(vid==='high')fovT=58+Math.min(1,Math.abs(pl.v)/VMAX)*8;
   }else if(vid==='top'){
@@ -4992,6 +5002,8 @@ function updateCamera(dt){
     camera.rotateZ(-pl.steer*Math.min(1,Math.abs(pl.v)/40)*0.025);
   }
   if(Math.abs(camera.fov-fovT)>0.05){camera.fov=snap?fovT:camera.fov+(fovT-camera.fov)*Math.min(1,dt*3);camera.updateProjectionMatrix();}
+  // near plane: tiny only in the cockpit; elsewhere farther out for depth precision (no flicker between road layers)
+  {const nr=(!show&&!FIN.on&&VIEWS[view].fp)?0.05:0.35;if(camera.near!==nr){camera.near=nr;camera.updateProjectionMatrix();}}
   wheelSpin.rotation.z=pl.steer*1.9;
 }
 
