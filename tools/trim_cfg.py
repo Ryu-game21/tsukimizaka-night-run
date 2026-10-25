@@ -126,6 +126,13 @@ for ni, n in enumerate(J['nodes']):
             dd2, ii2 = ctree.query(cen[:, [0, 2]])
             roadpatch = flat & (dd2 < CHW[ii2] + 2.0) & (np.abs(cen[:, 1] - CY[ii2]) < 0.6) & ~road_covered(cen[:, [0, 2]])
             keep |= roadpatch
+            # ...and ground: a piece that lies flat (pit-exit paint, grass verges in the atlas) is not a tree. Thinning
+            # those left holes the size of a lane (Suzuka's pit exit, 2026-10-25): keep them like ground
+            ff = np.bincount(inv, weights=flat.astype(float)) / np.bincount(inv)
+            # (at ground level: within a few metres of the track's height, not a canopy of horizontal leaf cards)
+            rel = np.bincount(inv, weights=np.abs(cen[:, 1] - CY[ii2])) / np.bincount(inv)
+            flat_piece = (ff > 0.95) & (rel < 4.0) & (cd < GROUND_KEEP)
+            keep |= flat_piece[inv]
             patch_mask = roadpatch
         elif mat in GROUND: keep = d < GROUND_KEEP
         else: keep = d < CORRIDOR

@@ -1417,7 +1417,10 @@ function groundLoad(c){
   fetch(c.model.url.replace(/[^/]*$/,'')+'ground.json').then(r=>r.ok?r.json():null).then(g=>{
     if(!g||!g.dz)return;const b=atob(g.dz),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
     return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer().then(ab=>{
-      g.a=new Int8Array(ab);GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});}).catch(()=>{});
+      g.a=new Int8Array(ab);
+      const inflate=b64=>{const b=atob(b64),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+        return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();};
+      return(g.fl?inflate(g.fl).then(f=>{g.f=new Int8Array(f);}).catch(()=>{}):Promise.resolve()).then(()=>{GROUND[c.id]=g;if(C===c&&HW)groundApply(c);});});}).catch(()=>{});
 }
 function groundApply(c){
   RWP=new Float32Array(N);RWN=new Float32Array(N);GDY=null;
@@ -1434,27 +1437,30 @@ function groundApply(c){
   GDY={M,S:g.lat,st:g.step,W:2*g.lat+1,a:g.a,K:GK};
   groundUnder();
 }
-// the scanned circuits have cracks between their meshes (e.g. between the asphalt and the grass at Suzuka's turn 1),
-// through which the far-away land skirt 10+ m below showed as bright green wedges. A sheet in the course's own asphalt
-// (ground.json "road", the most common opaque surface on the band) 0.25 m under the scanned ground, out to the walls
-// on both sides, closes them; it stays under the lowest nearby scan sample so it never shows through real ground.
+// the scanned circuits have cracks between their meshes (Suzuka: between the asphalt and the grass at turn 1, beyond
+// the pit wall at the start), through which the far-away land skirt 10+ m below showed as bright green wedges.
+// ground.json "fl" is the LOWEST surface at every scan point and every 1 m out to 45 m (walls or not, short gaps
+// bridged, -128 where the model ends); a sheet in the course's own asphalt (ground.json "road") 0.25 m under it closes
+// the cracks without ever showing through real ground. Built on the scan's own points (4 m apart, 2 m across).
 let UNDER=null;
 function groundUnder(){
   if(UNDER){if(UNDER.parent)UNDER.parent.remove(UNDER);UNDER.geometry.dispose();UNDER=null;}
-  const g=C&&GROUND[C.id];if(!GDY||!g||!C.model)return;
-  let mat=null;const tr=TRACKS[C.id];
-  if(tr&&g.road)tr.traverse(o=>{if(!mat&&o.isMesh&&o.material&&o.material.name===g.road)mat=o.material;});
-  if(!mat&&tr)return;   // a course scanned before "road" was recorded: leave it as it was
-  const K=24,cols=2*K+1,st=2,rows=Math.ceil(N/st)+1,pos=new Float32Array(rows*cols*3),uv=new Float32Array(rows*cols*2),idx=[];
-  const low=(i,off)=>{let m=1e9;for(let di=-st;di<=st;di+=st)for(let d=-1;d<=1;d++)m=Math.min(m,gDy(((i+di)%N+N)%N,off+d));return m;};
-  for(let r=0;r<rows;r++){const i=(r*st)%N,p=P[i],n=NR[i];
-    for(let c=0;c<cols;c++){const s=c-K,off=s<0?RWN[i]*s/K:RWP[i]*s/K,o=r*cols+c,x=p.x+n.x*off,z=p.z+n.z*off;
-      pos[o*3]=x;pos[o*3+1]=p.y+BK[i]*off+low(i,off)-0.25;pos[o*3+2]=z;uv[o*2]=x/12;uv[o*2+1]=z/12;}
-    if(r<rows-1)for(let c=0;c<cols-1;c++){const a=r*cols+c,b=a+cols;idx.push(a,b,a+1,a+1,b,b+1);}}
+  const g=C&&GROUND[C.id];if(!g||!g.f||!C.model||!C.pts)return;
+  const tr=TRACKS[C.id];if(!tr)return;   // called again when the scenery has loaded
+  const find=n=>{let m=null;if(n)tr.traverse(o=>{if(!m&&o.isMesh&&o.material&&o.material.name===n)m=o.material;});return m;};
+  const mat=find(g.road),side=find(g.side)||mat;if(!mat)return;   // asphalt on the band, the grass (etc.) beyond it
+  const pt=C.pts,bk=C.bank,M=pt.length/3,S=g.lat,W=2*S+1,cs=[];for(let j=-S+1;j<=S-1;j+=2)cs.push(j);
+  const nc=cs.length,pos=new Float32Array(M*nc*3),uv=new Float32Array(M*nc*2),ok=new Uint8Array(M*nc);
+  for(let k=0;k<M;k++){const a=(k-1+M)%M,b=(k+1)%M;let tx=pt[b*3]-pt[a*3],tz=pt[b*3+2]-pt[a*3+2];const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;
+    const nx=tz,nz=-tx;
+    for(let c=0;c<nc;c++){const j=cs[c],off=j*g.step,f=g.f[k*W+S+j],o=k*nc+c,x=pt[k*3]+nx*off,z=pt[k*3+2]+nz*off;
+      ok[o]=f!==-128;pos[o*3]=x;pos[o*3+1]=pt[k*3+1]+bk[k]*off+f*0.05-0.25;pos[o*3+2]=z;uv[o*2]=x/12;uv[o*2+1]=z/12;}}
+  const ir=[],is=[],hw=C.hw;
+  for(let k=0;k<M;k++){const k2=(k+1)%M,h=Math.min(hw[k],hw[k2])+1;for(let c=0;c<nc-1;c++){const p=k*nc+c,q=k2*nc+c;
+    if(ok[p]&&ok[p+1]&&ok[q]&&ok[q+1])(Math.max(Math.abs(cs[c]),Math.abs(cs[c+1]))*g.step<=h?ir:is).push(p,q,p+1,p+1,q,q+1);}}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
-  geo.setIndex(idx);geo.computeVertexNormals();
-  // until the scenery has loaded there is nothing to see through; a plain dark sheet keeps the order of loading free
-  UNDER=new THREE.Mesh(geo,mat||new THREE.MeshLambertMaterial({color:0x3a3d36,side:THREE.DoubleSide}));UNDER.userData.under=true;world.add(UNDER);
+  geo.setIndex(ir.concat(is));geo.addGroup(0,ir.length,0);geo.addGroup(ir.length,is.length,1);geo.computeVertexNormals();
+  UNDER=new THREE.Mesh(geo,[mat,side]);UNDER.userData.under=true;world.add(UNDER);
 }
 // ground height above (+) or below (-) the road plane at sample i, lateral offset off (m)
 function gDy(i,off){
