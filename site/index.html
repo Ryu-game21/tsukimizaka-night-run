@@ -141,7 +141,7 @@ body.cine .hud:not(#msg):not(#fxBan),body.cine .pad,body.cine .vbar,body.cine #m
 #battle{left:50%;top:36%;transform:translateX(-50%);text-align:center;font:800 26px/1.15 system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 2px 6px rgba(0,0,0,.85),0 0 2px #000}
 #battle.on{opacity:1}
 #battle div{min-height:0}
-#battle .ah{color:#7fe0ff}#battle .bh{color:#ffd27a;font-size:22px}
+#battle .ah{color:#7fe0ff;white-space:pre}#battle .bh{color:#ffd27a;font-size:22px;white-space:pre}
 #battle .goal{color:#ffd23a;font-size:30px;letter-spacing:.12em;margin-bottom:4px;text-shadow:0 0 12px rgba(255,190,0,.8),0 2px 6px rgba(0,0,0,.9)}
 #battle.warn .bh{color:#ff5a4e;animation:bwarn .35s steps(2) infinite}
 @keyframes bwarn{50%{opacity:.3}}
@@ -5367,7 +5367,9 @@ function battleTick(){
   let ahead=null,behind=null;
   list.forEach(e=>{if(e.me||e.fin)return;const d=e.s-me.s;if(d>=0&&(!ahead||d<ahead.d))ahead={e,d};if(d<0&&(!behind||-d<behind.d))behind={e,d:-d};});
   // just the numbers: the gap to the car in front and to the one behind
-  const ta=ahead?'▲ '+Math.round(ahead.d)+'m':'',tb=behind?'▼ '+Math.round(behind.d)+'m':'';
+  // with who it is: the car (rivals) or the player's name (ghosts)
+  const nm=e=>{const n=e.name||'';return n.length>14?n.slice(0,14)+'…':n;};
+  const ta=ahead?'▲ '+nm(ahead.e)+'  '+Math.round(ahead.d)+'m':'',tb=behind?'▼ '+nm(behind.e)+'  '+Math.round(behind.d)+'m':'';
   if($('btA').textContent!==ta)$('btA').textContent=ta;if($('btB').textContent!==tb)$('btB').textContent=tb;
   // closing speed of the car behind -> warning and beeps
   let warn=false;
