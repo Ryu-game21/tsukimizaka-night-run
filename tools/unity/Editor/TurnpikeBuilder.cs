@@ -146,7 +146,16 @@ public static class TurnpikeBuilder
                 int a = i * 4 + side * 2, b = a + 1, c = a + 4, d = a + 5;
                 rt.AddRange(new[] { a, b, c, c, b, d, a, c, b, b, c, d });   // 両面
             }
-        railM.vertices = v; railM.triangles = rt.ToArray(); railM.RecalculateNormals();
+        // 見た目のレールは表と裏で頂点を分ける（同じ頂点を両面で使うと法線が打ち消し合って真っ黒になる）
+        var v2 = new Vector3[n * 8]; System.Array.Copy(v, 0, v2, 0, n * 4); System.Array.Copy(v, 0, v2, n * 4, n * 4);
+        var rt2 = new System.Collections.Generic.List<int>();
+        for (int i = 0; i < n - 1; i++)
+            for (int side = 0; side < 2; side++)
+            {
+                int a = i * 4 + side * 2, b = a + 1, c = a + 4, d = a + 5, o = n * 4;
+                rt2.AddRange(new[] { a, b, c, c, b, d, o + a, o + c, o + b, o + b, o + c, o + d });
+            }
+        railM.vertices = v2; railM.triangles = rt2.ToArray(); railM.RecalculateNormals();
         wallM.vertices = w; wallM.triangles = rt.ToArray(); wallM.RecalculateNormals();
         AssetDatabase.CreateAsset(railM, GEN + "/rails.asset"); AssetDatabase.CreateAsset(wallM, GEN + "/railWalls.asset");
         MeshObj("Guardrail", railM, Mat("rail", null, new Color(0.78f, 0.8f, 0.84f), 0.5f), parent, false);
