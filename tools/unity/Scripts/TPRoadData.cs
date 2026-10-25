@@ -11,6 +11,13 @@ public class TPTerrainInfo
 }
 
 [Serializable]
+public class TPFarInfo
+{
+    public float x0, z0, sizeX, sizeZ, hmin, hmax;   // 遠景の地形（富士山・相模湾）
+    public int res;
+}
+
+[Serializable]
 public class TPRoadData
 {
     public string id;
@@ -20,6 +27,7 @@ public class TPRoadData
     public float hw;             // 道の半幅（m）
     public int start, fin;       // スタートライン・ゴールラインの点の番号
     public TPTerrainInfo terrain;
+    public TPFarInfo far;
     public string credit;
 
     public static TPRoadData Load(TextAsset json) => JsonUtility.FromJson<TPRoadData>(json.text);

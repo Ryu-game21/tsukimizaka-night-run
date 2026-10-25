@@ -17,6 +17,7 @@ public class TPCar : MonoBehaviour
     public float downforce = 2.5f;       // 速度の2乗にかける下向きの力
     public float antiRoll = 9000f;
     public bool controllable = true;
+    public Vector3 visualEuler = new Vector3(0f, 0f, 90f);   // 見た目の車輪の向きの補正（仮の円柱は 90 度、本物のモデルは 0）
 
     Rigidbody rb;
     float steer;
@@ -40,7 +41,7 @@ public class TPCar : MonoBehaviour
         foreach (var w in wheels)
         {
             if (!w) continue;
-            w.mass = 20f; w.radius = 0.34f; w.suspensionDistance = 0.18f; w.wheelDampingRate = 0.5f;
+            w.mass = 20f; w.wheelDampingRate = 0.5f;   // 半径とサスペンションの長さはシーンを作るときに車ごとに決める
             var sp = w.suspensionSpring; sp.spring = 42000f; sp.damper = 4200f; sp.targetPosition = 0.5f; w.suspensionSpring = sp;
             var f = w.forwardFriction; f.stiffness = 1.7f; w.forwardFriction = f;
             var s = w.sidewaysFriction; s.stiffness = 2.0f; w.sidewaysFriction = s;
@@ -122,7 +123,7 @@ public class TPCar : MonoBehaviour
         {
             if (!wheels[i] || !visuals[i]) continue;
             wheels[i].GetWorldPose(out var p, out var q);
-            visuals[i].SetPositionAndRotation(p, q * Quaternion.Euler(0f, 0f, 90f));   // 円柱を横向きに
+            visuals[i].SetPositionAndRotation(p, q * Quaternion.Euler(visualEuler));
         }
     }
 
