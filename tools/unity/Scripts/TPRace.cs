@@ -70,12 +70,25 @@ public class TPRace : MonoBehaviour
         float k = Screen.height / 720f; GUI.matrix = Matrix4x4.Scale(new Vector3(k, k, 1f));
         float W = Screen.width / k, H = Screen.height / k;
         float t = s == S.Run ? Time.time - t0 : s == S.Done ? last : 0f;
-        GUI.Label(new Rect(24, 16, 600, 50), Fmt(t), big);
-        GUI.Label(new Rect(24, 60, 600, 30), $"ベスト {Fmt(best)}　　前回 {Fmt(last)}", small);
+        GUI.color = new Color(0f, 0f, 0f, 0.45f);                      // 読みやすいように半透明の黒い下地
+        GUI.DrawTexture(new Rect(12, 10, 440, 112), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(W - 232, H - 78, 220, 60), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(12, H - 40, 820, 32), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        Label(new Rect(24, 16, 600, 50), Fmt(t), big);
+        Label(new Rect(24, 60, 600, 30), $"ベスト {Fmt(best)}　　前回 {Fmt(last)}", small);
         float left = Mathf.Max(0, road.fin - idx) * 4f;
         string st = s == S.Ready ? "スタートラインを越えると計測開始" : s == S.Run ? $"ゴールまで {left / 1000f:0.0} km" : "ゴール！";
-        GUI.Label(new Rect(24, 88, 600, 30), st, small);
-        GUI.Label(new Rect(W - 220, H - 70, 200, 50), $"{car.Kmh:0} km/h", big);
-        GUI.Label(new Rect(24, H - 34, 900, 30), "W/↑ アクセル  S/↓ ブレーキ  A/D ハンドル  Space サイド  C 視点  R スタートへ", small);
+        Label(new Rect(24, 88, 600, 30), st, small);
+        Label(new Rect(W - 220, H - 74, 200, 50), $"{car.Kmh:0} km/h", big);
+        Label(new Rect(24, H - 38, 900, 30), "W/↑ アクセル  S/↓ ブレーキ  A/D ハンドル  Space サイド  C 視点  R スタートへ", small);
+    }
+
+    // 影つきの文字
+    static void Label(Rect r, string text, GUIStyle st)
+    {
+        var c = st.normal.textColor; st.normal.textColor = new Color(0f, 0f, 0f, 0.8f);
+        GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), text, st);
+        st.normal.textColor = c; GUI.Label(r, text, st);
     }
 }
