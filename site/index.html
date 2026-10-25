@@ -1545,7 +1545,7 @@ function sceneryTreeFilter(c){
 function railsReal(){
   const R0=P2P?P2P.in0-N:0,R1=P2P?P2P.end:N,cut=(i,sd)=>{const k=((i%N)+N)%N;return Math.max(sideY(k*ds,sd*9.5)-(P[k].y+BK[k]*sd*9.5),sideY(k*ds,sd*12)-(P[k].y+BK[k]*sd*12)-0.4)>1.1;};
   const rm=new THREE.MeshStandardMaterial({color:0xd5d9da,metalness:.3,roughness:.5,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.3;}
-  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide}),gs=new THREE.MeshLambertMaterial({color:0x3b4529,side:THREE.DoubleSide});vegDetail(gs);
+  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide}),gs=new THREE.MeshLambertMaterial({color:0x2c3220,side:THREE.DoubleSide});vegDetail(gs);
   const WB=[[0,.44],[.07,.52],[0,.6],[.07,.68],[0,.76]],posts=[],refl=[];
   for(const sd of[1,-1]){
     const on=[];for(let i=R0;i<=R1;i++)on.push(!cut(i,sd));
@@ -1614,9 +1614,9 @@ function buildScenery(){
      const grp=1+Math.floor(rnd()*3);for(let q=0;q<grp;q++)L.push([s+q*(2.5+rnd()*2),sd,zn,zn==='maple'&&rnd()<0.45?2.5+rnd()*5:rnd()*1.2]);
      s+=grp*3+3+rnd()*(zn==='maple'?12:6);}
    const trunkG=new THREE.CylinderGeometry(0.09,0.2,1,7);trunkG.translate(0,0.5,0);
-   const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x2f2721}),L.length);
-   const brG=new THREE.CylinderGeometry(0.045,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material.clone(),L.length*8),tip=new THREE.Vector3();let c4=0;
-   const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*8),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
+   const trunks=new THREE.InstancedMesh(trunkG,new THREE.MeshLambertMaterial({color:0x4a403a}),L.length);
+   const brG=new THREE.CylinderGeometry(0.02,0.11,1,6);brG.translate(0,0.5,0);const branches=new THREE.InstancedMesh(brG,trunks.material.clone(),L.length*8),tip=new THREE.Vector3();let c4=0;
+   const crowns=new THREE.InstancedMesh(vegGeo(3),vegMat('crown'),L.length*12),canopy=new THREE.InstancedMesh(vegGeo(0,true),vegMat('crown'),L.length*2);
    const pal={sakura:[0xf0cbd8,0xe8b8ca,0xf5d6e0,0xdfa9bd],green:[0x4a7e34,0x416f2c,0x55893c,0x37612a],maple:[0xb8452a,0xc9772e,0xcfa040,0x963b22,0xa39a4a,0x6f7a3a,0x5e7535]};
    let c2=0,c3=0;L.forEach((p,k)=>{const tun=p[2]!=='maple',lane=p[1]*(RAIL+1.2+p[3]+rnd()*1.6),sz=0.65+rnd()*0.7,h=(tun?4.4+rnd()*1.4:2.6+rnd()*2.4)*(0.8+sz*0.3);
      put(p[0],lane,0);dm.rotation.set((rnd()-0.5)*0.1,0,(rnd()-0.5)*0.1);dm.scale.set(0.8+sz*0.4,h+0.8,0.8+sz*0.4);dm.updateMatrix();trunks.setMatrixAt(k,dm.matrix);col.setScalar(0.85+rnd()*0.3);trunks.setColorAt(k,col);
@@ -1629,7 +1629,11 @@ function buildScenery(){
        dm.position.set(base.x,base.y+hb,base.z);dm.rotation.set(tilt,yaw,0,'YXZ');dm.scale.set(w,bl*0.55,w);dm.updateMatrix();
        branches.setMatrixAt(c4++,dm.matrix);tip.set(0,bl*0.55,0).applyEuler(dm.rotation).add(dm.position);const mid=tip.clone();
        dm.position.copy(mid);dm.rotation.set(t2,y2,0,'YXZ');dm.scale.set(w*0.62,bl*0.55,w*0.62);dm.updateMatrix();
-       branches.setMatrixAt(c4++,dm.matrix);tip.set(0,bl*0.55,0).applyEuler(dm.rotation).add(dm.position);
+       branches.setMatrixAt(c4++,dm.matrix);{const hm=new THREE.Vector3(0,bl*0.28,0).applyEuler(dm.rotation).add(dm.position),rm=r*0.5;   // a clump halfway along the outer part too (no bare sticks)
+         dm.position.set(hm.x,Math.max(hm.y-rm*0.45,tun?base.y+5.4:-1e9),hm.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(rm*2,rm*1.5,rm*2);dm.updateMatrix();
+         crowns.setMatrixAt(c2,dm.matrix);col.setHex(pal[p[2]][Math.floor(rnd()*pal[p[2]].length)]).multiplyScalar(0.8+rnd()*0.2);crowns.setColorAt(c2++,col);
+         dm.position.copy(mid);dm.rotation.set(t2,y2,0,'YXZ');dm.scale.set(w*0.62,bl*0.55,w*0.62);dm.updateMatrix();}
+       tip.set(0,bl*0.55,0).applyEuler(dm.rotation).add(dm.position);
        {const rm=r*0.55;dm.position.set(mid.x,Math.max(mid.y-rm*0.45,tun?base.y+5.4:-1e9),mid.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(rm*2*(rnd()<0.5?-1:1),rm*1.5,rm*2);dm.updateMatrix();   // a smaller clump on the way
         crowns.setMatrixAt(c2,dm.matrix);col.setHex(pal[p[2]][Math.floor(rnd()*pal[p[2]].length)]).multiplyScalar(0.8+rnd()*0.2);crowns.setColorAt(c2++,col);}
        dm.position.set(tip.x,Math.max(tip.y-r*0.4,tun?base.y+5.4:-1e9),tip.z);dm.rotation.set(0,rnd()*6,0);dm.scale.set(r*2*(rnd()<0.5?-1:1)*(0.85+rnd()*0.3),r*(1.4+rnd()*0.5),r*2*(0.85+rnd()*0.3));dm.updateMatrix();   // a crown's bottom (cards stand on it) stays clear of the roof and the chase camera
@@ -1673,7 +1677,7 @@ function terrainShow(c){
     g.setAttribute('color',new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint8Array(b,o3,j.nv*4),4),3,0,true));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(b,o1,j.ni),1));g.computeVertexNormals();g.computeBoundingSphere();
     const grp=new THREE.Group();grp.userData.keep=true;
-    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(Math.abs(R-91)<=1&&Math.abs(G-86)<=1&&Math.abs(B-76)<=1){ca[i*4]=56;ca[i*4+1]=62;ca[i*4+2]=38;}   // the road's corridor: roadside grass
+    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(Math.abs(R-91)<=1&&Math.abs(G-86)<=1&&Math.abs(B-76)<=1){ca[i*4]=44;ca[i*4+1]=48;ca[i*4+2]=30;}   // the road's corridor: roadside grass
        else if(G>R+8&&G>B){   // greens: darker and less saturated (a forest seen from the road, not a lawn)
        const L=(R+G+B)/3,v=0.62+((i*7919)%13)/80;ca[i*4]=Math.round((R*0.7+L*0.3)*v);ca[i*4+1]=Math.round((G*0.7+L*0.3)*v);ca[i*4+2]=Math.round((B*0.7+L*0.3)*v);}}}
     const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));vegDetail(land.material);land.userData.terrain=true;grp.add(land);
