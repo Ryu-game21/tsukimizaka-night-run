@@ -123,7 +123,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。
   デイリー3つ（かんたん20・ふつう30・むずかしい50pt、全部で +30＋連続日数ボーナス最大 +50）は日本時間の日付から `chDailies` で決まり全員共通、
   ウィークリー1つ（`CH_WEEKLY`、月曜0時、150pt＋称号）。進み具合はゲームのイベント（`chEv('lap'|'win'|'great'|'km'|'pb'|'gold'|'sector'|'pass'|'rev'|'flame'|'speed'|'race')`）で増える。
-  合計ポイント（実績＋チャレンジ、`totalPts`）は減らず、ドライバーレベル（`lvOf`）と `COS`（炎の色・マフラー・ブローオフ）の解放に使う。称号 `TITLES` はウィークリー・レベル・一部の実績で手に入り、
+  合計ポイント（実績＋チャレンジ、`totalPts`）は減らず、ドライバーレベル（`lvOf`）と `COS`（炎の色・マフラー・ブローオフ）の解放に使う。称号 `TITLES` はウィークリー・レベル（Lv3〜）・実績（`TITLE_ACH`：称号キー→実績 id。2026-10-25 にブロンズ/シルバーの実績にも28個足して取りやすくした。入手方法の文 `TITLE_HOW` は実績名から自動）で手に入り、
   レベルと選んだ称号は `prof`（lv, ti）に載ってランキングとプレイヤー記録に出る。
   2026-10-19 からのデイリー・ウィークリーは「ゲームの要素を幅広く使う」お題（`chDailies2`/`CH_WEEKLY2`）。かんたんは今日の車×コース（`chRot` の固定シャッフル順で毎日進み、全車・全コースが順番に出る）、
   ふつう・むずかしいとウィークリーは天候・時間帯・視点・MT・リアル天候・ゴースト（`chEv('ghost')`）・リプレイ（`'replay'`）・SC・AIの強さ・タイヤ温度・セクターなど。`'lap'` は view/gh/mode、`'win'`/`'race'` は ai/sc/rank/pass/tyreOk/cab を持つ。「今週まだ乗っていない車／走っていないコース」は各自の `ACHS.wk.cars` / `ACHS.wk.courses` で判定する。

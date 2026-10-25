@@ -4242,13 +4242,16 @@ const CH_WEEK_PTS=150;
 const TITLES={
   tourer:'旅するドライバー',collector:'コレクター',conqueror:'サーキット制圧',international:'国際派',drivetrain:'駆動マスター',director:'映像監督',challenger:'挑戦者',allday:'24時間ドライバー',ghostbuster:'ゴーストバスター',hardcharger:'ハードチャージャー',manual:'マニュアル派',tyreman:'タイヤマネージャー',restart:'リスタートの名手',winner:'今週の勝者',ironman:'鉄人',goldhunter:'ゴールドハンター',allweather:'全天候型',cornerist:'コーナーの職人',multi:'マルチドライバー',gentleman:'紳士',
   lv5:'ルーキー',lv10:'走り屋',lv20:'エース',lv30:'トップドライバー',lv50:'生ける伝説',
+  rookie:'新人ドライバー',grad:'教習所卒業',winner:'初優勝',pinpoint:'ドンピシャ職人',stick:'MT使い',rainman:'雨の走り屋',nightowl:'夜の走り屋',dusk:'黄昏ドライバー',foggy:'霧の住人',carhop:'乗り比べ名人',km100:'百キロ走者',gambler:'勝負師',scwin:'隊列の覇者',daily:'デイリー戦士',perfectday:'完璧な一日',tuner:'チューナー',vtecman:'VTEC 信者',cameraman:'カメラマン',wrongway:'逆走ドライバー',revver:'空ぶかし屋',overtaker:'オーバーテイカー',club300:'300km/hクラブ',cornerpro:'コーナリング職人',km1000:'千キロ走者',cleanfighter:'クリーンファイター',rainmaster:'レインマスター',cockpit:'コクピット派',tourist:'ワールドツアラー',
+  lv3:'駆け出し',
   streak7:'皆勤賞',record:'レコードホルダー',legend:'レジェンド',grandslam:'グランドスラマー',perfect:'完璧主義者',revking:'レブリミッター職人',fire:'火吹き',
 };
-const TITLE_HOW={lv5:'Lv5',lv10:'Lv10',lv20:'Lv20',lv30:'Lv30',lv50:'Lv50',streak7:'実績「1週間皆勤」',record:'実績「レコードホルダー」',legend:'実績「レジェンド」',
+const TITLE_HOW={lv3:'Lv3',lv5:'Lv5',lv10:'Lv10',lv20:'Lv20',lv30:'Lv30',lv50:'Lv50',streak7:'実績「1週間皆勤」',record:'実績「レコードホルダー」',legend:'実績「レジェンド」',
   grandslam:'実績「グランドスラム」',perfect:'実績「完璧主義者」',revking:'実績「レブリミッター職人」',fire:'実績「火吹き」'};
 CH_WEEKLY.forEach(w=>TITLE_HOW[w.ti]='ウィークリー「'+w.txt+'」');
 Object.assign(TITLE_HOW,{multi:'ウィークリー「違う車4台でそれぞれ優勝」'});
-const TITLE_ACH={streak7:'streak7',record:'record5',legend:'legend',grandslam:'win_all',perfect:'perfect5',revking:'rev100',fire:'flame1000'};
+const TITLE_ACH={rookie:'first_lap',grad:'tutorial',winner:'first_win',pinpoint:'first_great',stick:'first_mt',rainman:'lap_rain',nightowl:'lap_night',dusk:'lap_dusk',foggy:'lap_fog',carhop:'cars5',km100:'km100',gambler:'wins10',scwin:'sc_win',daily:'daily1',perfectday:'daily_all',tuner:'custom',vtecman:'vtec',cameraman:'views',wrongway:'reverse',revver:'rev_count',overtaker:'pass3',club300:'vmax300',cornerpro:'great100',km1000:'km1000',cleanfighter:'clean',rainmaster:'win_rain',cockpit:'cab50',tourist:'lap_all',streak7:'streak7',record:'record5',legend:'legend',grandslam:'win_all',perfect:'perfect5',revking:'rev100',fire:'flame1000'};
+for(const t in TITLE_ACH)if(!TITLE_HOW[t]){const a=ACH.find(x=>x.id===TITLE_ACH[t]);if(a)TITLE_HOW[t]='実績「'+a.name+'」';}
 // customisation, opened by total points
 const COS={
   flame:{n:'炎の色',o:{orange:{n:'オレンジ',need:0,c:['255,255,240','170,210,255','255,190,80','255,90,20','255,60,0'],l:0xff7a2a},
@@ -4364,7 +4367,7 @@ const lvOf=p=>Math.min(99,Math.floor(Math.sqrt(Math.max(0,p)/20))+1);
 const lvPts=lv=>20*(lv-1)*(lv-1);
 function chOwnedTitles(S){
   const own={};for(const k in (S.titles||{}))if(TITLES[k])own[k]=1;
-  const lv=lvOf(totalPts(S));[5,10,20,30,50].forEach(l=>{if(lv>=l)own['lv'+l]=1;});
+  const lv=lvOf(totalPts(S));[3,5,10,20,30,50].forEach(l=>{if(lv>=l)own['lv'+l]=1;});
   for(const t in TITLE_ACH)if(S.u&&S.u[TITLE_ACH[t]])own[t]=1;
   return own;
 }
