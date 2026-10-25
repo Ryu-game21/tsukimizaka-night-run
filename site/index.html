@@ -1252,7 +1252,7 @@ const COURSES=[
   env:{terrain:0xb59a6a,ground:0x8a7550,skirt:[0xb8a179,0x6e5640,0x1e1a16],lamps:0,scatter:'none',far:'none',center:'yellow',over:{
     day:{fogD:.0012,fog:0xd8d4c4,sky:['#3f7fc4','#9cc3e4','#ead9b8']},dusk:{fogD:.0016},night:{fogD:.0022,hemi:[0x5a6290,0x141418,1.2]}}}},
  {id:'turnpike',since:'2026-10-26',name:'箱根ターンパイク',en:'HAKONE TURNPIKE',tag:'実在の道 ・ ヒルクライム',diff:2,laps:1,ai:1.0,W:11,runoff:1.1,hw0:5.5,
-  pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3281,runin:300},terrain:{url:'tracks/turnpike/terrain.json'},geo:{lat0:35.2423553,lon0:139.1398212},
+  pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3281,runin:300},terrain:{url:'tracks/turnpike/terrain.json?v=3'},geo:{lat0:35.2423553,lon0:139.1398212},
   // the road's own guide map (km as signposted, 13.8 km to 大観山口): flowers and trees along it, the views, the signs
   scenery:{len:13800,zones:[['hydrangea',0.4,4.2],['sakura',4.2,5.2],['green',5.2,6.4],['maple',8.4,10.6],['susuki',11.0,99]],
     spots:[[4.0,'御所の入駐車場','p'],[4.5,'桜のトンネル','s'],[5.5,'湘南ビュー展望台','v'],[6.6,'富士山ビューポイント','v'],[7.5,'鍋割駐車場','p'],[9.0,'相模湾の眺望','v'],
@@ -1591,7 +1591,7 @@ function groundDry(Z){   // the susuki zone: dry grass on the ground within 60 m
   if(ca.isInterleavedBufferAttribute)ca.data.needsUpdate=true;else ca.needsUpdate=true;
 }
 function buildScenery(){
-  const Z=sceneryAt(C);if(!Z||!TSIDE[C.id])return;   // needs the roadside ground (built again when the terrain arrives)
+  const Z=sceneryAt(C);if(!Z||!TERR[C.id])return;   // needs the land (built again when the terrain arrives); an old terrain.json without side data still works (terrGrid)
   railsReal();groundDry(Z);const gh=terrGrid();
   // shade under the cherry / green tunnels: dappled light multiplied over the road
   {if(!VEG.dapple){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d'),r=vegRand(5);g.fillStyle='rgb(150,150,156)';g.fillRect(0,0,256,256);
@@ -1669,7 +1669,7 @@ function terrainShow(c){
   if(TERR[c.id]){world.add(TERR[c.id]);return;}
   if(TERR['_'+c.id])return;TERR['_'+c.id]=1;const key='trn:'+c.id;modelLoading[key]=true;
   const base=c.terrain.url.replace(/[^/]*$/,'');
-  fetch(c.terrain.url).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>fetch(base+j.file).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+  fetch(c.terrain.url).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>fetch(base+j.file+(c.terrain.url.includes('?')?'?'+c.terrain.url.split('?')[1]:'')).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
     .then(ab=>pngData(ab,j.bytes)).then(u=>{
     const b=u.buffer,o1=j.nv*12,o2=o1+j.ni*4,o3=o2+j.nt*16;
     if(j.side){const bs=atob(j.side),a=new Int8Array(bs.length);for(let i=0;i<bs.length;i++)a[i]=(bs.charCodeAt(i)<<24)>>24;TSIDE[c.id]={a,offs:j.sideOffs,n:a.length/2/j.sideOffs.length};}

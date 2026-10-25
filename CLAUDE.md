@@ -87,6 +87,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   景色の描き方（2026-10-26、ユーザー「チープすぎる」→辛口の評価担当と5回やり直し、3.5→約6点）：植物はキャンバスで描いた切り抜きの交差板（`vegTex`/`vegGeo`/`vegMat`、法線は上向き、視線と平行な板は `cn` で消す、葉の塊は4種のアトラス `uvo`）。
   木は幹＋曲がった2節の枝の先と途中に塊（`buildScenery`）。トンネル区間は路面に木漏れ日を乗算（`VEG.dapple`）。植物の高さは地形メッシュを1.5m格子に焼いた `terrGrid`。
   ガードレールは谷側だけ（`railsReal`：9.5m/12m先の地面が道より上なら切り土＝側溝と縁石）。斜面は苔色のノイズ（`vegDetail` の `vUp`）、ススキ区間の地面は枯れ草色（`groundDry`）。昼の bloom はこのコースだけ弱い。
+  **tracks/ はブラウザに1週間キャッシュされる**（`vercel.json`）：terrain.json を作り直したら `terrain:{url:'…terrain.json?v=N'}` の N を上げる（png にも同じ ?v が付く）。2026-10-26、古い terrain.json（side なし）が残っていて景色が1つも出なかった。
   Unity 版の試作（`tools/unity_export.py`・`tools/unity_car.py`・`tools/unity/`、ブランチ turnpike）：ユーザーの判断でブラウザ版に戻した（Unity の光・地形の見た目は three.js に持ってこられない、Asset Store 素材は配布に使わない）。
 - `TIMES` / `WEATHERS` / `applyWeather` … 時間帯と天候（雨はグリップ 0.8・ブレーキ 0.85）。
 - `function computeTrack` … 推奨速度・コーナー検出。`function updatePlayer` … 車の物理（AT/MT、エンジンブレーキ、壁、接触）。
