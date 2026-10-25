@@ -3537,6 +3537,7 @@ function splashEnter(){
   s.classList.add('out');document.body.classList.remove('splash');setTimeout(()=>{s.hidden=true;},700);
   const c=$('mcard');c.style.visibility='';showStep('title');c.classList.remove('m-card');void c.offsetWidth;if(!reduceMotion)c.classList.add('m-card');
   MCAM.cut='title';
+  if(!PLAYER)setTimeout(()=>{if(!PLAYER)openNameDlg();},500);
 }
 (()=>{const s=$('splash');if(!s)return;
   s.addEventListener('click',splashEnter);s.addEventListener('keydown',e=>{e.preventDefault();splashEnter();});
@@ -5435,7 +5436,8 @@ setOpt('line',opts.line);setOpt('call',opts.call);setOpt('ghost',opts.ghost);set
 resize();renderCars();renderCourseCards();setTime(timeSel);
 manualTime=timeSel;setWeather(realOn?'real':manualWx);
 selectCourse(sel);setView(view);showStep('title');
-renderPlayer();if(!PLAYER)openNameDlg();initShared();achLoad();chTitleBtn();runRestoreNote();
+renderPlayer();if(!PLAYER&&!document.body.classList.contains('splash'))openNameDlg();initShared();   // with the splash up, the name is asked after PRESS TO ENTER (splashEnter)
+achLoad();chTitleBtn();runRestoreNote();
 requestAnimationFrame(frame);
 })();
 </script>
