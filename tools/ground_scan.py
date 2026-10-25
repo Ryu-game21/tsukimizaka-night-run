@@ -214,7 +214,7 @@ def main():
     c2 = np.bincount(m2[m2 >= 0], minlength=len(names)); c2[list(load_model.decal)] = 0; c2[names.index(road)] = 0; side = names[int(c2.argmax())]
     out = {'v': 1, 'step': STORE, 'road': road, 'side': side, 'lat': S, 'wp': np.round(wl, 1).tolist(), 'wn': np.round(wr, 1).tolist(),
            'dz': base64.b64encode(zlib.compress(q.tobytes(), 9)).decode(),
-           'fl': base64.b64encode(zlib.compress(fq.tobytes(), 9)).decode()}   # zlib (deflate) of the int8 rows
+           'fl': base64.b64encode(zlib.compress(np.ascontiguousarray(fq[:, 1::2]).tobytes(), 9)).decode()}   # every 2 m: offsets -(S-1)..S-1   # zlib (deflate) of the int8 rows
     dst = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'site', os.path.dirname(c['model']), 'ground.json')
     json.dump(out, open(dst, 'w'), separators=(',', ':'))
     # report against the old symmetric wall

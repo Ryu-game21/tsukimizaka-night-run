@@ -1449,11 +1449,11 @@ function groundUnder(){
   const tr=TRACKS[C.id];if(!tr)return;   // called again when the scenery has loaded
   const find=n=>{let m=null;if(n)tr.traverse(o=>{if(!m&&o.isMesh&&o.material&&o.material.name===n)m=o.material;});return m;};
   const mat=find(g.road),side=find(g.side)||mat;if(!mat)return;   // asphalt on the band, the grass (etc.) beyond it
-  const pt=C.pts,bk=C.bank,M=pt.length/3,S=g.lat,W=2*S+1,cs=[];for(let j=-S+1;j<=S-1;j+=2)cs.push(j);
+  const pt=C.pts,bk=C.bank,M=pt.length/3,S=g.lat,cs=[];for(let j=-S+1;j<=S-1;j+=2)cs.push(j);
   const nc=cs.length,pos=new Float32Array(M*nc*3),uv=new Float32Array(M*nc*2),ok=new Uint8Array(M*nc);
   for(let k=0;k<M;k++){const a=(k-1+M)%M,b=(k+1)%M;let tx=pt[b*3]-pt[a*3],tz=pt[b*3+2]-pt[a*3+2];const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;
     const nx=tz,nz=-tx;
-    for(let c=0;c<nc;c++){const j=cs[c],off=j*g.step,f=g.f[k*W+S+j],o=k*nc+c,x=pt[k*3]+nx*off,z=pt[k*3+2]+nz*off;
+    for(let c=0;c<nc;c++){const j=cs[c],off=j*g.step,f=g.f[k*S+(j+S-1)/2],o=k*nc+c,x=pt[k*3]+nx*off,z=pt[k*3+2]+nz*off;
       ok[o]=f!==-128;pos[o*3]=x;pos[o*3+1]=pt[k*3+1]+bk[k]*off+f*0.05-0.25;pos[o*3+2]=z;uv[o*2]=x/12;uv[o*2+1]=z/12;}}
   const ir=[],is=[],hw=C.hw;
   for(let k=0;k<M;k++){const k2=(k+1)%M,h=Math.min(hw[k],hw[k2])+1;for(let c=0;c<nc-1;c++){const p=k*nc+c,q=k2*nc+c;
