@@ -138,13 +138,25 @@ body.cine .hud:not(#msg):not(#fxBan),body.cine .pad,body.cine .vbar,body.cine #m
 #tl .secs .cur{color:var(--lcd)}
 #tl .secs .fast{color:var(--green);text-shadow:0 0 8px rgba(106,216,138,.5)}
 #tl .secs .slow{color:var(--red);text-shadow:0 0 8px rgba(255,90,70,.4)}
-#battle{left:50%;top:36%;transform:translateX(-50%);text-align:center;font:800 26px/1.15 system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.04em;opacity:0;transition:opacity .3s;pointer-events:none;text-shadow:0 2px 6px rgba(0,0,0,.85),0 0 2px #000}
+#battle{left:50%;top:35%;transform:translateX(-50%);display:grid;justify-items:center;gap:3px;opacity:0;transition:opacity .3s;pointer-events:none}
 #battle.on{opacity:1}
-#battle div{min-height:0}
-#battle .ah{color:#7fe0ff;white-space:pre}#battle .bh{color:#ffd27a;font-size:22px;white-space:pre}
-#battle .goal{color:#ffd23a;font-size:30px;letter-spacing:.12em;margin-bottom:4px;text-shadow:0 0 12px rgba(255,190,0,.8),0 2px 6px rgba(0,0,0,.9)}
-#battle.warn .bh{color:#ff5a4e;animation:bwarn .35s steps(2) infinite}
-@keyframes bwarn{50%{opacity:.3}}
+#battle .row{display:flex;align-items:center;gap:10px;height:34px;padding:0 14px 0 0;background:linear-gradient(90deg,rgba(6,10,22,0),rgba(6,10,22,.62) 18%,rgba(6,10,22,.62) 82%,rgba(6,10,22,0));transition:opacity .2s}
+#battle .row:empty,#battle .row.off{display:none}
+#battle .tg{width:34px;height:24px;display:grid;place-items:center;transform:skewX(-14deg);font:700 13px/1 var(--f-dot);color:#061019;background:var(--bc);box-shadow:0 0 10px var(--bc)}
+#battle .tg span{transform:skewX(14deg)}
+#battle .nm{font:700 15px/1 var(--f-body);letter-spacing:.06em;color:#e9eef8;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+#battle .dv{font:italic 700 30px/1 var(--f-dot);font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#fff;text-shadow:0 0 1px #000,0 2px 4px rgba(0,0,0,.9),0 0 14px var(--bg),0 0 3px var(--bc)}
+#battle .dv small{font-size:16px;margin-left:2px;color:var(--bc)}
+#battle .ah{--bc:#5fd4ff;--bg:rgba(60,190,255,.45)}
+#battle .bh{--bc:#ffc04d;--bg:rgba(255,170,40,.4)}
+#battle.warn .bh{--bc:#ff4a3d;--bg:rgba(255,50,40,.75)}
+#battle.warn .bh .tg{animation:bwarn .3s steps(2) infinite}
+#battle.warn .bh .dv{animation:bwarn .3s steps(2) infinite}
+@keyframes bwarn{50%{opacity:.35}}
+#battle .goal{--bc:#ffd23a;--bg:rgba(255,190,0,.7);height:40px;margin-bottom:4px}
+#battle .goal .tg{width:40px;height:28px;background:conic-gradient(#fff 0 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/10px 10px;box-shadow:0 0 12px rgba(255,210,58,.8)}
+#battle .goal .nm{font:700 16px/1 var(--f-dot);letter-spacing:.32em;color:#ffd23a}
+#battle .goal .dv{font-size:36px}
 #slip{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 168px);transform:translateX(-50%) scale(.92);padding:4px 12px 6px;border-radius:3px;background:rgba(8,20,32,.55);border:1px solid rgba(110,200,255,.45);color:#bfe6ff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.32em;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-shadow:0 0 8px rgba(80,180,255,.8)}
 #slip.on{opacity:1;transform:translateX(-50%) scale(1)}#slip i{display:block;height:2px;margin-top:4px;background:linear-gradient(90deg,#4fc3ff,#b9f0ff);width:0;box-shadow:0 0 6px #4fc3ff}
 body.phl #slip{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
@@ -608,7 +620,7 @@ body.phl .press{display:none}
 <div class="hud" id="msg"></div>
 <div class="hud" id="pop"></div>
 <div class="hud" id="slip" aria-hidden="true">SLIPSTREAM<i></i></div>
-<div class="hud" id="battle" aria-hidden="true"><div class="goal" id="btGoal"></div><div class="ah" id="btA"></div><div class="bh" id="btB"></div></div>
+<div class="hud" id="battle" aria-hidden="true"><div class="row goal off" id="btGoal"><span class="tg"></span><span class="nm">GOAL</span><span class="dv"><b></b><small>m</small></span></div><div class="row ah off" id="btA"><span class="tg"><span>▲</span></span><span class="nm"></span><span class="dv"><b></b><small>m</small></span></div><div class="row bh off" id="btB"><span class="tg"><span>▼</span></span><span class="nm"></span><span class="dv"><b></b><small>m</small></span></div></div>
 <div class="hud" id="split" aria-live="polite"><span class="sn" id="splitN"></span><b id="splitT"></b><em id="splitD"></em></div>
 <div class="hud" id="hint" hidden>C 視点 ・ R 復帰 ・ G ガイド ・ M 消音 ・ Esc 終了</div>
 <div class="vbar"><button class="vbtn" id="viewBtn" type="button" hidden>視点</button><button class="vbtn" id="endBtn" type="button" hidden>終了</button></div>
@@ -5352,15 +5364,17 @@ function towerEntries(){
    in front (▲) and behind (▼) in metres; red and beeping faster as the car behind closes in. On the final lap the goal
    distance shows once the line is about in sight (last 400 m), with a chime. */
 const BT={els:null,prev:{},beepT:0,last500:false,on:false};
+function btRow(id,on,name,d){const r=$(id);if(r.classList.contains('off')===on)r.classList.toggle('off',!on);if(!on)return;
+  if(name!=null){const n=r.querySelector('.nm');if(n.textContent!==name)n.textContent=name;}const b=r.querySelector('.dv b'),t=String(d);if(b.textContent!==t)b.textContent=t;}
 function battleTick(){
   const box=$('battle');if(!box)return;const now=performance.now()/1000,dt=Math.min(.5,BT.t?now-BT.t:.05);if(BT.t&&dt<.05)return;BT.t=now;
   const show=mode!=='free'&&(state==='race'||state==='count')&&!grOut();
-  if(show!==BT.on){BT.on=show;box.classList.toggle('on',show);if(!show){box.classList.remove('warn');BT.prev={};}}
+  if(show!==BT.on){BT.on=show;box.classList.toggle('on',show);if(!show){box.classList.remove('warn');BT.prev={};['btGoal','btA','btB'].forEach(i=>$(i).classList.add('off'));}}
   if(!show)return;
   const list=towerEntries(),total=LAPS*L,base=SCL*L,me=list.find(e=>e.me);
   // the goal: only once it is about in sight (final lap, last 400 m), a chime at 400 m
   const left=Math.max(0,base+total-me.s),last=pl.lap-SCL>=LAPS,near=last&&left<400&&state==='race';
-  const gt=near?'GOAL  '+Math.round(left)+'m':'';if($('btGoal').textContent!==gt)$('btGoal').textContent=gt;
+  btRow('btGoal',near,null,Math.round(left));
   if(near&&!BT.last500){BT.last500=true;if(A)[880,1175,1568].forEach((f,k)=>tone(f,.12,'square',.07,k*.1));}
   if(!last)BT.last500=false;
   // nearest in front / behind (by distance covered, any lap)
@@ -5368,9 +5382,7 @@ function battleTick(){
   list.forEach(e=>{if(e.me||e.fin)return;const d=e.s-me.s;if(d>=0&&(!ahead||d<ahead.d))ahead={e,d};if(d<0&&(!behind||-d<behind.d))behind={e,d:-d};});
   // just the numbers: the gap to the car in front and to the one behind
   // with who it is: the car (rivals) or the player's name (ghosts)
-  const nm=e=>{const n=e.name||'';return n.length>14?n.slice(0,14)+'…':n;};
-  const ta=ahead?'▲ '+nm(ahead.e)+'  '+Math.round(ahead.d)+'m':'',tb=behind?'▼ '+nm(behind.e)+'  '+Math.round(behind.d)+'m':'';
-  if($('btA').textContent!==ta)$('btA').textContent=ta;if($('btB').textContent!==tb)$('btB').textContent=tb;
+  btRow('btA',!!ahead,ahead&&ahead.e.name,ahead&&Math.round(ahead.d));btRow('btB',!!behind,behind&&behind.e.name,behind&&Math.round(behind.d));
   // closing speed of the car behind -> warning and beeps
   let warn=false;
   if(behind&&state==='race'&&!(typeof scOn==='function'&&scOn())){const k=behind.e.id,pv=BT.prev[k],cl=pv==null?0:(pv-behind.d)/Math.max(dt,1e-3);
