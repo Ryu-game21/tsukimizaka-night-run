@@ -1253,7 +1253,7 @@ const COURSES=[
   credit:{title:'Yas Marina Circuit Abu Dhabi 2021 layout',author:'Dave Love SketchFab',url:'https://sketchfab.com/3d-models/yas-marina-circuit-abu-dhabi-2021-layout-c41b4e19912b4d79886bcd8d7d2536af',license:'CC BY 4.0',licUrl:'https://creativecommons.org/licenses/by/4.0/'},
   env:{terrain:0xb59a6a,ground:0x8a7550,skirt:[0xb8a179,0x6e5640,0x1e1a16],lamps:0,scatter:'none',far:'none',center:'yellow',over:{
     day:{fogD:.0012,fog:0xd8d4c4,sky:['#3f7fc4','#9cc3e4','#ead9b8']},dusk:{fogD:.0016},night:{fogD:.0022,hemi:[0x5a6290,0x141418,1.2]}}}},
- {id:'turnpike',since:'2026-10-26',name:'箱根ターンパイク',en:'HAKONE TURNPIKE',tag:'実在の道 ・ ヒルクライム',diff:2,laps:1,ai:1.0,W:11,runoff:1.1,hw0:5.5,
+ {id:'turnpike',since:'2026-10-31',name:'箱根ターンパイク',en:'HAKONE TURNPIKE',tag:'実在の道 ・ ヒルクライム',diff:2,laps:1,ai:1.0,W:11,runoff:1.1,hw0:5.5,
   pts:TPK_DATA.pts,bank:TPK_DATA.bank,p2p:{fin:3299,runin:300},tolls:[{at:'start',name:'小田原料金所'},{at:'fin',name:'大観山料金所'}],terrain:{url:'tracks/turnpike/terrain.json?v=4'},geo:{lat0:35.2423553,lon0:139.1398212},
   // the road's own guide map (km as signposted, 13.8 km to 大観山口): flowers and trees along it, the views, the signs
   scenery:{len:13800,zones:[['hydrangea',0.4,4.2],['sakura',4.2,5.2],['green',5.2,6.4],['maple',8.4,10.6],['susuki',11.0,99]],
@@ -1468,6 +1468,11 @@ function vegTex(kind){
     for(let k=0;k<12;k++){const p=pal[Math.floor(r()*pal.length)],cx=W*0.18+r()*W*0.64,cy=H*0.5+r()*H*0.3,R=12+r()*9;
       for(let i=0;i<170;i++){const a=r()*6.28,d=Math.sqrt(r())*R,sy=Math.sin(a)*d/R;g.fillStyle=`hsl(${p[0]+r()*16-8},${p[1]}%,${p[2]-8-sy*12+r()*12}%)`;g.beginPath();g.arc(cx+Math.cos(a)*d,cy+Math.sin(a)*d,1.4+r()*1.8,0,7);g.fill();}}
     for(let i=0;i<500;i++){const x=W*0.06+r()*W*0.88,y=H*0.62+r()*H*0.38;if(Math.hypot((x-W/2)/(W*0.46),(y-H*0.75)/(H*0.48))>1)continue;el(x,y,4+r()*6,2.5+r()*3,r()*3,`hsl(${95+r()*30},${30+r()*15}%,${12+r()*14}%)`);}   // leaves over the lower flowers
+  }else if(kind==='shrub'){
+    for(let k=0;k<9;k++){const cx=W*(0.2+r()*0.6),cy=H*(0.45+r()*0.3),R=W*(0.12+r()*0.1);
+      for(let i=0;i<700;i++){const a=r()*6.28,d=Math.sqrt(r()),x=cx+Math.cos(a)*d*R,y=cy+Math.sin(a)*d*R*0.8;if(y>H-3)continue;
+        const lit=0.5-Math.sin(a)*d*0.5;el(x,y,2+r()*3.5,1.4+r()*2,r()*3,`hsl(${85+r()*35},${28+r()*18}%,${8+lit*16+r()*8}%)`);}}
+    for(let i=0;i<120;i++){const x0=W*(0.15+r()*0.7);g.strokeStyle=`hsl(${80+r()*30},30%,${10+r()*10}%)`;g.lineWidth=1.5;g.beginPath();g.moveTo(x0,H);g.lineTo(x0+(r()-0.5)*30,H*(0.6+r()*0.2));g.stroke();}
   }else if(kind==='grass'){
     for(let i=0;i<260;i++){const x0=r()*W,lean=(r()*2-1)*40,len=H*(0.25+r()*0.7);g.strokeStyle=`hsl(${70+r()*30},${25+r()*20}%,${16+r()*20}%)`;g.lineWidth=1.5+r()*2.2;
       g.beginPath();g.moveTo(x0,H);g.quadraticCurveTo(x0+lean*0.3,H-len*0.6,x0+lean,H-len);g.stroke();}
@@ -1505,7 +1510,7 @@ function vegDetail(m){
   m.onBeforeCompile=sh=>{sh.uniforms.detail={value:VEG.detail};
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;varying float vUp;').replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;vUp=normalize(mat3(modelMatrix)*objectNormal).y;');
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;varying float vUp;uniform sampler2D detail;').replace('#include <map_fragment>',
-      '#include <map_fragment>\n{float dd=length(vWP-cameraPosition);float st=1.0-smoothstep(0.72,0.9,vUp);if(st>0.0){float n=texture2D(detail,vec2(vWP.x+vWP.z,vWP.y)*0.09).r*2.0;diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(0.20,0.26,0.13),vec3(0.36,0.33,0.22),smoothstep(0.85,1.2,n))*(0.8+0.4*n),st*0.85);}vec2 pp=mix(vWP.xz,vec2(vWP.x+vWP.z,vWP.y*1.4),st);vec3 d1=texture2D(detail,pp*0.21).rgb;vec3 d2=texture2D(detail,pp*0.027).rgb;vec3 d3=texture2D(detail,vWP.xz*0.0031).rgb;'+
+      '#include <map_fragment>\n{float dd=length(vWP-cameraPosition);float st=1.0-smoothstep(0.8,0.95,vUp);if(st>0.0){float n=texture2D(detail,vec2(vWP.x+vWP.z,vWP.y)*0.09).r*2.0;diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(0.12,0.17,0.08),vec3(0.22,0.21,0.14),smoothstep(0.85,1.2,n))*(0.75+0.3*n),st*0.9);}vec2 pp=mix(vWP.xz,vec2(vWP.x+vWP.z,vWP.y*1.4),st);vec3 d1=texture2D(detail,pp*0.21).rgb;vec3 d2=texture2D(detail,pp*0.027).rgb;vec3 d3=texture2D(detail,vWP.xz*0.0031).rgb;'+
       'diffuseColor.rgb*=mix(vec3(1.0),d1*2.05,0.5*(1.0-smoothstep(30.0,260.0,dd)))*mix(vec3(1.0),d2*2.05,0.4)*mix(vec3(1.0),d3*2.05,0.35);}');};
 }
 const TERR={},TSIDE={};
@@ -1589,7 +1594,7 @@ function buildTolls(){
 function railsReal(){
   const R0=P2P?P2P.in0-N:0,R1=P2P?P2P.end:N,cut=(i,sd)=>{const k=((i%N)+N)%N;return Math.max(sideY(k*ds,sd*9.5)-(P[k].y+BK[k]*sd*9.5),sideY(k*ds,sd*12)-(P[k].y+BK[k]*sd*12)-0.4)>1.1;};
   const rm=new THREE.MeshStandardMaterial({color:0xd5d9da,metalness:.3,roughness:.5,side:THREE.DoubleSide});if(envTex){rm.envMap=envTex;rm.envMapIntensity=.3;}
-  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide}),gs=new THREE.MeshLambertMaterial({color:0x2c3220,side:THREE.DoubleSide});vegDetail(gs);
+  const gm=new THREE.MeshLambertMaterial({color:0x4e4d49,side:THREE.DoubleSide}),gd=new THREE.MeshLambertMaterial({color:0x26262a,side:THREE.DoubleSide}),gs=new THREE.MeshLambertMaterial({color:0x1f2416,side:THREE.DoubleSide});vegDetail(gs);
   const WB=[[0,.44],[.07,.52],[0,.6],[.07,.68],[0,.76]],posts=[],refl=[];
   for(const sd of[1,-1]){
     const on=[];for(let i=R0;i<=R1;i++)on.push(tollNear(i,14)?2:cut(i,sd)?0:1);
@@ -1637,6 +1642,7 @@ function groundDry(Z){   // the susuki zone: dry grass on the ground within 60 m
 function buildScenery(){
   const Z=sceneryAt(C);if(!Z||!TERR[C.id])return;   // needs the land (built again when the terrain arrives); an old terrain.json without side data still works (terrGrid)
   railsReal();buildTolls();groundDry(Z);const gh=terrGrid();
+  const lite=!gfxWant();   // standard quality (phones): fewer grass, susuki and shrub cards
   // shade under the cherry / green tunnels: dappled light multiplied over the road
   {if(!VEG.dapple){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d'),r=vegRand(5);g.fillStyle='rgb(150,150,156)';g.fillRect(0,0,256,256);
      for(let i=0;i<70;i++){const x=r()*256,y=r()*256,R=3+r()*11,gr=g.createRadialGradient(x,y,0,x,y,R);gr.addColorStop(0,'rgba(255,250,236,0.95)');gr.addColorStop(1,'rgba(255,250,236,0)');g.fillStyle=gr;
@@ -1686,14 +1692,19 @@ function buildScenery(){
        canopy.setMatrixAt(c3,dm.matrix);col.setHex(pl[Math.floor(rnd()*pl.length)]);canopy.setColorAt(c3++,col);}});
    for(const im of[crowns,canopy]){const n=im.count,a=new Float32Array(n*2);for(let k=0;k<n*2;k++)a[k]=rnd()<0.5?0:0.5;im.geometry.setAttribute('uvo',new THREE.InstancedBufferAttribute(a,2));}
    crowns.count=c2;canopy.count=c3;branches.count=c4;world.add(trunks,branches,crowns,canopy);}
-  {const L=[];for(let s=0;s<S1;s+=0.7){const dry=Z.zone(s)==='susuki';for(const sd of[1,-1])for(let q=0;q<(dry?2:1);q++)L.push([s+rnd()*0.7,sd*(RAIL+0.3+Math.pow(rnd(),1.5)*(dry?9:4)),dry]);}
+  {const L=[];for(let s=0;s<S1;s+=lite?1.4:0.7){const dry=Z.zone(s)==='susuki';for(const sd of[1,-1])for(let q=0;q<(dry?2:1);q++)L.push([s+rnd()*0.7,sd*(RAIL+0.3+Math.pow(rnd(),1.5)*(dry?9:4)),dry]);}
    const m=new THREE.InstancedMesh(vegGeo(2),vegMat('grass'),L.length);let k=0;
    L.forEach(p=>{if(Math.sin(p[0]*0.13+p[1])+Math.sin(p[0]*0.041)<-0.8||tollNear(Math.floor(p[0]/ds),16))return;   // gaps between patches; none on the toll plazas
      put(p[0],p[1],-0.08);if(gh){const x=dm.position.x,z=dm.position.z,a=gh(x+1.5,z),b=gh(x,z+1.5),c0=gh(x,z);if(a!=null&&b!=null&&c0!=null&&Math.hypot(a-c0,b-c0)/1.5>0.7)return;}
      dm.scale.set(0.5+rnd()*1.3,0.25+rnd()*0.45,0.5+rnd()*1.3);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
      if(p[2])col.setHSL(0.11,0.45,0.85+rnd()*0.15);else col.setHSL(0.2,0.1,0.58+rnd()*0.18);m.setColorAt(k++,col);});m.count=k;world.add(m);}   // dry grass under the susuki
+  {const L=[];for(let s=0;s<S1;s+=lite?7:3.5){const zn=Z.zone(s);if(zn==='susuki'||tollNear(Math.floor(s/ds),18))continue;
+     for(const sd of[1,-1]){if(rnd()<0.35)continue;const n=1+Math.floor(rnd()*3),o0=RAIL+3+rnd()*12;for(let q=0;q<n;q++)L.push([s+rnd()*3,sd*(o0+rnd()*3)]);}}
+   const m=new THREE.InstancedMesh(vegGeo(3),vegMat('shrub'),L.length);let k=0;
+   L.forEach(p=>{put(p[0],p[1],-0.25);if(!gh||gh(dm.position.x,dm.position.z)==null)return;const sz=0.7+rnd()*0.9;dm.scale.set(sz*2.4,sz*(1.1+rnd()*0.7),sz*2.4);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
+     col.setHSL(0.25,0.1,0.62+rnd()*0.25);m.setColorAt(k++,col);});m.count=k;world.add(m);}
   // pampas grass (susuki) tufts, thick at the roadside and out over the slopes near the summit
-  {const L=[];for(let s=0;s<S1;s+=0.55)if(Z.zone(s)==='susuki'&&!tollNear(Math.floor(s/ds),16))for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*0.6,sd*(RAIL+0.4+Math.pow(rnd(),2.2)*13)]);}
+  {const L=[];for(let s=0;s<S1;s+=lite?1.1:0.55)if(Z.zone(s)==='susuki'&&!tollNear(Math.floor(s/ds),16))for(const sd of[1,-1]){const n=rnd()<0.5?1:2;for(let q=0;q<n;q++)L.push([s+rnd()*0.6,sd*(RAIL+0.4+Math.pow(rnd(),2.2)*13)]);}
    const m=new THREE.InstancedMesh(vegGeo(3),vegMat('susuki'),L.length);
    L.forEach((p,k)=>{put(p[0],p[1],-0.1);const sz=0.6+rnd()*0.7;dm.scale.set(sz*1.8,sz*(1.1+rnd()*1.1),sz*1.8);dm.rotation.set(0,rnd()*6,0);dm.updateMatrix();m.setMatrixAt(k,dm.matrix);
      col.setHSL(0.1,0.15,0.6+rnd()*0.16);m.setColorAt(k,col);});world.add(m);}
@@ -1721,7 +1732,7 @@ function terrainShow(c){
     g.setAttribute('color',new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint8Array(b,o3,j.nv*4),4),3,0,true));
     g.setIndex(new THREE.BufferAttribute(new Uint32Array(b,o1,j.ni),1));g.computeVertexNormals();g.computeBoundingSphere();
     const grp=new THREE.Group();grp.userData.keep=true;
-    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(Math.abs(R-91)<=1&&Math.abs(G-86)<=1&&Math.abs(B-76)<=1){ca[i*4]=44;ca[i*4+1]=48;ca[i*4+2]=30;}   // the road's corridor: roadside grass
+    {const ca=new Uint8Array(b,o3,j.nv*4);for(let i=0;i<j.nv;i++){const R=ca[i*4],G=ca[i*4+1],B=ca[i*4+2];if(Math.abs(R-91)<=1&&Math.abs(G-86)<=1&&Math.abs(B-76)<=1){ca[i*4]=33;ca[i*4+1]=37;ca[i*4+2]=24;}   // the road's corridor: roadside grass
        else if(G>R+8&&G>B){   // greens: darker and less saturated (a forest seen from the road, not a lawn)
        const L=(R+G+B)/3,v=0.62+((i*7919)%13)/80;ca[i*4]=Math.round((R*0.7+L*0.3)*v);ca[i*4+1]=Math.round((G*0.7+L*0.3)*v);ca[i*4+2]=Math.round((B*0.7+L*0.3)*v);}}}
     const land=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));vegDetail(land.material);land.userData.terrain=true;grp.add(land);
