@@ -10,7 +10,7 @@ Output:
   work/<id>/course.json          pts (x,y,z every 4 m incl. the run-off after the finish), hw, bank, fin (index of the finish)
   site/tracks/<id>/terrain.json  + terrain0.png: Float32 positions, Uint32 triangle indices, Float32 trees (x,y,z,s),
                                  Uint8 RGBA vertex colours (the game: terrainLoad)
-usage: real_course.py <id> [hw=5.5]"""
+usage: [PRE=<m>] real_course.py <id> [hw=5.5]   (PRE: extend the start back along the road, e.g. to a toll gate)"""
 import json, zlib, base64, math, struct, sys, os
 import numpy as np
 from scipy.spatial import Delaunay, cKDTree
@@ -48,6 +48,13 @@ for a, b in spans:
     a2, b2 = max(0, a - 5), min(len(Y) - 1, b + 5)
     Y[a2:b2 + 1] = np.linspace(Y[a2], Y[b2], b2 - a2 + 1)
 Y = gaussian_filter1d(Y, 5, mode='nearest')
+# the real start can be before the first OSM node (箱根ターンパイク: the 小田原 toll gate is 72 m east of it): PRE metres of
+# the same straight line, the same grade, become part of the route (the start line and its toll gate stand there)
+PRE = float(os.environ.get('PRE', '0')); n_pre = int(round(PRE / 4))
+if n_pre:
+    u0p = XY[10] - XY[0]; g0p = (Y[10] - Y[0]) / np.linalg.norm(u0p); u0p /= np.linalg.norm(u0p); dp = np.arange(n_pre, 0, -1) * 4.0
+    XY = np.vstack([XY[0] - u0p[None] * dp[:, None], XY]); Y = np.concatenate([Y[0] - g0p * dp, Y])
+    s4 = np.concatenate([s4[0] - dp, s4]); kseg = np.concatenate([np.zeros(n_pre, int), kseg]); spans = [(a + n_pre, b + n_pre) for a, b in spans]
 # run-off past the finish: straight on, flat
 u = XY[-1] - XY[-10]; u /= np.linalg.norm(u); n_off = int(RUNOFF / 4)
 XY = np.vstack([XY, XY[-1] + u[None] * (np.arange(1, n_off + 1) * 4.0)[:, None]]); Y = np.concatenate([Y, np.full(n_off, Y[-1])])
@@ -218,5 +225,5 @@ print('terrain', round(len(png) / 1e6, 2), 'MB png,', len(pos), 'verts', len(T),
 r1 = lambda a, n=1: [round(float(v), n) for v in a]
 pts = []
 for q in range(len(XY)): pts += [round(float(XY[q, 0]), 1), round(float(Y[q]), 1), round(float(XY[q, 1]), 1)]
-json.dump({'pts': pts, 'hw': [HW] * len(XY), 'bank': r1(bank, 3), 'fin': FIN, 'runin': RUNIN}, open(D + 'course.json', 'w'), separators=(',', ':'))
+json.dump({'pts': pts, 'hw': [HW] * len(XY), 'bank': r1(bank, 3), 'fin': FIN, 'runin': RUNIN, 'pre': PRE}, open(D + 'course.json', 'w'), separators=(',', ':'))
 print('course points', len(XY), 'fin', FIN)
