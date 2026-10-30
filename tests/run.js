@@ -253,11 +253,15 @@ ok(t.state==='finish'&&t.finishRank===2&&/1位 Rival[^]*2位 あなた/.test(t.g
     ok(res.at!=null&&Math.abs(res.at-c.t100)<(c.lag?1.0:0.25)&&Math.abs(res.mt-res.at)<0.1,`0-100 ${c.id}: AT ${res.at&&res.at.toFixed(2)} MT ${res.mt&&res.mt.toFixed(2)} (catalogue ${c.t100})`);}
   t.setTM('at');
   // track limits: a free lap with all four wheels past the edge of the track for 0.3 s is not recorded
-  {t.selectCar(3);t.selectCourse(2);t.setMode('free');t.start();step(260);for(let f=0;f<4000&&t.pl.lap<1;f++)drive(1,40);
+  {t.selectCar(3);t.selectCourse(4);t.setMode('free');t.start();step(260);for(let f=0;f<4000&&t.pl.lap<1;f++)drive(1,40);
    drive(Math.floor(t.N*0.3),40);const n0=t.laps.length,b0=t.bestLap,N=t.N;let k=t.pl.idx;
-   for(let f=0;f<40;f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],o=t.HW[k]+3;t.pl.x=p.x+n.x*o;t.pl.z=p.z+n.z*o;t.pl.th=t.TH[k];t.pl.v=40;step(1);}
-   ok(t.TL.bad,'all four wheels past the edge for 0.3 s is a track-limit offence');
+   for(let f=0;f<40;f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],o=t.HW[k]+2.2;t.pl.x=p.x+n.x*o;t.pl.z=p.z+n.z*o;t.pl.th=t.TH[k];t.pl.v=40;step(1);}
+   ok(t.TL.bad,"all four wheels past the edge for 0.3 s is a track-limit offence (off "+t.pl.off.toFixed(2)+" lim "+(t.TL.lp&&t.TL.lp[t.pl.idx])+" HW "+t.HW[t.pl.idx]+")");
    drive(Math.floor(N*0.8),40);ok(t.laps.length===n0+1&&t.TL.lapBad[n0]===true&&t.bestLap===b0&&!t.TL.bad,'the lap with the offence is not recorded (best stays '+b0+')');
    drive(Math.floor(N*1.05),40);ok(t.laps.length===n0+2&&!t.TL.lapBad[n0+1]&&t.bestLap!=null&&t.bestLap!==b0,'the next clean lap counts');}
+  // no limit where a wall stands within 2.5 m of the line (Wangan: the barriers): nothing to gain there
+  {t.selectCourse(2);t.setMode('free');t.start();step(260);for(let f=0;f<4000&&t.pl.lap<1;f++)drive(1,40);
+   const N=t.N;let k=t.pl.idx;for(let f=0;f<40;f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],o=t.HW[k]+1.6;t.pl.x=p.x+n.x*o;t.pl.z=p.z+n.z*o;t.pl.th=t.TH[k];t.pl.v=40;step(1);}
+   ok(!t.TL.bad,'brushing a barrier close to the line is not a track-limit offence');}
 }catch(e){ok(false,'exception: '+e.message+' '+e.stack.split('\n')[1]);}
 origLog(fails?`\n${fails} FAILED`:'\nALL PASSED');process.exit(fails?1:0);},30);
