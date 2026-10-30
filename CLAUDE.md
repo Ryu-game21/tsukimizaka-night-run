@@ -18,6 +18,7 @@ GLB モデルを変換して走らせている。UI と文章はすべて日本�
   3. その時刻まで待ち（最長15分、途中で live を読み直してよい）、publish したら `notice/update` を `{status:'done', at}` にする。フリー走行は待たない（バナーで予告だけ）。
   4. publish のときは `capabilities` を省略して今の宣言を引き継ぐ（db の rules: records / ghosts / weather / live / notice、と user）。
   それでも走行中に再読み込みされたページは、次に開いたときに「更新のため中断」と出してスタート準備の画面から再開できる（`fpr-run`、`runRestoreNote`）。
+- **Claude 版は 1版 256MiB の上限ぎりぎり**（2026-10-30 に箱根ターンパイクを足すとき超えた）。足りないときは `tools/redeflate.py` で大きい PNG のコピー（scratch に置く）を再圧縮して `files` で差し替える（中身は同じ、約3%小さい。1回の publish は64MBまで）。2026-10-30 に catalunya・bahrain・silverstone・hungaroring・nurburgring の geo0.png を差し替え済み（リポジトリのファイルはそのまま）。
 - このリポジトリを直しても **Claude 版は変わらない**。Claude 版にも反映したいときはユーザーに伝える
   （Artifact ツールが使えるセッションなら `site/index.html` を読み直してから同じ URL に publish し、
   `cars/` `tracks/` `audio/` の新しいファイルは `files` で一緒に送る）。
