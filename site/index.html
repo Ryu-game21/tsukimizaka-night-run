@@ -3857,7 +3857,7 @@ $('rpMenu').addEventListener('click',()=>startReplay(loadRp(),'menu'));
    fast): all four wheels past the edge of the track (|off| > HW + half the car + 0.25 m) for 0.3 s is an offence.
    Free run: that lap is not recorded (no best / ranking / ghost / gold / replay / achievements). Race: the lap cannot be a
    best lap; 3 warnings, then +5 s per offence on the total time, and the finishing position takes it into account. */
-const TL={out:0,hit:false,bad:false,n:0,pen:0,lapBad:[]};
+const TL={out:0,hit:false,bad:false,n:0,pen:0,lapBad:[],key:'',lp:null,ln:null};
 function tlReset(){TL.out=0;TL.hit=false;TL.bad=false;TL.n=0;TL.pen=0;TL.lapBad=[];tlHud();}
 function tlLap(){TL.bad=false;tlHud();}
 function tlHud(){const e=$('time');if(e)e.classList.toggle('tlbad',TL.bad);const w=$('tlw');if(!w)return;
@@ -3865,9 +3865,23 @@ function tlHud(){const e=$('time');if(e)e.classList.toggle('tlbad',TL.bad);const
 function tlCheck(dt){
   if(state!=='race'||tut||pl.lap<1||preGreen()||(typeof scOn==='function'&&scOn())||!HW){TL.out=0;TL.hit=false;return;}
   if(typeof P2P!=='undefined'&&P2P&&pl.idx>=P2P.fin)return;
-  const lim=HW[pl.idx]+CAR.body.w*0.5+0.25;
+  if(TL.key!==tlKey())tlLimits();
+  const lim=(pl.off>0?TL.lp:TL.ln)[pl.idx]+CAR.body.w*0.5+0.5;
   if(Math.abs(pl.off)>lim){TL.out+=dt;if(TL.out>0.3&&!TL.hit){TL.hit=true;tlHit();}}
   else{TL.out=0;TL.hit=false;}
+}
+/* where the line is, per side (2026-10-30, the user: offences in odd places). The fitted half-width HW dips at a few
+   points (curvature caps, pit separation) while the asphalt goes on: the line there is the widest HW within 40 m, as long
+   as the pavement (ground.json pv) really reaches it. Where a wall or the end of the model is within 2.5 m of the line
+   (street circuits, narrow places) there is nothing to gain beyond it, so no limit on that side. */
+function tlKey(){return N+':'+(C&&C.id)+':'+(RWP?1:0)+(PVP?1:0);}
+function tlLimits(){
+  TL.key=tlKey();TL.lp=new Float32Array(N);TL.ln=new Float32Array(N);const W=10;
+  for(let i=0;i<N;i++){let wm=HW[i];for(let d=-W;d<=W;d++)wm=Math.max(wm,HW[(i+d+N)%N]);
+    for(const sd of[1,-1]){const pv=sd>0?PVP:PVN,rw=sd>0?RWP:RWN;let l=HW[i];
+      if(pv)l=Math.max(l,Math.min(wm,pv[i]));
+      if(rw&&rw[i]-HW[i]<2.5)l=1e9;
+      (sd>0?TL.lp:TL.ln)[i]=l;}}
 }
 function tlHit(){
   TL.bad=true;
