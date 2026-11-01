@@ -265,7 +265,7 @@ def main():
     print(f'{cid}: {n} pts | old wall drove through a barrier/edge at {pass_p}+{pass_n} side-points, '
           f'blocked open ground >3 m early at {inv_p}+{inv_n} | height off by >0.3 m inside the old wall at {int(np.sum(within > .3))} side-points (max {within.max():.2f} m) '
           f'| covered {int(cv.sum())} pts | road {road} ({cnt.max() / max(1, cnt.sum()):.0%}) side {side} | paved {[names[i] for i in np.nonzero(paved)[0]]} beyond hw+1 at {int(np.sum(pv[:, 0] > hw + 1) + np.sum(pv[:, 1] > hw + 1))} side-points | obstacles inside the band {len(rep["inband"])} | band height off >0.25 m {len(rep["dyband"])} | {os.path.getsize(dst)/1e3:.0f} kB')
-    if rep['inband']: print('  inside band:', rep['inband'][:12])
+    if rep['inband']: print('  inside band:', rep['inband'][:int(os.environ.get('SHOW', 12))])
     if rep['dyband']: print('  band height:', rep['dyband'][:12])
 
 
