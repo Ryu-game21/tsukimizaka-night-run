@@ -146,6 +146,7 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   フリー走行の自己ベストは緑の光とバナー、コースレコード（全員・全車で最速）は紫の光・紙吹雪・白いフラッシュ・短いスロー・ファンファーレ。`FX_DEMO` を true にすると右下に「演出を見る」パネル（試作ページだけ）。
 - `loading`（`rivalsWanted`/`wantRivals`、`courseDirty`）… メニューで車を選ぶたびの待ちを減らす（2026-10-25）：まだ読み込んでいないライバル車とセーフティカーは、レースのスタート準備（`go`）か `start()` まで読み込まない（メニューの背景には読み込み済みのライバルだけ出る）。
   車の選択ではコースを作り直さず `courseDirty` にして、車の段階を離れる時か `start()` で1回だけ `buildCourse`（推奨速度が車で変わるため）。
+- `unused cars`（`carUseUi`、`#carStat`、`.carbtn.unused`、2026-11-03 ユーザー「使ってない車わかるようにして」）… マシン選択で、まだ1周もしていない車（`ACHS.car` にない車）に黄色い「未走行」の札、上に「乗った車 N / 全 台 ・ 未走行 M 台」。周回・読み込み・クラウドの統合のたびに更新。
 - `/* ---------- flow:` … タイトル → モード → マシン → コース → 変速 → 天候 → スタート準備 の段階メニュー。
 - `best-lap replay` / `tutorial` … リプレイとチュートリアル。
 - `challenges`（`chEv`/`chSync`/`renderChal`、状態は `ACHS.dly` `ACHS.wk` `ACHS.stk` `ACHS.cp` `ACHS.titles` `ACHS.title` `ACHS.cos`）… タイトルの「チャレンジ」画面。

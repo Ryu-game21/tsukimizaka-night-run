@@ -238,6 +238,10 @@ body.mirhud #cn{margin-top:calc(min(34vw,400px) / 3.6 + 8px)}
 .carbtn[aria-pressed="true"]{border-color:var(--amber);background:rgba(205,215,228,.12);box-shadow:0 0 0 1px var(--amber)}
 .carbtn[aria-pressed="true"] b{color:var(--amber)}
 .carbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+/* cars never lapped yet (ACHS.car): a small NEW-style tag, and the count above the grid */
+.carbtn{position:relative}.carbtn .nw{position:absolute;top:5px;right:5px;font:700 9px/1 var(--f-dot);letter-spacing:.08em;color:#08121c;background:#ffd23a;border-radius:2px;padding:2px 4px 1px;display:none}
+.carbtn.unused .nw{display:block}.carbtn.unused b{padding-right:38px}
+.carstat{margin:2px 0 6px;font-size:12px;color:var(--dim);letter-spacing:.04em}.carstat b{color:#ffd23a;font-weight:600}
 .spec{margin-top:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 18px;font-variant-numeric:tabular-nums}
 .spec h2{grid-column:1/-1;margin:0;font-family:var(--f-dot);font-weight:600;font-size:24px;color:var(--amber);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
 .spec h2 small{font-size:12px;color:var(--dim);font-family:var(--f-body);letter-spacing:.06em}
@@ -678,6 +682,7 @@ body.phl .press{display:none}
       <h1>マシン選択</h1>
       <p class="hintline">← → で切り替え ・ Enter で決定</p>
       <div class="spec" id="spec"></div>
+      <p class="carstat" id="carStat"></p>
       <div class="carsel" id="cars" role="group" aria-label="マシン"></div>
     </section>
 
@@ -3613,10 +3618,17 @@ function renderCars(){
   const box=$('cars');box.innerHTML='';
   CARS.forEach((c,k)=>{
     const b=document.createElement('button');b.type='button';b.className='carbtn';b.setAttribute('aria-pressed',k===carSel);
-    b.innerHTML=`<i style="background:#${c.body.color.toString(16).padStart(6,'0')}"></i><b>${c.short}</b><span>${c.drive} ・ ${c.ps?c.ps+'ps':'EV'}</span>`;
+    b.innerHTML=`<i style="background:#${c.body.color.toString(16).padStart(6,'0')}"></i><b>${c.short}</b><span>${c.drive} ・ ${c.ps?c.ps+'ps':'EV'}</span><em class="nw">未走行</em>`;
     b.addEventListener('click',()=>{if(carSel===k)nextStep();else selectCar(k);});box.appendChild(b);
   });
-  renderSpec();
+  carUseUi();renderSpec();
+}
+// which cars this player has not lapped yet (2026-11-03, the user: show the cars I haven't used): ACHS.car is set by
+// every counted lap (achLap) and by old best times (achLoad), and merges with the cloud save
+function carUseUi(){
+  const used=ACHS&&ACHS.car||{},btns=document.querySelectorAll('#cars .carbtn');let n=0;
+  CARS.forEach((c,k)=>{const u=!used[c.id];if(u)n++;if(btns[k]){btns[k].classList.toggle('unused',u);btns[k].title=u?'まだ周回していない車':'';}});
+  const el=$('carStat');if(el)el.innerHTML=n?`乗った車 ${CARS.length-n} / ${CARS.length} 台 ・ <b>未走行 ${n} 台</b>`:`全 ${CARS.length} 台に乗りました`;
 }
 function renderSpec(){
   const c=CAR,ts=CARS.map(t100),tmin=Math.min(...ts),tmax=Math.max(...ts),me=t100(c);
@@ -3824,7 +3836,7 @@ async function csPull(){
   const rem=csDoc.players[PLAYER]&&csDoc.players[PLAYER].ach,before=JSON.stringify(ACHS);
   if(rem){const m=csMergeAch(ACHS,rem),b=achBlank();for(const k in b)if(m[k]!=null&&typeof m[k]===typeof b[k])b[k]=m[k];
     if(JSON.stringify(b)!==before){ACHS=b;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}achCheck(true);queueProf();
-      if(typeof step!=='undefined'&&!$('menu').hidden){if(step==='ach')renderAch();if(step==='chal')renderChal();}}}
+      if(typeof step!=='undefined'&&!$('menu').hidden){if(step==='ach')renderAch();if(step==='chal')renderChal();}carUseUi();}}
   csRestoreBests();csQueue(1500);
 }
 function csQueue(ms){if(!sdb||!UID||!PLAYER||shared!=='on')return;clearTimeout(csT);csT=setTimeout(csPush,ms==null?6000:ms);}
@@ -4640,7 +4652,7 @@ function achLoad(){
   // records set before achievements existed: courses and cars already lapped
   COURSES.forEach(c=>CARS.forEach(car=>{let t=null;try{t=parseFloat(localStorage.getItem(bestKey(c,car)));}catch(e){}
     if(validT(t)){ACHS.cl[c.id]=1;ACHS.car[car.id]=1;if(!ACHS.laps)ACHS.laps=1;}}));
-  achCheck(true);
+  achCheck(true);if(typeof carUseUi==='function')carUseUi();
 }
 function achSave(){achDirty=false;try{localStorage.setItem(achKey(),JSON.stringify(ACHS));}catch(e){}if(typeof queueProf==='function')queueProf();if(typeof csQueue==='function')csQueue();}
 // unlock whatever is newly met; quiet = no toast (loading)
@@ -4668,7 +4680,7 @@ function achDrive(dt,sp,rev){if(!ACHS||state!=='race')return;const d=sp*dt/1000;
 function achLap(lt,pb){
   if(!ACHS)return;const S=ACHS;
   S.laps++;if(isMT())S.lapsMT++;if(pb)S.pbs++;
-  S.cl[C.id]=1;S.car[CAR.id]=1;S.combo[wxSel+'_'+timeSel]=1;S.f['lap_'+timeSel]=1;if(wxSel==='rain'||wxSel==='fog')S.f['lap_'+wxSel]=1;
+  S.cl[C.id]=1;if(!S.car[CAR.id]){S.car[CAR.id]=1;carUseUi();}S.combo[wxSel+'_'+timeSel]=1;S.f['lap_'+timeSel]=1;if(wxSel==='rain'||wxSel==='fog')S.f['lap_'+wxSel]=1;
   const judged=corners.filter(c=>c.grade>=2).length;
   if(judged>=3&&lapJudged>=judged&&lapGreat>=judged)S.perf[C.id]=1;
   if(lapFast>=4)S.f.purple=1;
