@@ -2171,7 +2171,7 @@ function buildCourse(ci){
     const p=P[i],n=NR[i],o=RW[i]+3+(i%3)*2;
     tvCams.push(new THREE.Vector3(p.x+n.x*s*o,p.y+4.5+(i%2)*3,p.z+n.z*s*o));
   }
-  [...AI.map(a=>a.mesh),playerCar].forEach(m=>m.traverse(o=>{if(o.isSprite)o.material.opacity=o.userData.base*E.glow;}));
+  LAMPG=E.glow;  [...AI.map(a=>a.mesh),playerCar].forEach(m=>m.traverse(o=>{if(o.isSprite)o.material.opacity=o.userData.base*E.glow;}));
   sizeHud();
   try{const b=parseFloat(localStorage.getItem(bestKey(C)));best=b>0?b:null;}catch(e){best=null;}
   bestSplits=null;try{const b=JSON.parse(localStorage.getItem(splitKey(C))||'null');if(Array.isArray(b)&&b.length===4)bestSplits=b;}catch(e){}
@@ -2501,21 +2501,45 @@ function rigFrame(dt){
   if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
   AI.forEach(a=>rigDrive(a.mesh,dt,a.car&&a.car.body.wb));
   if(scar&&scar.mesh)rigDrive(scar.mesh,dt,scar.car.body.wb);
+  brakeLights(dt);
 }
-function addLights(g,s,L2){
+/* brake lamps (2026-11-03, the user: light the brake lamps only while braking). BRK[car] = the tail lamps of the 3D
+   model, [x,y,z,w,h] in car space (+x left, +z nose; tools/brake_lamps.py, checked on the back view). Each lamp gets a red
+   glow (tail sprites, userData.tail): faint as a tail lamp after dark, bright and bigger while the brake is on - the
+   player's pedal, everyone else from how hard the car is slowing (rigDrive's acc). Cars not in BRK keep the old two
+   glows at the generic place. */
+const BRK={a90:[[0.558,0.683,-2.114,0.42,0.41],[-0.558,0.683,-2.114,0.42,0.41]],ae86:[[0.522,0.684,-2.089,0.42,0.13],[-0.522,0.684,-2.089,0.42,0.13]],alfa33:[[0.544,0.532,-1.864,0.1,0.1],[-0.544,0.532,-1.864,0.1,0.1]],challenger:[[0.534,0.818,-2.44,0.49,0.1],[-0.534,0.818,-2.44,0.49,0.1]],civicbtcc:[[0.688,0.825,-2.062,0.17,0.25],[-0.688,0.825,-2.062,0.17,0.25]],evo10:[[0.613,0.859,-2.145,0.22,0.4],[-0.613,0.859,-2.145,0.22,0.4]],f40lb:[[0.663,0.656,-2.061,0.22,0.09],[-0.663,0.656,-2.061,0.22,0.09]],f458:[[0.77,0.855,-2.004,0.18,0.18],[-0.77,0.855,-2.004,0.18,0.18]],gdb:[[0.656,0.861,-2.041,0.18,0.08],[-0.656,0.861,-2.041,0.18,0.08]],gryaris:[[0.63,0.87,-1.696,0.12,0.13],[-0.63,0.87,-1.696,0.12,0.13]],gt3rs:[[0.616,0.806,-2.132,0.25,0.04],[-0.616,0.806,-2.132,0.25,0.04]],gt4rs:[[0.62,0.82,-2.06,0.3,0.05],[-0.62,0.82,-2.06,0.3,0.05],[0.0,0.837,-2.077,0.44,0.04]],gt500:[[0.598,0.82,-2.336,0.23,0.11],[-0.598,0.82,-2.336,0.23,0.11]],gtr3:[[0.591,0.794,-2.186,0.29,0.11],[-0.591,0.794,-2.186,0.29,0.11]],hgt3:[[0.601,0.771,-1.925,0.22,0.05],[-0.601,0.771,-1.925,0.22,0.05]],imola:[[0.784,0.756,-1.981,0.17,0.16],[-0.784,0.756,-1.981,0.17,0.16]],jesko:[[0.663,0.678,-2.151,0.32,0.31],[-0.663,0.678,-2.151,0.32,0.31]],laferrari:[[0.45,0.454,-2.142,0.46,0.3],[-0.45,0.454,-2.142,0.46,0.3]],lfa:[[0.646,0.78,-2.156,0.36,0.3],[-0.646,0.78,-2.156,0.36,0.3],[-0.0,0.888,-2.203,0.46,0.04]],lpi8004:[[0.692,0.79,-2.253,0.45,0.06],[-0.692,0.79,-2.253,0.45,0.06],[0.002,0.815,-2.25,0.13,0.04]],m3e30:[[0.507,0.649,-2.181,0.34,0.13],[-0.507,0.649,-2.181,0.34,0.13]],mc20cielo:[[0.561,0.587,-2.092,0.22,0.04],[-0.561,0.587,-2.092,0.22,0.04]],mclarenf1:[[0.569,0.653,-1.925,0.12,0.12],[-0.569,0.653,-1.925,0.12,0.12]],model3:[[0.683,0.862,-2.353,0.35,0.13],[-0.683,0.862,-2.353,0.35,0.13],[0.001,1.118,-2.086,0.41,0.04]],nsxr:[[0.508,0.747,-2.107,0.19,0.16],[-0.508,0.747,-2.107,0.19,0.16]],p930:[[0.498,0.515,-2.06,0.29,0.18],[-0.498,0.515,-2.06,0.29,0.18],[-0.0,0.529,-2.075,0.41,0.07]],r34:[[0.587,0.796,-2.207,0.29,0.14],[-0.587,0.796,-2.207,0.29,0.14]],rx7:[[0.532,0.7,-2.164,0.29,0.3],[-0.532,0.7,-2.164,0.29,0.3],[0.0,0.794,-2.132,0.29,0.04]],s180sx:[[0.55,0.685,-2.121,0.25,0.08],[-0.55,0.685,-2.121,0.25,0.08],[-0.001,0.852,-2.123,0.26,0.04]],s2000:[[0.567,0.73,-1.942,0.2,0.08],[-0.567,0.73,-1.942,0.2,0.08]],s30z:[[0.475,0.579,-2.013,0.38,0.3],[-0.475,0.579,-2.013,0.38,0.3]],vantage:[[0.595,0.798,-2.192,0.47,0.13],[-0.595,0.798,-2.192,0.47,0.13],[-0.0,0.888,-2.217,0.35,0.04]],vettegs:[[0.553,0.811,-2.114,0.3,0.12],[-0.553,0.811,-2.114,0.3,0.12],[-0.0,0.931,-2.16,0.17,0.04]]};
+let LAMPG=.2;   // E.glow of the current time of day (buildCourse)
+function brakeOf(m,isPl){
+  if(isPl&&(state==='race'||state==='count'||state==='finish'))return pl.brkIn||0;
+  const R=m.userData.rig;return R&&R.acc!=null&&Math.abs(R.v||0)>1?Math.max(0,Math.min(1,(-R.acc-2.5)/3)):0;
+}
+function brakeLights(dt){
+  const k=Math.min(1,dt*18),tail=LAMPG*0.45;
+  const one=(m,isPl)=>{if(!m||!m.visible)return;let L=m.userData.tails;
+    if(!L){L=m.userData.tails=[];m.traverse(o=>{if(o.isSprite&&o.userData.tail)L.push(o);});}
+    if(!L.length)return;const b0=brakeOf(m,isPl),u=m.userData.brk=(m.userData.brk||0)+(b0-(m.userData.brk||0))*k;
+    const ghost=m===ghostCar?.5:1;
+    for(const o of L){const sc=o.userData.sc;o.material.opacity=Math.min(1,tail+u*.95)*ghost;o.scale.set(sc[0]*(1+u*.55),sc[1]*(1+u*.55),1);}};
+  one(playerCar,true);one(ghostCar,false);AI.forEach(a=>one(a.mesh,false));if(scar&&scar.mesh)one(scar.mesh,false);
+}
+function tailGlow(g,x,y,z,w,h){
+  const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:redGlow,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,opacity:.3}));
+  gs.userData.sc=[w,h];gs.scale.set(w,h,1);gs.position.set(x,y,z);gs.userData.base=.45;gs.userData.tail=1;g.add(gs);return gs;
+}
+function addLights(g,s,L2,id){
   const ty=s.ride+s.h*0.66,hy=s.ride+s.h*0.6;
-  for(const sx of[-1,1]){
-    const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:redGlow,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,opacity:.85}));gs.scale.set(1.5,0.9,1);gs.position.set(sx*s.w*0.33,ty,-L2-0.2);gs.userData.base=1;g.add(gs);
-  }
+  if(id&&BRK[id]&&BRK[id].length)for(const l of BRK[id])tailGlow(g,l[0],l[1],l[2]-0.05,l[3]*1.4+0.3,l[4]*1.4+0.25);
+  else for(const sx of[-1,1])tailGlow(g,sx*s.w*0.33,ty,-L2-0.2,1.5,0.9);
   const hs=new THREE.Sprite(new THREE.SpriteMaterial({map:whiteGlow,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.6}));hs.scale.set(3,1.2,1);hs.position.set(0,hy,L2+0.4);hs.userData.base=.7;g.add(hs);
 }
 function makeCar(car){
   if(car.model&&MODELS[car.id]){
-    const g=new THREE.Group();g.add(MODELS[car.id].clone(true));addLights(g,car.body,car.body.l/2);scene.add(g);g.userData.car=car;return g;
+    const g=new THREE.Group();g.add(MODELS[car.id].clone(true));addLights(g,car.body,car.body.l/2,car.id);scene.add(g);g.userData.car=car;return g;
   }
   if(car.model&&modelLoading[car.id]!=='fail'){
     // still loading: only the lights for now, the model swaps in when it arrives
-    loadModel(car);const g=new THREE.Group();addLights(g,car.body,car.body.l/2);scene.add(g);g.userData.car=car;return g;
+    loadModel(car);const g=new THREE.Group();addLights(g,car.body,car.body.l/2,car.id);scene.add(g);g.userData.car=car;return g;
   }
   const s=Object.assign({ride:.2,h:.5,noseIn:.3,rearIn:.1,cab:[-1.2,.8,-1,.2,.55,.8],wr:.32,wing:0},car.body),g=new THREE.Group(),L2=s.l/2;
   const paint=new THREE.MeshLambertMaterial({color:s.color});
@@ -2540,7 +2564,7 @@ function makeCar(car){
   for(const sx of[-1,1]){
     const t=new THREE.Mesh(new THREE.BoxGeometry(s.w*0.26,0.11,0.04),tm);t.position.set(sx*s.w*0.33,ty,-L2+s.rearIn*0.6-0.01);g.add(t);
     const h=new THREE.Mesh(new THREE.BoxGeometry(s.w*0.22,0.09,0.04),hm);h.position.set(sx*s.w*0.33,hy,L2-s.noseIn*0.55+0.01);g.add(h);
-    const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:redGlow,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,opacity:.85}));gs.scale.set(1.5,0.9,1);gs.position.set(sx*s.w*0.33,ty,-L2-0.2);gs.userData.base=1;g.add(gs);
+    tailGlow(g,sx*s.w*0.33,ty,-L2-0.2,1.5,0.9);
     for(const z of[-s.wb/2,s.wb/2]){
       const w=new THREE.Mesh(wg,wmat);w.rotation.z=Math.PI/2;w.position.set(sx*(s.w/2-0.06),s.wr,z);g.add(w);
       const r=new THREE.Mesh(rg,rim);r.rotation.z=Math.PI/2;r.position.copy(w.position);g.add(r);
@@ -5536,7 +5560,8 @@ function slipUpdate(dt,sp){
   if(pl.slip>.6&&sp>40)radioSay('slip',['スリップストリームに入った。横に出れば抜けるぞ','いいトウだ。ブレーキング手前で並べ','前の車の真後ろだ、速度が伸びてる'],1,'',45);
 }
 function updatePlayer(dt,canDrive){
-  const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'&&!FIN.on?1:0);
+  const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'&&!FIN.on?1:0);pl.brkIn=brk&&pl.v>0.5?1:0;   // brake lamps: the pedal while rolling forward (held at a standstill it backs up)
+
   const kst=keys.left-keys.right,gst=!kst&&GY.on?gyroSteer():0,st=canDrive?(kst||gst):0;
   pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6)));
   const v=pl.v,sp=Math.abs(v);let a=0;
