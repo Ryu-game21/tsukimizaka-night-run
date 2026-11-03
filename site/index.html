@@ -3108,13 +3108,23 @@ function rebuildVoices(){
     v.extra=[nz];return{pan,air,dk,v,nz,bp,ng,prevD:null,thr:0,g:1,popT:0};});
   boost=0;
 }
+// master bus (2026-11-03, settings from the user's ChatGPT review): a gentler knee and a slightly slower attack keep the
+// first crack of a pop / gear change, a faster release lets the engine breathe back, and the output sits a little lower
+// (0.85) so the peaks stay under 0 dBFS
+function createMasterCompressor(ac){
+  const compressor=ac.createDynamicsCompressor();
+  compressor.threshold.value=-12;compressor.knee.value=18;compressor.ratio.value=4;compressor.attack.value=0.008;compressor.release.value=0.18;
+  const masterGain=ac.createGain();masterGain.gain.value=0.85;
+  compressor.connect(masterGain);masterGain.connect(ac.destination);
+  return {input:compressor,compressor,masterGain};
+}
 function initAudio(){
   if(ac){if(ac.state==='suspended')ac.resume();return;}
   try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}   // iPhone: play even with the silent switch on
   try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){ac=null;return;}
   A={};
   A.noise=mkNoise(2,false);A.brown=mkNoise(3,true);
-  const comp=ac.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;comp.connect(ac.destination);
+  const mc=createMasterCompressor(ac),comp=mc.input;A.comp=mc.compressor;A.out=mc.masterGain;
   A.master=gainN(muted?0:vol);A.slo=filt('lowpass',20000,.7);A.master.connect(A.slo);A.slo.connect(comp);
   // world sounds pass through a cabin filter so the cockpit view sounds muffled
   A.cabin=filt('lowpass',16000,0.5);A.cabin.connect(A.master);A.cabinIn=gainN(1);A.cabinIn.connect(A.cabin);
