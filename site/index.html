@@ -3795,13 +3795,59 @@ function submitBest(c,car,t,splits){
 }
 function failWrite(err){
   if(err&&err.code==='quota_exceeded'){$('bNote').textContent='共有ランキングの容量がいっぱいのため記録できませんでした。';return;}
+  if(err&&err.code==='rejected'){$('bNote').textContent='このタイムはランキングに受け付けられませんでした'+(err.why==='time'?'（速すぎる記録）':err.why==='bot'?'（ブラウザの確認に失敗）':'')+'。';return;}
   shared='readonly';renderBoard();
+}
+/* ---------- Vercel build: its own shared ranking (api/lb.mjs, 2026-11-12) ----------
+   No Claude database there, so the board is read from GET /api/lb and written with POST /api/lb through vdb, a stand-in
+   for the few database calls the ranking makes (records only: ghosts, the cloud save, live and notices do nothing).
+   A player name belongs to one player: it is registered on the server first (taken -> choose another), and the device
+   gets a token (fpr-vlb) that every write carries. Writes also pass Vercel BotID (initBotId from /vend/botid.js, built
+   by tools/build_vend.mjs), so only the game in a real browser can post - not scripts or tools. */
+const VLB=typeof location!=="undefined"&&/\.vercel\.app$/.test(location.hostname);
+let vAuth=null,vBot=null;try{vAuth=JSON.parse(localStorage.getItem('fpr-vlb')||'null');}catch(e){}
+function vBotInit(){return vBot||(vBot=import('/vend/botid.js').then(m=>m.initBotId({protect:[{path:'/api/lb',method:'POST'}]})).catch(()=>{}));}
+async function vPost(o){
+  await vBotInit();
+  let r,j={};
+  try{r=await fetch('/api/lb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({token:vAuth&&vAuth.token||undefined},o))});}catch(e){return{ok:false,status:0,j};}
+  try{j=await r.json();}catch(e){}
+  if(r.status===401){vAuth=null;try{localStorage.removeItem('fpr-vlb');}catch(e){}}
+  return{ok:r.ok,status:r.status,j};
+}
+async function vRegister(name){
+  const r=await vPost({op:'register',name});
+  if(r.ok&&r.j.uid){vAuth={uid:r.j.uid,token:r.j.token||(vAuth&&vAuth.token)};try{localStorage.setItem('fpr-vlb',JSON.stringify(vAuth));}catch(e){}UID=vAuth.uid;
+    if(shared==='readonly'&&sdb)shared='on';}
+  return r;
+}
+const vTakenMsg=n=>'「'+n+'」はほかのプレイヤーが使っています。別の名前にしてください。';
+function vdbMake(){
+  const subs=[],none={exists:false,data:()=>null};let docs={},iv=0;
+  const emit=()=>{const snap={docs:Object.keys(docs).map(id=>({id,data:()=>docs[id]}))};subs.forEach(f=>f(snap));};
+  const poll=async()=>{try{const r=await fetch('/api/lb',{cache:'no-store'});if(!r.ok)return;const j=await r.json();docs=j.docs||{};if(UID&&mineAt>Date.now()-30000&&myDoc)docs[UID]=myDoc;emit();}catch(e){}};
+  let mineAt=0;
+  return{
+    collection:p=>({onSnapshot(cb){if(p!=='records')return()=>{};subs.push(cb);poll();if(!iv)iv=setInterval(()=>{if(!document.hidden)poll();},30000);return()=>{};}}),
+    doc:p=>({async get(){return none;},onSnapshot(){return()=>{};},async set(d){
+      if(p!=='records/'+UID)return;
+      const r=await vPost({op:'save',doc:d});
+      if(!r.ok)throw{code:r.status===0||r.status===429||r.status>=500?'unavailable':'rejected',why:r.j&&r.j.error};
+      docs[UID]=r.j.doc||d;mineAt=Date.now();emit();}})
+  };
+}
+async function vClaim(){   // a player name from before (this browser) is registered once; if it is taken, ask for another
+  if(!VLB||UID||!PLAYER)return;
+  const r=await vRegister(PLAYER);
+  if(r.ok){synced=false;renderBoard();syncLocalToShared();queueProf();return;}
+  if(r.status===409){openNameDlg();const e=$('nameErr');e.textContent=r.j.error==='names'?'この端末で登録できる名前は5つまでです。':vTakenMsg(PLAYER);e.hidden=false;}
 }
 async function initShared(){
   let db=null,user=null;
   try{db=window.claude&&window.claude.use?await window.claude.use('db'):null;}catch(e){db=null;}
   try{user=window.claude&&window.claude.use?await window.claude.use('user'):null;}catch(e){user=null;}
   try{UID=user?await user.id():null;}catch(e){UID=null;}
+  if(!db&&VLB){db=vdbMake();user=null;UID=vAuth&&vAuth.uid||null;vBotInit();setTimeout(vClaim,500);}
   if(!db){shared='off';renderBoard();if(realOn)startReal();return;}
   sdb=db;shared=UID?'on':'readonly';updSubscribe();csPull();
   if(shared==='on'&&user&&user.can){try{if(user.can('data.write')===false)shared='readonly';}catch(e){}}
@@ -3988,7 +4034,7 @@ function ghostNote(){
    They take AI slots (a.gh), so position, gaps, radio and the result work as in a normal race; no contact.
    Slots with no ghost are a.out (left out of the field). */
 const GR={on:false,green:false,list:[],req:0,loading:false};const GR_OP=0.55;
-const grCands=c=>shared==='on'&&sdb?rankFor(c,CAR,'all').filter(r=>!isMe(r)&&r.uid!=='local'&&CARS.some(k=>k.id===r.car)).slice(0,8):[];
+const grCands=c=>shared==='on'&&sdb&&!VLB?rankFor(c,CAR,'all').filter(r=>!isMe(r)&&r.uid!=='local'&&CARS.some(k=>k.id===r.car)).slice(0,8):[];
 const grWanted=c=>mode==='race'&&opts.opp==='ghost'&&!tut&&!(c||COURSES[sel]).p2p&&grCands(c||COURSES[sel]).length>0;
 const grOut=()=>GR.on&&!GR.green;
 const preGreen=()=>scOn()||grOut();
@@ -4053,7 +4099,7 @@ function oppRows(){
   $('aiRow').hidden=mode==='free'||on;$('scRow').hidden=mode==='free'||on;
   const n=$('oppNote');if(!n)return;
   if(!g)n.textContent='AI のライバル3台と走ります。';
-  else if(shared!=='on'||!sdb)n.textContent='ゴースト対戦は、みんなのランキングがあるとき（Claude 版）に遊べます。今は AI と走ります。';
+  else if(shared!=='on'||!sdb||VLB)n.textContent='ゴースト対戦は、みんなのゴーストがある Claude 版で遊べます。今は AI と走ります。';
   else if(!rows.length)n.textContent='このコースにはほかのプレイヤーの記録がまだありません。今は AI と走ります。';
   else n.textContent='このコースの上位 '+rows.slice(0,3).map(r=>{const car=CARS.find(k=>k.id===r.car);return r.name+' さん（'+(car.short||car.name)+'・'+fmt(r.t)+'）';}).join('、')+' のベストラップと勝負。アウトラップ1周のあと、ラインを越えた瞬間に全員スタート（ローリングスタート・接触なし）。ゴーストがない人は次の人に替わります。';
 }
@@ -4082,9 +4128,16 @@ function setPlayer(n){
     ownGhost=null;try{const g=JSON.parse(localStorage.getItem(pkey('fpr-ghost-'+C.id+'-'+CAR.id))||'null');if(g&&g.t>0&&Array.isArray(g.d))ownGhost=g;}catch(e){}ghost=null;ghostInfo=null;}
   renderCourseCards();renderBoard();syncLocalToShared();queueProf();
 }
-$('nameForm').addEventListener('submit',e=>{
-  e.preventDefault();const n=cleanName($('nameIn').value);
-  if(!n){$('nameErr').hidden=false;$('nameIn').focus();return;}
+$('nameForm').addEventListener('submit',async e=>{
+  e.preventDefault();const n=cleanName($('nameIn').value),err=$('nameErr');
+  if(!n){err.textContent='名前を入力してください。';err.hidden=false;$('nameIn').focus();return;}
+  if(VLB&&sdb){   // Vercel build: the name must be free on the shared board
+    const ok=$('nameOk');ok.disabled=true;ok.textContent='確認中…';
+    const r=await vRegister(n);ok.disabled=false;ok.textContent='決定';
+    if(r.status===409){err.textContent=r.j.error==='names'?'この端末で登録できる名前は5つまでです。前に使った名前を選んでください。':vTakenMsg(n);err.hidden=false;$('nameIn').focus();$('nameIn').select();return;}
+    if(!r.ok){err.textContent='ランキングに名前を登録できませんでした（'+(r.status===403?'ブラウザの確認に失敗':r.status===0?'通信エラー':'エラー '+r.status)+'）。この名前で端末の記録だけ残ります。';err.hidden=false;
+      await new Promise(f=>setTimeout(f,1800));}
+  }
   $('nameDlg').hidden=true;setPlayer(n);
   const b=document.querySelector('.course[aria-pressed="true"]');b&&b.focus();
 });

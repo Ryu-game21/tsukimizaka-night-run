@@ -3,8 +3,34 @@
   "framework": null,
   "outputDirectory": "site",
   "headers": [
-    { "source": "/cars/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] },
-    { "source": "/tracks/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] },
-    { "source": "/audio/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] }
-  ]
+    {
+      "source": "/cars/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/tracks/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    },
+    {
+      "source": "/audio/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    }
+  ],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install"
 }

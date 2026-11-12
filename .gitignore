@@ -3,3 +3,4 @@ work/
 *.glb
 __pycache__/
 node_modules/
+site/vend/

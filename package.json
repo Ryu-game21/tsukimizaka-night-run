@@ -1,0 +1,14 @@
+{
+  "name": "tsukimizaka-night-run",
+  "private": true,
+  "description": "Vercel build only: the shared ranking API (api/lb.mjs) and the BotID client bundle (site/vend/botid.js). The game itself needs no build.",
+  "scripts": {
+    "build": "node tools/build_vend.mjs"
+  },
+  "dependencies": {
+    "botid": "^1.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
