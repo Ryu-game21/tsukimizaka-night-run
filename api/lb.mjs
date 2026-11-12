@@ -1,8 +1,8 @@
 /* Shared ranking for the Vercel build (2026-11-12). The Claude build keeps its own board in Claude's shared
    database; this one is only for https://tsukimizaka-night-run.vercel.app.
 
-   Storage: Upstash Redis (Vercel Marketplace) through its REST API - env KV_REST_API_URL / KV_REST_API_TOKEN
-   (or UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN).
+   Storage: Upstash Redis (Vercel Marketplace) through its REST API - env <prefix>_REST_API_URL / <prefix>_REST_API_TOKEN
+   (the integration's prefix, STORAGE_ on this project; or UPSTASH_REDIS_REST_URL / _TOKEN).
      recs          hash  uid -> records doc, the same shape as the Claude build's records/<uid>
                          ({players:[{name,best:{'<course>__<car>':{t,w,r,s,at}},prof}],updated})
      nm:<key>      uid that owns a player name (key = NFKC, lower case, no spaces): a name belongs to one player only
@@ -22,8 +22,10 @@ import { checkBotId } from 'botid/server';
 import GOLD from './_gold.mjs';
 
 const FLOOR = 0.8, MAX_NAMES = 5, NAME_MAX = 16, DOC_MAX = 60000;
-const RURL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const RTOK = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// the integration names the variables <prefix>_REST_API_URL / _TOKEN (KV_, STORAGE_, a custom prefix ...): take any
+const envEnd = suf => process.env['KV' + suf] || process.env['UPSTASH_REDIS' + suf.replace('_API', '')] ||
+  Object.keys(process.env).filter(k => k.endsWith(suf) && !k.includes('READ_ONLY')).map(k => process.env[k])[0];
+const RURL = envEnd('_REST_API_URL'), RTOK = envEnd('_REST_API_TOKEN');
 
 async function redis(...cmds) {   // pipeline; returns the results in order
   const r = await fetch(RURL + '/pipeline', { method: 'POST', headers: { Authorization: 'Bearer ' + RTOK, 'Content-Type': 'application/json' }, body: JSON.stringify(cmds) });
