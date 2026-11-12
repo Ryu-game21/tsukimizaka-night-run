@@ -842,7 +842,7 @@ body.phl .press{display:none}
 (()=>{
 if(typeof location!=='undefined'&&location.hash==='#dev')window.__ev=s=>eval(s);   // test hook for checking the look in a real browser (only with #dev)
 const $=id=>document.getElementById(id);
-let N=1200,RC=null,vcD=null;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
+let N=1200,RC=null,vcD=null,VP=null;let GRIP=14,GAI=12.5,BR_AI=13,BR_P=19;
 
 /* ---------- machines: real cars with downloaded 3D models, catalogue specs; 0-100 and top speed fitted to published/test figures ---------- */
 // Cornering and braking use real lateral/braking G multiplied by GAME_G so the arcade feel survives.
@@ -1394,6 +1394,37 @@ function disposeWorld(){
   });
   world.clear();
 }
+/* guide line (2026-11-12, the user: the speed and line guide was painted on the road; make it follow the car's position
+   and speed). Rebuilt every frame for the stretch ahead of the player: it starts under the car at its own lateral
+   position and eases onto the line within ~30 m, reaches further the faster the car goes (55 m + 4.5 s of travel, up to
+   340 m) and fades in and out at both ends. Each point is coloured by what the car must do NOW to get there at the speed
+   that point allows (VP, the grip-limited corner speed): the deceleration needed, (v^2 - VP^2) / 2d, against what the
+   brakes give (BR_P, less on cold / hot tyres) - green: keep going, yellow: lift / get ready, red: brake now.
+   So the same corner turns from green to yellow to red as you come in fast, and stays green if you are already slow. */
+const GUIDE_ROWS=110;
+const GC_G=[0.24,0.86,0.52],GC_Y=[1,0.82,0.23],GC_R=[1,0.23,0.18];
+function guideTick(){
+  const m=guideMesh;if(!m||!VP)return;
+  const on=opts.line&&(state==='race'||state==='count')&&!FIN.on;
+  if(!on){m.geometry.setDrawRange(0,0);return;}
+  const g=m.geometry,pos=g.attributes.position.array,uv=g.attributes.uv.array,col=g.attributes.color.array;
+  const v=Math.max(0,pl.v),reach=Math.min(340,55+v*4.5),brk=BR_P*(0.35+0.65*(tyreK||1)),lift=m.userData.lift;
+  const stepK=Math.max(1,Math.round(reach/(GUIDE_ROWS-1)/ds)),i0=pl.idx,off0=pl.off||0;
+  let r=0;
+  for(;r<GUIDE_ROWS;r++){
+    const k=r*stepK+1,i=(i0+k)%N,d=k*ds;if(d>reach||(P2P&&!visI(i)))break;
+    const p=P[i],n=NR[i],b=BK[i],e=Math.min(1,d/30),off=off0*(1-e*e*(3-2*e)),w=0.55;
+    const y0=p.y+lift+gDy(i,off);
+    pos.set([p.x+n.x*(off+w),y0+b*(off+w),p.z+n.z*(off+w),p.x+n.x*(off-w),y0+b*(off-w),p.z+n.z*(off-w)],r*6);
+    const vv=(i0+k)*ds/2.4;uv.set([0,vv,1,vv],r*4);
+    const need=(v*v-VP[i]*VP[i])/(2*Math.max(d,1)),q=need/brk;
+    const c=q>0.85?GC_R:q>0.35?GC_Y:GC_G;
+    const a=Math.min(1,(d-2)/10)*Math.min(1,(reach-d)/(reach*0.25));
+    col.set([c[0],c[1],c[2],Math.max(0,a),c[0],c[1],c[2],Math.max(0,a)],r*8);
+  }
+  g.setDrawRange(0,Math.max(0,r-1)*6);
+  g.attributes.position.needsUpdate=g.attributes.uv.needsUpdate=g.attributes.color.needsUpdate=true;
+}
 function ribbon(fn,mat,uvLen,i0,i1,colorFn){
   i0=i0||0;i1=(i1==null)?N:i1;
   const pos=[],uv=[],idx=[],col=[];let r=0;
@@ -1937,6 +1968,7 @@ function computeTrack(c){
     vc[i]=Math.min(VAI,vCorner(GAI,R[i],CAR));
     vP[i]=Math.min(VMAX,vCorner(GRIP,R[i],CAR)*0.93);vT[i]=vP[i];
   }
+  VP=vP;
   for(let pass=0;pass<2;pass++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;
     vc[i]=Math.min(vc[i],Math.sqrt(vc[j]*vc[j]+2*BR_AI*ds));
     vT[i]=Math.min(vT[i],Math.sqrt(vT[j]*vT[j]+2*BR_P*ds));}
@@ -2085,17 +2117,19 @@ function buildCourse(ci){
     }
   }
   }
-  // guide line (green = full throttle, yellow = corner, red = braking zone)
+  // guide line: drawn from under the car ahead, coloured by the car's own speed (guideTick)
   {
-    const cG=new THREE.Color(0x3ddc84),cY=new THREE.Color(0xffd23a),cR=new THREE.Color(0xff3b2e);
     const tex=canvasTex(64,64,(g)=>{g.clearRect(0,0,64,64);g.fillStyle='#fff';g.beginPath();g.moveTo(32,6);g.lineTo(60,40);g.lineTo(48,40);g.lineTo(32,22);g.lineTo(16,40);g.lineTo(4,40);g.closePath();g.fill();});
     tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
-    const m=new THREE.MeshBasicMaterial({map:tex,vertexColors:true,transparent:true,opacity:.8,depthWrite:false});
-    const lift=C.model?0.12:0.03;m.polygonOffset=true;m.polygonOffsetFactor=-4;
-    guideMesh=ribbon(i=>[0.55,lift+BK[i]*0.55,-0.55,lift-BK[i]*0.55],m,2.4,P2P?P2P.in0-N:0,P2P?P2P.end:N,(i)=>{
-      const prev=vT[(i-1+N)%N],v=vT[i];
-      if(v<VMAX*0.97&&v<prev-0.02)return cR;
-      if(v<VMAX*0.97)return cY;return cG;});
+    const m=new THREE.MeshBasicMaterial({map:tex,vertexColors:true,transparent:true,opacity:.85,depthWrite:false});
+    m.polygonOffset=true;m.polygonOffsetFactor=-4;
+    const R=GUIDE_ROWS,g=new THREE.BufferGeometry(),idx=[];
+    for(let r=0;r<R-1;r++){const a=r*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(R*6),3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(R*4),2).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(R*8),4).setUsage(THREE.DynamicDrawUsage));
+    g.setIndex(idx);g.setDrawRange(0,0);
+    guideMesh=new THREE.Mesh(g,m);guideMesh.frustumCulled=false;guideMesh.userData.lift=C.model?0.12:0.03;world.add(guideMesh);
     guideMesh.visible=opts.line;
   }
   if(!C.model&&C.scenery)buildScenery();
@@ -2506,7 +2540,7 @@ function rigFrame(dt){
   if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
   AI.forEach(a=>rigDrive(a.mesh,dt,a.car&&a.car.body.wb));
   if(scar&&scar.mesh)rigDrive(scar.mesh,dt,scar.car.body.wb);
-  brakeLights(dt);
+  brakeLights(dt);guideTick();
 }
 /* brake lamps (2026-11-03, the user: light the brake lamps only while braking). BRK[car] = the tail lamps of the 3D
    model, [x,y,z,w,h] in car space (+x left, +z nose; tools/brake_lamps.py, checked on the back view). Each lamp gets a red
