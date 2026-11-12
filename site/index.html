@@ -3758,7 +3758,7 @@ function renderBoard(){
   let msg='';
   if(shared==='connecting')msg='共有ランキングに接続中…';
   else if(shared==='on')msg=rows.length?`${what}・${rows.length}人が記録`:`${what}の記録はまだありません。最初のタイムを刻もう。`;
-  else if(shared==='readonly')msg=(rows.length?`${what}・${rows.length}人。`:`${what}の記録はまだありません。`)+'閲覧のみの権限のため、あなたのタイムはこの端末にだけ保存されます。';
+  else if(shared==='readonly')msg=(rows.length?`${what}・${rows.length}人。`:`${what}の記録はまだありません。`)+(VLB?'プレイヤー名を登録すると、あなたのタイムもランキングに載ります。':'閲覧のみの権限のため、あなたのタイムはこの端末にだけ保存されます。');
   else msg=(rows.length?'':'記録はまだありません。')+'共有ランキングに接続できないため、この端末の記録のみ表示しています。';
   note.textContent=msg;
 }

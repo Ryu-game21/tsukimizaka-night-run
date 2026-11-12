@@ -169,6 +169,10 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   フリーはアウトラップ・セクター（自己ベスト/ゴースト比較、遅れたコーナー名）・周回タイム・ゴールド・走りのくせ（突っ込みすぎ・減速しすぎ・ダート・道幅）。
   共通でタイヤ（適温・オーバーヒート）と接触。1回出たら8秒以上空け、キーごとに再発言の間隔。遅らせる発言は `rdLater`（ゲーム時間）。設定 `opts.radio`。
 - 共有ランキング（`initShared`）は Claude の `window.claude.use('db')` があるときだけ動き、無ければ端末内の記録に切り替わる。
+- `Vercel ranking`（`VLB`/`vdbMake`/`vRegister`/`vClaim`/`vPost`、`api/lb.mjs`、2026-11-12 ユーザー「Vercel は Vercel だけのランキングで、名前が被ったら登録できない、ツールからの介入は受け付けない」）… `*.vercel.app` で開いたときだけ、`vdb`（records だけを扱う claude db の代わり：GET/POST `/api/lb`、30秒ごとに読み直し）で共有ランキング。ゴースト・クラウドセーブ・live/notice は何もしない（ゴースト対戦は AI 戦）。Netlify 版は端末の記録のまま。
+  サーバーは Vercel Function `api/lb.mjs` ＋ Upstash Redis（Vercel Marketplace、Free、環境変数 `KV_REST_API_URL`/`KV_REST_API_TOKEN`）。キー：`recs`（hash uid→records の doc、Claude 版と同じ形）・`nm:<名前キー>`→uid（NFKC・小文字・空白なしで比較、早い者勝ち、他人の名前は 409）・`un:<uid>`（その人の名前、5つまで）・`tk:<sha256(token)>`→uid（端末の合言葉 `fpr-vlb`）。
+  書き込み（register/save）は Vercel BotID（`checkBotId`、ページは `/vend/botid.js` の `initBotId`。`tools/build_vend.mjs` が Vercel のビルドで esbuild して作る、`site/vend/` は gitignore）＋ Origin ＋トークン＋回数制限（save 20/分、register 10/時/IP）。タイムは course×car が存在し、`api/_gold.mjs`（`node tools/gold_times.js` がゲームの goldTime から作る）の 80% 以上（実データの最速はゴールドの約 91%）。速すぎ 422・他人の名前 403・トークンなし 401・ツール（BotID なし）403 を実機で確認済み。コースや車を足したら `tools/gold_times.js` を回し直す（無いコース・車の記録は 400 で弾かれる）。
+  vercel.json に buildCommand（npm run build）と package.json（botid・esbuild）。テスト用に登録した名前「claudeテスト」が残っている（記録なし）。
 - `cloud save`（`csPull`/`csPush`/`csMergeAch`/`csRestoreBests`）… 実績・チャレンジ・称号・カスタマイズ（`ACHS`、端末の localStorage）を、本人だけが読める
   `data/users/<uid>/save` = `{players:{<名前>:{ach,at}}, last}` にも保存し（`achSave` から数秒まとめて）、開いたときに端末のデータと合わせる（解除済み・マップは和、数値は大きいほう、デイリー/ウィークリー/連続日数は新しい期間）。
   ベストタイムは共有ランキングの自分の行から端末に戻す。新しい端末の名前入力には前回の名前（`last`）が入る。2026-10-20、別の端末/アプリで開いて実績が見えなくなった件の対策。
