@@ -288,6 +288,13 @@ ok(t.state==='finish'&&t.finishRank===2&&/1位 Rival[^]*2位 あなた/.test(t.g
    t.showStep('car');step(3);ok(t.GAR.on,'the machine step happens in the garage');t.garageTabSet('setup');ok(t.gTab==='setup','the setup tab opens');
    t.showStep('course');step(3);ok(!t.GAR.on,'leaving the machine step leaves the garage');
    t.setMode('free');t.start();for(let k=0;k<400&&t.state!=='race';k++)step(1);ok(!t.GAR.on&&t.SU.vmax>1,'the race runs with the setup');
-   t.toMenu('course');t.setupSave(car,{});t.suApply();}
+   t.toMenu('course');t.setupSave(car,{});t.suApply();
+   // tyre compounds: medium = the old tyre; wets/inters win in the rain, slicks on a dry road
+   const g=(ty,wx)=>t.suCalc(car,{tyre:ty},wx).grip;
+   ok(g('m','clear')===1&&g('m','rain')===1,'medium tyres are the old tyre (grip factor 1 dry and wet)');
+   ok(g('s','clear')>g('m','clear')&&g('m','clear')>g('h','clear')&&g('h','clear')>g('i','clear')&&g('i','clear')>g('w','clear'),'dry: soft > medium > hard > inter > full wet');
+   ok(g('w','rain')>g('i','rain')&&g('i','rain')>g('m','rain'),'rain: full wet > inter > slicks');
+   t.setupSave(car,{tyre:'i'});t.setWeather('rain');t.suApply();ok(t.SU.tyre==='i'&&t.SU.grip>1,'the compound is saved with the setup and follows the weather');
+   t.setWeather('clear');t.setupSave(car,{});t.suApply();ok(t.SU.tyre==='m'&&!('fpr-setup' in __LS&&JSON.parse(__LS['fpr-setup']).gt3rs),'back to medium: nothing stored');}
 }catch(e){ok(false,'exception: '+e.message+' '+e.stack.split('\n')[1]);}
 origLog(fails?`\n${fails} FAILED`:'\nALL PASSED');process.exit(fails?1:0);},30);

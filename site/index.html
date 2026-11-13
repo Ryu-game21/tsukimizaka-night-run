@@ -250,6 +250,12 @@ body.mirhud #cn{margin-top:calc(min(34vw,400px) / 3.6 + 8px)}
 .gtab:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
 .gtab em{font:700 9px/1 var(--f-dot);font-style:normal;letter-spacing:.08em;color:#08121c;background:#ffd23a;border-radius:2px;padding:2px 4px 1px}
 .setup{display:grid;gap:4px}
+.tyrebox{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px;margin:0 0 10px;padding:0 8px}
+.tyrebox .ol{width:auto}
+.typ{display:inline-flex;align-items:center;gap:6px}
+.typ i{width:12px;height:12px;border-radius:50%;border:3px solid var(--tc);box-sizing:border-box;background:#111}
+.tyd{grid-column:1/-1;margin:0;font-size:11px;line-height:1.55;color:var(--dim)}
+.tyd b{color:#ffb070;font-weight:600}
 .surow{display:grid;grid-template-columns:8.2em minmax(0,1fr) 6.6em;align-items:center;gap:2px 10px;padding:5px 8px;border:1px solid transparent;border-radius:3px}
 .surow:focus-within{border-color:var(--line);background:rgba(205,215,228,.05)}
 .surow b{font-size:13px;font-weight:600;color:var(--ink)}
@@ -717,6 +723,7 @@ body.phl .press{display:none}
       </div>
       <div id="gSetup" role="tabpanel" hidden>
         <p class="hintline"><b id="suCar"></b> ・ ↑ ↓ で項目、← → で調整 ・ 車ごとに保存されます</p>
+        <div class="tyrebox"><span class="ol">タイヤ</span><div class="grp" id="tyrePick"></div><p class="tyd" id="tyreD"></p></div>
         <div class="setup" id="setup"></div>
         <div class="superf" id="suPerf"></div>
         <div class="sufoot"><button class="tog" type="button" id="suReset">すべて標準に戻す</button><span>標準は実車のカタログどおり。どの項目も一長一短です。</span></div>
@@ -1168,20 +1175,34 @@ const SETUP_ITEMS=[
   {k:'bal',n:'前後のバランス',l:'アンダー',r:'オーバー',d:'アンダー寄りは安定して曲がりにくい、オーバー寄りは向きが変わりやすく後ろが流れやすくなります。'},
   {k:'bias',n:'ブレーキバランス',l:'前',r:'後ろ',d:'後ろ寄りはブレーキで車の向きが変わりやすくなります。どちらかに寄せすぎると止まる力が少し落ちます。'},
   {k:'pres',n:'タイヤの空気圧',l:'低い',r:'高い',d:'低いとグリップが上がりタイヤが早く温まりますが、熱を持ちやすくなります。高いとその逆です。'}];
+/* tyre compounds (2026-11-13): medium is the tyre the game always had (every factor 1). dry / wet = grip on a dry or a
+   wet road, win = the temperature window moved (°C) or abs = its own window, heat = how fast they warm up.
+   Softs grip most and warm fast but overheat sooner; hards the reverse; intermediates and full wets have their windows
+   low (the water keeps them cool) - on a dry road they overheat and fade. */
+const TYRES={s:{n:'ソフト',c:'#ff4b3e',dry:1.04,wet:.97,win:-10,heat:1.3,d:'グリップがいちばん高く、すぐ温まる。熱に弱く、攻め続けるとタレやすい。'},
+  m:{n:'ミディアム',c:'#ffd23a',dry:1,wet:1,win:0,heat:1,d:'標準。グリップと熱への強さのバランス型。'},
+  h:{n:'ハード',c:'#ece8dc',dry:.965,wet:1,win:12,heat:.8,d:'グリップは少し低く温まりにくいが、熱にいちばん強い。'},
+  i:{n:'インター',c:'#3ec46d',dry:.9,wet:1.1,abs:[45,75],heat:1,d:'雨用（浅い水）。濡れた路面で約1割グリップが増える。乾いた路面ではすぐ熱を持つ。'},
+  w:{n:'フルウェット',c:'#3e8cff',dry:.82,wet:1.17,abs:[32,62],heat:.9,d:'大雨用。雨でいちばんグリップするが、乾いた路面ではすぐ傷む。'}};
+const TYRE_KEYS=['s','m','h','i','w'];
+const tyreOf=car=>{const t=(SETUPS[car.id]||{}).tyre;return TYRES[t]?t:'m';};
+const tyreFit=(t,wx)=>wx==='rain'?(t==='i'||t==='w'):!(t==='i'||t==='w');
 let SETUPS={};try{const s=JSON.parse(localStorage.getItem('fpr-setup')||'{}');if(s&&typeof s==='object')SETUPS=s;}catch(e){}
-function setupOf(car){const s=SETUPS[car.id]||{},o={};SETUP_ITEMS.forEach(it=>{const v=Math.round(+s[it.k]||0);o[it.k]=Math.max(-5,Math.min(5,v));});return o;}
+function setupOf(car){const s=SETUPS[car.id]||{},o={};SETUP_ITEMS.forEach(it=>{const v=Math.round(+s[it.k]||0);o[it.k]=Math.max(-5,Math.min(5,v));});o.tyre=tyreOf(car);return o;}
 function setupSave(car,s){const o={};let any=false;SETUP_ITEMS.forEach(it=>{if(s[it.k]){o[it.k]=s[it.k];any=true;}});
+  const ty=s.tyre;if(TYRES[ty]&&ty!=='m'){o.tyre=ty;any=true;}
   if(any)SETUPS[car.id]=o;else delete SETUPS[car.id];try{localStorage.setItem('fpr-setup',JSON.stringify(SETUPS));}catch(e){}}
-const setupIsStock=s=>SETUP_ITEMS.every(it=>!s[it.k]);
-function suCalc(car,s){
+const setupIsStock=s=>SETUP_ITEMS.every(it=>!s[it.k])&&(!s.tyre||s.tyre==='m');
+function suCalc(car,s,wx){
   const x=k=>(s&&+s[k]||0)/5,g=x('gear'),w=x('wing'),lo=-x('ride'),h=x('susp'),b=x('bal'),bb=x('bias'),p=x('pres');
   const df0=car.df||0;let df=df0*(1+.5*w)+.04*w+(lo>0?.03:.02)*lo;df=Math.max(0,df);
-  return {acc:(1-.08*g)*(1+.01*p),vmax:1+.06*g,gr:1+.05*g,drag:1+.1*w,df,
-    grip:(1+.01*lo)*(1-.015*h)*(1-.015*p),fF:1+.07*b,fR:1-.07*b,wtB:1+.7*bb,brk:1-.05*bb*bb,
-    resp:h>=0?1+.35*h:1+.25*h,roll:1-.45*h,heat:p<=0?1-.4*p:1-.3*p,off:lo>=0?1+.3*lo:1+.25*lo,rideY:-.03*lo};
+  const T=TYRES[s&&s.tyre]||TYRES.m,tg=wx==='rain'?T.wet:T.dry;
+  return {acc:(1-.08*g)*(1+.01*p),vmax:1+.06*g,gr:1+.05*g,drag:1+.1*w,df,tyre:(s&&s.tyre)||'m',tg,
+    grip:(1+.01*lo)*(1-.015*h)*(1-.015*p)*tg,fF:1+.07*b,fR:1-.07*b,wtB:1+.7*bb,brk:1-.05*bb*bb,
+    resp:h>=0?1+.35*h:1+.25*h,roll:1-.45*h,heat:(p<=0?1-.4*p:1-.3*p)*T.heat,brkT:1+.6*(tg-1),off:lo>=0?1+.3*lo:1+.25*lo,rideY:-.03*lo};
 }
-let SU=suCalc(CAR,{}),PGT=CAR.gearTop;
-function suApply(){SU=suCalc(CAR,setupOf(CAR));PGT=CAR.gearTop.map(v=>v*SU.gr);}
+let SU=suCalc(CAR,{},'clear'),PGT=CAR.gearTop;
+function suApply(){SU=suCalc(CAR,setupOf(CAR),wxSel);PGT=CAR.gearTop.map(v=>v*SU.gr);}
 const dfP=sp=>1+SU.df*Math.min(2.4,(sp/DF_V)*(sp/DF_V));   // the player's downforce (with the wing / ride height)
 // what the setup does to the numbers on the spec sheet (the garage shows them next to the stock car)
 function suPerf(car,su){
@@ -2011,6 +2032,7 @@ function ctrlVecs(c,flat){
   return c.ctrl.map(p=>new THREE.Vector3(p[0],flat?0:p[2],p[1]));
 }
 function computeTrack(c){
+  suApply();   // the tyre compound's grip depends on the weather
   W=c.W;HALF=W/2;RAIL=HALF+(c.terrain?c.runoff:2.2);VMAX=CAR.vtop;VAI=VMAX*0.9;LAPS=c.laps;
   const WX=WEATHERS[wxSel];GRIP=CAR.grip*WX.grip*tempGrip();GAI=GRIP*0.9;BR_P=CAR.brake*WX.brake*0.78;BR_AI=BR_P*0.72;
   N=c.N||1200;
@@ -3802,9 +3824,19 @@ function garageTabSet(t,focus){
   if(focus){const el=gTab==='setup'?document.querySelector('#setup input'):document.querySelector('.carbtn[aria-pressed="true"]');if(el)try{el.focus({preventScroll:true});}catch(e){}}
 }
 function suSummary(){const st=setupOf(CAR),ch=SETUP_ITEMS.filter(it=>st[it.k]);return ch.length?ch.map(it=>it.n+' '+suLabel(it,st[it.k])).join('、'):'標準';}
+function tyreSummary(){const t=tyreOf(CAR),ok=tyreFit(t,wxSel);return TYRES[t].n+(ok?'':'（'+(wxSel==='rain'?'雨にスリック':'乾いた路面に雨用')+'）');}
 const suLabel=(it,v)=>v?(v<0?it.l:it.r)+' '+Math.abs(v):'標準';
+function renderTyres(){
+  const box=$('tyrePick'),cur=tyreOf(CAR);
+  if(box.dataset.built!=='1'){box.dataset.built='1';
+    box.innerHTML=TYRE_KEYS.map(k=>`<button class="tog typ" type="button" data-ty="${k}" style="--tc:${TYRES[k].c}"><i></i>${TYRES[k].n}</button>`).join('');
+    box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const s=setupOf(CAR);s.tyre=b.dataset.ty;setupSave(CAR,s);suApply();courseDirty=true;renderSetup();}));}
+  box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ty===cur));
+  const wx=realOn?null:wxSel,fit=wx?tyreFit(cur,wx):true;
+  $('tyreD').innerHTML=TYRES[cur].d+(wx?` 今の天候の設定は「${WEATHERS[wx].n}」${fit?'。':'：<b>'+(wx==='rain'?'雨にはインターかフルウェットが合います。':'乾いた路面では雨用タイヤはすぐ熱を持ちます。')+'</b>'}`:' 天候は「リアル」：現地の天気に合わせて選んでください。');
+}
 function renderSetup(){
-  const s=setupOf(CAR),box=$('setup');$('suCar').textContent=CAR.maker+' '+CAR.name;
+  const s=setupOf(CAR),box=$('setup');$('suCar').textContent=CAR.maker+' '+CAR.name;renderTyres();
   if(box.dataset.built!=='1'){
     box.innerHTML=SETUP_ITEMS.map(it=>`<div class="surow"><b>${it.n}</b><div class="ss"><span>${it.l}</span><input type="range" min="-5" max="5" step="1" value="0" data-su="${it.k}" aria-label="${it.n}（${it.l}〜${it.r}）"><span>${it.r}</span></div><span class="sv" data-sv="${it.k}"></span><p class="sd">${it.d}</p></div>`).join('');
     box.dataset.built='1';
@@ -3815,7 +3847,7 @@ function renderSetup(){
   renderSuPerf();
 }
 function renderSuPerf(){
-  const b=suPerf(CAR,suCalc(CAR,{})),m=suPerf(CAR,SU),pct=(x,y)=>Math.round((x/y-1)*100);
+  const b=suPerf(CAR,suCalc(CAR,{},wxSel)),m=suPerf(CAR,SU),pct=(x,y)=>Math.round((x/y-1)*100);
   const cell=(n,val,d,good,unit)=>`<div><span>${n}</span><b>${val}</b><i class="${d===0?'':(d>0)===good?'up':'dn'}">${d===0?'標準':(d>0?'+':'')+d+unit}</i></div>`;
   const dt=Math.round((m.t100-b.t100)*100)/100,dtop=Math.round(m.top-b.top);
   $('suPerf').innerHTML=cell('最高速',Math.round(m.top)+'<small> km/h</small>',dtop,true,' km/h')+cell('0-100km/h',m.t100.toFixed(2)+'<small> 秒</small>',dt,false,' 秒')
@@ -4424,6 +4456,7 @@ function garageMonitor(){
   for(let x=0;x<w;x+=32){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke();}for(let y=0;y<h;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}
   g.fillStyle='#ffd23a';g.font='600 22px "Chakra Petch",sans-serif';g.fillText('GARAGE ・ SETUP SHEET',28,44);
   g.fillStyle='#ece8dc';g.font='700 38px "M PLUS 1","Hiragino Sans",sans-serif';g.fillText((CAR.maker+' '+CAR.name).slice(0,22),28,98);
+  {const T=TYRES[s.tyre]||TYRES.m;g.strokeStyle=T.c;g.lineWidth=6;g.beginPath();g.arc(w-60,44,18,0,7);g.stroke();g.fillStyle=T.c;g.font='600 20px "M PLUS 1",sans-serif';g.textAlign='right';g.fillText(T.n,w-90,51);g.textAlign='left';}
   g.font='500 20px "M PLUS 1","Hiragino Sans",sans-serif';
   SETUP_ITEMS.forEach((it,i)=>{const y=150+i*44,v=s[it.k];g.fillStyle='#9fb3c8';g.fillText(it.n,28,y);
     g.fillStyle='rgba(205,215,228,.18)';g.fillRect(300,y-16,400,10);g.fillStyle=v?'#ffd23a':'#7fe0a0';g.fillRect(300+200+v*38-5,y-21,10,20);
@@ -4622,7 +4655,7 @@ function nextStep(){const k=STEPS.indexOf(step);if(step==='title')showStep('mode
 function prevStep(){if(step==='opts'){showStep(optsBack);return;}if(step==='prof'){showStep(profBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
 function renderSummary(){
   const c=COURSES[sel];
-  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':grWanted(c)?'レース（'+c.laps+'周・ゴースト対戦）':'レース（'+(c.p2p?'片道':c.laps+'周')+'・4台・AI '+aiLv().n+'）'],['マシン',CAR.maker+' '+CAR.name],['セッティング',suSummary()],['コース',c.name],
+  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':grWanted(c)?'レース（'+c.laps+'周・ゴースト対戦）':'レース（'+(c.p2p?'片道':c.laps+'周')+'・4台・AI '+aiLv().n+'）'],['マシン',CAR.maker+' '+CAR.name],['タイヤ',tyreSummary()],['セッティング',suSummary()],['コース',c.name],
     ['変速',TM==='mt'?(canMT()?'MT マニュアル':'MT（この車は変速なしのため自動）'):'AT オートマ'],['時間帯',TIMES[timeSel].n+(realOn?'（現地）':'')],['天候',WEATHERS[wxSel].n]]
     .map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
 }
@@ -5610,7 +5643,7 @@ function scHoldPlayer(dt){
    best inside a window (road tyres 70-95 °C, racing tyres 80-105 °C); cold or overheated tyres slide sooner and
    brake shorter. The air temperature (real weather) and rain set how fast they cool. Rivals are not affected. */
 var tyreT=[40,40,40,40],tyreK=1,tyreStat={n:0,ok:0,sum:0},tyreMsgT=0,tyreWarm=false;
-function tyreWin(car){return (car||CAR).gripG>=1.2?[80,105]:[70,95];}
+function tyreWin(car){const b=(car||CAR).gripG>=1.2?[80,105]:[70,95];if(car&&car!==CAR)return b;const T=TYRES[SU.tyre]||TYRES.m;return T.abs||[b[0]+T.win,b[1]+T.win];}
 function tyreAmb(){return tempC!=null?tempC:timeSel==='day'?24:timeSel==='dusk'?19:15;}
 function tyreGripOf(t,w){return t<w[0]?Math.max(0.82,1-(w[0]-t)*0.004):t>w[1]?Math.max(0.8,1-(t-w[1])*0.006):1;}
 function tyreReset(){const a=tyreAmb()+22;tyreT=[a,a,a,a];tyreStat={n:0,ok:0,sum:0};tyreWarm=false;tyreMsgT=0;tyreCalc();}
@@ -5651,6 +5684,7 @@ function drawTyres(){
   const w=tyreWin(),cx=W/2,F='"Chakra Petch","M PLUS 1",sans-serif',avg=(tyreT[0]+tyreT[1]+tyreT[2]+tyreT[3])/4;
   c.textBaseline='middle';
   c.textAlign='left';c.fillStyle='#8f93ad';c.font=`600 ${10*u}px ${F}`;c.fillText('TYRE',8*u,11*u);
+  {const T=TYRES[SU.tyre]||TYRES.m,x=44*u,y=11*u;c.strokeStyle=T.c;c.lineWidth=2*u;c.beginPath();c.arc(x,y,6*u,0,7);c.stroke();c.fillStyle=T.c;c.font=`700 ${7.5*u}px ${F}`;c.textAlign='center';c.fillText(SU.tyre.toUpperCase(),x,y+.5*u);c.textAlign='left';}
   const cold=avg<w[0]-3,hot=Math.max(...tyreT)>w[1]+3;
   c.textAlign='right';c.fillStyle=hot?'#ff5a46':cold?'#6fb6ff':'#6ad88a';c.font=`600 ${10*u}px ${F}`;
   c.fillText(hot?'熱すぎ':cold?'冷えている':'適温',W-8*u,11*u);
@@ -5820,7 +5854,11 @@ function radioLap(lt,prevBest){
     else if(centre<0.25)radioSay('width',['道幅をもっと使おう。外から入って、内をかすめて、外へ','ずっと真ん中を走ってる。アウト・イン・アウトを意識しろ','コーナーは大きく使え。そのほうが速く曲がれる'],2,'',120);});
   rdLap={over:0,slow:0,dirt:0,centre:0,centreN:0,worst:[null,null,null,null],said:{}};
 }
-function radioFreeStart(){if(mode==='free')rdLater(2.5,()=>{if(state==='race'&&pl.lap<=1)radioSay('outlap',['アウトラップだ。タイヤを温めて、次の周からアタックしよう','まずはタイヤを温めよう。アタックは次の周からだ','アウトラップ。ブレーキとコーナーで熱を入れていけ'],2,'',999);});}
+// the wrong tyres for the weather: one call shortly after the start (2026-11-13, tyre compounds)
+function radioTyreFit(){const t=SU.tyre;if(tyreFit(t,wxSel))return;rdLater(4,()=>{if(state!=='race')return;
+  if(wxSel==='rain')radioSay('tyre_fit',['雨なのにスリックだ。ブレーキは早めに、慎重にいこう','スリックで濡れた路面だ。グリップが足りないぞ、気をつけて'],3,'warn',999);
+  else radioSay('tyre_fit',['乾いた路面に雨用タイヤだ。すぐ熱を持つぞ、無理するな','ドライで'+TYRES[t].n+'か。タイヤがすぐタレる、労わっていこう'],3,'warn',999);});}
+function radioFreeStart(){radioTyreFit();if(mode==='free')rdLater(2.5,()=>{if(state==='race'&&pl.lap<=1)radioSay('outlap',['アウトラップだ。タイヤを温めて、次の周からアタックしよう','まずはタイヤを温めよう。アタックは次の周からだ','アウトラップ。ブレーキとコーナーで熱を入れていけ'],2,'',999);});}
 
 /* ---------- update ---------- */
 const tmp={};
@@ -5940,7 +5978,7 @@ function updatePlayer(dt,canDrive){
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
   if(thr)a+=v>=0?CAR.acc*SU.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/(CAR.vmax*SU.vmax*(1+.05*sl)),2)):(neutral?0:22);
-  if(brk)a+=v>0.5?-CAR.brake*SU.brk*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfP(sp)-1)):(v>-8?-6:0);
+  if(brk)a+=v>0.5?-CAR.brake*SU.brk*SU.brkT*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfP(sp)-1)):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
     let eb=1.4;
