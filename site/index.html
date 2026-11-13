@@ -773,6 +773,8 @@ body.phl .press{display:none}
       <div class="opts"><span class="ol">視点</span><div class="grp" id="views"></div></div>
       <div class="opts" id="mirRow"><span class="ol">バックミラー</span><div class="grp"><button class="tog" type="button" id="tgMirror" aria-pressed="true">バックミラー ON</button></div>
         <span class="tmnote">運転席視点のとき、画面の上に後ろの様子を映します。</span></div>
+      <div class="opts" id="mapRow"><span class="ol">ミニマップ</span><div class="grp"><button class="tog" type="button" id="mapNorth" aria-pressed="true">コース全体</button><button class="tog" type="button" id="mapUp" aria-pressed="false">進む方向が上</button></div>
+        <span class="tmnote">進む方向が上：自分の車を中心に、走る向きが常に上になるよう地図が回ります（まわり約400m）。</span></div>
       <div class="opts" id="gfxRow"><span class="ol">画質</span><div class="grp"><button class="tog" type="button" id="gfxHigh" aria-pressed="false">高画質</button><button class="tog" type="button" id="gfxStd" aria-pressed="true">標準</button></div>
         <span class="tmnote" id="gfxNote">高画質：光のにじみ（ブルーム）・車の影・雨の路面の映り込み・スピード感のブラー・色調の補正。重いときは自動で標準に戻します。</span></div>
       <div class="opts" id="cmRow" hidden><span class="ol">実況</span><div class="grp"><button class="tog" type="button" id="tgCm" aria-pressed="true">実況 ON</button></div>
@@ -2749,7 +2751,7 @@ function shiftGear(d){
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
 let curCorner=-1,cornerHit=false,score={great:0,total:0},lastBrake=false;
-const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false,cm:true,gfx:null};
+const opts={line:true,call:true,ghost:true,sc:true,radio:true,ai:'normal',opp:'ai',mirror:true,gyro:false,cm:true,gfx:null,mapUp:false};
 const AILV=[{id:'easy',n:'やさしい',g:0.82,b:0.85,cap:0.84,s:0.97,a:0.9},{id:'normal',n:'ふつう',g:1,b:1,cap:0.9,s:1,a:0.95},
   {id:'hard',n:'むずかしい',g:1.2,b:1.35,cap:0.96,s:1.02,a:1.02},{id:'expert',n:'エキスパート',g:1.38,b:1.7,cap:1.0,s:1.04,a:1.12}];
 const aiLv=()=>AILV.find(x=>x.id===opts.ai)||AILV[1];
@@ -2787,7 +2789,7 @@ function setTime(t){
   document.querySelectorAll('#times .tog').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));
   if(C)buildCourse(sel);
 }
-try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;if(o.gfx==='high'||o.gfx==='std')opts.gfx=o.gfx;}catch(e){}
+try{const o=JSON.parse(localStorage.getItem('fpr-opts')||'{}');if(AILV.some(x=>x.id===o.ai))opts.ai=o.ai;if(o.line===false)opts.line=false;if(o.call===false)opts.call=false;if(o.ghost===false)opts.ghost=false;if(o.sc===false)opts.sc=false;if(o.opp==='ghost')opts.opp='ghost';if(o.mirror===false)opts.mirror=false;if(o.radio===false)opts.radio=false;if(o.gyro===true)opts.gyro=true;if(o.cm===false)opts.cm=false;if(o.gfx==='high'||o.gfx==='std')opts.gfx=o.gfx;if(o.mapUp===true)opts.mapUp=true;}catch(e){}
 const keys={up:0,down:0,left:0,right:0};
 const wrap=s=>((s%L)+L)%L;
 /* the finish line (2026-10-25): on the scanned circuits a chequered strip across the road at the line (the procedural
@@ -2986,6 +2988,9 @@ function setOpt(k,v){
   if(k==='line'&&guideMesh)guideMesh.visible=v;
 }
 $('tgLine').addEventListener('click',()=>setOpt('line',!opts.line));
+// minimap: the whole course (north up) or heading-up around the car (2026-11-13)
+function mapUpSet(v){opts.mapUp=!!v;try{localStorage.setItem('fpr-opts',JSON.stringify(opts));}catch(e){}$('mapNorth').setAttribute('aria-pressed',!opts.mapUp);$('mapUp').setAttribute('aria-pressed',opts.mapUp);}
+$('mapNorth').addEventListener('click',()=>mapUpSet(false));$('mapUp').addEventListener('click',()=>mapUpSet(true));mapUpSet(opts.mapUp);
 $('tgCall').addEventListener('click',()=>setOpt('call',!opts.call));
 $('tgRadio').addEventListener('click',()=>setOpt('radio',!opts.radio));
 VIEWS.forEach((v,i)=>{const b=document.createElement('button');b.className='tog vtog';b.type='button';b.dataset.i=i;b.textContent=v.n;b.addEventListener('click',()=>setView(i));$('views').appendChild(b);});
@@ -6189,7 +6194,7 @@ function updateCall(){
 
 /* ---------- HUD ---------- */
 const gc=$('gauge').getContext('2d'),mc=$('map').getContext('2d');
-let gW=0,gH=0,mW=0,mapBase=null,mapBg=null;
+let gW=0,gH=0,mW=0,mapBase=null,mapBg=null,mapTh=0;
 function sizeHud(){
   const dpr=Math.min(devicePixelRatio||1,2);
   const g=$('gauge');gW=g.clientWidth;gH=g.clientHeight;if(gW){g.width=gW*dpr;g.height=gH*dpr;gc.setTransform(dpr,0,0,dpr,0,0);}
@@ -6227,17 +6232,29 @@ function drawMap(){
   const c=mc,w=mW;if(!w||!mapBase)return;c.clearRect(0,0,w,w);
   const {sc,ox,oz}=mapBase;
   c.fillStyle='rgba(8,10,20,.55)';c.fillRect(0,0,w,w);
-  c.lineWidth=3;c.lineJoin='round';
+  /* heading-up (opts.mapUp): the car sits a little below the middle, the map turns so the way the car is going points
+     up, zoomed to about 400 m around it; lines and dots keep their screen size (u = 1 / zoom) */
+  const up=opts.mapUp;let u=1;
+  if(up){const z=Math.max(1,(w*.5/400)/sc);u=1/z;const h=pl.th-(pl.beta||0);let d=((h-mapTh+Math.PI*3)%(Math.PI*2))-Math.PI;mapTh+=Math.abs(d)>1.5?d:d*.25;
+    c.save();c.beginPath();c.rect(0,0,w,w);c.clip();c.translate(w/2,w*.62);c.rotate(Math.PI+mapTh);c.scale(z,z);c.translate(-(ox+pl.x*sc),-(oz+pl.z*sc));}
+  c.lineWidth=3*u;c.lineJoin='round';
   // colour track by corner grade
   for(let i=0;i<N;i+=3){if(!visI(i)||!visI((i+3)%N))continue;const a=P[i],b=P[(i+3)%N],cid=cornerAt[i];
     c.strokeStyle=cid>=0?GRADES[corners[cid].grade].c:'rgba(205,215,228,.45)';
     c.beginPath();c.moveTo(ox+a.x*sc,oz+a.z*sc);c.lineTo(ox+b.x*sc,oz+b.z*sc);c.stroke();}
-  const s0=P[0];c.fillStyle='#ece8dc';c.fillRect(ox+s0.x*sc-3,oz+s0.z*sc-3,6,6);
-  c.fillStyle='#8f93ad';for(let k=1;k<4;k++){const q=P[Math.floor(finI()*k/4)];c.fillRect(ox+q.x*sc-2,oz+q.z*sc-2,4,4);}
-  if(P2P){const q=P[P2P.fin];c.fillStyle='#ffd23a';c.fillRect(ox+q.x*sc-3.5,oz+q.z*sc-3.5,7,7);}
-  if(scar&&scar.mesh&&!scar.green){const m=scar.mesh.position;c.fillStyle=Math.floor(scar.t*3.2)%2?'#ffa018':'#ffe08a';c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
-  if(ghostCar.visible){const m=ghostCar.position;c.fillStyle='rgba(159,212,255,.8)';c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
-  if(mode!=='free')for(const a of AI){if(a.out)continue;const m=a.mesh.position;c.fillStyle='#'+a.color.toString(16).padStart(6,'0');c.beginPath();c.arc(ox+m.x*sc,oz+m.z*sc,3.5,0,7);c.fill();}
+  const sq=(x,z,r)=>c.fillRect(ox+x*sc-r*u,oz+z*sc-r*u,2*r*u,2*r*u),dot=(x,z,r)=>{c.beginPath();c.arc(ox+x*sc,oz+z*sc,r*u,0,7);c.fill();};
+  const s0=P[0];c.fillStyle='#ece8dc';sq(s0.x,s0.z,3);
+  c.fillStyle='#8f93ad';for(let k=1;k<4;k++){const q=P[Math.floor(finI()*k/4)];sq(q.x,q.z,2);}
+  if(P2P){const q=P[P2P.fin];c.fillStyle='#ffd23a';sq(q.x,q.z,3.5);}
+  if(scar&&scar.mesh&&!scar.green){const m=scar.mesh.position;c.fillStyle=Math.floor(scar.t*3.2)%2?'#ffa018':'#ffe08a';dot(m.x,m.z,3.5);}
+  if(ghostCar.visible){const m=ghostCar.position;c.fillStyle='rgba(159,212,255,.8)';dot(m.x,m.z,3.5);}
+  if(mode!=='free')for(const a of AI){if(a.out)continue;const m=a.mesh.position;c.fillStyle='#'+a.color.toString(16).padStart(6,'0');dot(m.x,m.z,3.5);}
+  if(up){c.restore();
+    // the car: an arrow pointing up at the anchor; a small N shows where north is
+    const cx=w/2,cy=w*.62;c.fillStyle='#ff5a46';c.strokeStyle='#fff';c.lineWidth=1.5;c.beginPath();c.moveTo(cx,cy-7);c.lineTo(cx+5,cy+5);c.lineTo(cx,cy+2.5);c.lineTo(cx-5,cy+5);c.closePath();c.fill();c.stroke();
+    const na=Math.PI+mapTh,nx=w-17,ny=17;c.save();c.translate(nx,ny);c.rotate(na);c.fillStyle='rgba(236,232,220,.85)';c.beginPath();c.moveTo(0,-8);c.lineTo(3.5,0);c.lineTo(-3.5,0);c.closePath();c.fill();c.restore();
+    c.fillStyle='rgba(236,232,220,.85)';c.font='600 9px "Chakra Petch",sans-serif';c.textAlign='center';c.fillText('N',nx+Math.sin(na)*12,ny-Math.cos(na)*12+3);c.textAlign='start';
+    return;}
   c.fillStyle='#ff5a46';c.beginPath();c.arc(ox+pl.x*sc,oz+pl.z*sc,4.5,0,7);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();
 }
 
