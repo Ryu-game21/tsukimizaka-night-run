@@ -242,7 +242,9 @@ body.mirhud #cn{margin-top:calc(min(34vw,400px) / 3.6 + 8px)}
 .carbtn{position:relative}.carbtn .nw{position:absolute;top:5px;right:5px;font:700 9px/1 var(--f-dot);letter-spacing:.08em;color:#08121c;background:#ffd23a;border-radius:2px;padding:2px 4px 1px;display:none}
 .carbtn.unused .nw{display:block}.carbtn.unused b{padding-right:38px}
 .carstat{margin:2px 0 6px;font-size:12px;color:var(--dim);letter-spacing:.04em}.carstat b{color:#ffd23a;font-weight:600}
-.gtabs{display:flex;gap:2px;margin:10px 0 10px;border-bottom:1px solid var(--line)}
+.gtabs{display:flex;gap:2px;margin:10px -22px 10px;padding:0 22px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;background:rgba(9,12,26,.97)}
+.sugo{display:flex;width:100%;justify-content:space-between;align-items:center;margin-top:10px;padding:10px 12px;font-size:14px;color:var(--amber);border-color:var(--amber);background:rgba(255,210,58,.06)}
+.sugo small{font-size:11px;color:var(--dim);font-family:var(--f-body);font-weight:400}
 .gtab{appearance:none;font:inherit;font-family:var(--f-dot);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--dim);background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 14px 7px;cursor:pointer;display:flex;align-items:center;gap:8px}
 .gtab[aria-selected="true"]{color:var(--amber);border-bottom-color:var(--amber)}
 .gtab:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
@@ -711,6 +713,7 @@ body.phl .press{display:none}
         <div class="spec" id="spec"></div>
         <p class="carstat" id="carStat"></p>
         <div class="carsel" id="cars" role="group" aria-label="マシン"></div>
+        <button class="tog sugo" type="button" id="suGo"><span>このマシンのセッティングへ →</span><small id="suGoN">標準</small></button>
       </div>
       <div id="gSetup" role="tabpanel" hidden>
         <p class="hintline"><b id="suCar"></b> ・ ↑ ↓ で項目、← → で調整 ・ 車ごとに保存されます</p>
@@ -3814,7 +3817,7 @@ function renderSuPerf(){
     +cell('低速コーナー',Math.round(m.lowG*100)+'%',pct(m.lowG,b.lowG),true,'%')+cell('高速コーナー',Math.round(m.highG*100)+'%',pct(m.highG,b.highG),true,'%')
     +cell('ブレーキ',Math.round(m.brk*100)+'%',pct(m.brk,b.brk),true,'%')+cell('曲がりやすさ',Math.round(m.turn*100)+'%',pct(m.turn,b.turn),true,'%')
     +cell('ハンドルの反応',Math.round(m.resp*100)+'%',pct(m.resp,b.resp),true,'%')+cell('タイヤの温まり',Math.round(m.heat*100)+'%',pct(m.heat,b.heat),true,'%');
-  const mk=$('suMark');if(mk)mk.hidden=setupIsStock(setupOf(CAR));
+  const mk=$('suMark');if(mk)mk.hidden=setupIsStock(setupOf(CAR));const gn=$('suGoN');if(gn)gn.textContent=setupIsStock(setupOf(CAR))?'今は標準（ギア比・ウイングなど7項目）':'変更あり：'+suSummary();
 }
 function setupChanged(k,v){
   suApply();courseDirty=true;   // the recommended speeds (guide, corner calls) follow the setup
@@ -3824,6 +3827,7 @@ function setupChanged(k,v){
 }
 (()=>{const t=$('gTabs');if(!t)return;
   t.querySelectorAll('.gtab').forEach(b=>b.addEventListener('click',()=>{garageTabSet(b.dataset.g,true);uiSnd('toggle');}));
+  $('suGo').addEventListener('click',()=>{garageTabSet('setup',true);$('menu').scrollTop=0;});
   $('suReset').addEventListener('click',()=>{setupSave(CAR,{});suApply();courseDirty=true;renderSetup();});
   $('setup').addEventListener('keydown',e=>{if(e.code!=='ArrowUp'&&e.code!=='ArrowDown')return;const ins=[...document.querySelectorAll('#setup input')],i=ins.indexOf(document.activeElement);
     if(i<0)return;e.preventDefault();const j=Math.max(0,Math.min(ins.length-1,i+(e.code==='ArrowDown'?1:-1)));try{ins[j].focus();}catch(er){}});
