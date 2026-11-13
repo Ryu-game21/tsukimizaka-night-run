@@ -6,7 +6,7 @@ const fs=require('fs'),path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'..','site','index.html'),'utf8');
 const i0=html.lastIndexOf('<script>'),i1=html.indexOf('</script>',i0);
 let src=html.slice(i0+8,i1);const end=src.lastIndexOf('})();');
-src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},get TL(){return TL},get HW(){return HW},get NR(){return NR},get bestLap(){return best},GROUND,groundApply,tlLimits,get TLP(){return TLP},get TLN(){return TLN},
+src=src.slice(0,end)+`global.__t={CARS,COURSES,AI,pl,get N(){return N},get P(){return P},get TH(){return TH},get laps(){return laps},get TL(){return TL},get HW(){return HW},get NR(){return NR},get bestLap(){return best},GROUND,groundApply,tlLimits,get TLP(){return TLP},get TLN(){return TLN},get SU(){return SU},get PGT(){return PGT},get GAR(){return GAR},suCalc,suPerf,setupOf,setupSave,suApply,get gTab(){return gTab},garageTabSet,
 selectCourse,selectCar,start,frame,setMode,setTM,shiftGear,setWeather,showStep,nextStep,prevStep,toMenu,startReplay,endReplay,startTutorial,
 loadRp,keys,get state(){return state},get step(){return step},get sessRp(){return sessRp},get tut(){return tut},get GRIP(){return GRIP},
 get BR_P(){return BR_P},get CAR(){return CAR},get rpTime(){return rpTime},get sel(){return sel},get mode(){return mode},get revWarn(){return revWarn},ACH,get ACHS(){return ACHS},setReal(o){REAL=o;realSig='';realChanged();},get wind(){return wind},get tempC(){return tempC},get wxSel(){return wxSel},get timeSel(){return timeSel},parseOpenMeteo,achLoad,renderAch,encodeGhost,decodeGhost,get ghost(){return ghost},get ghostInfo(){return ghostInfo},get ownGhost(){return ownGhost},get shared(){return shared},RIGS,rigUpdate,profSummary,publishProf,renderProf,profPlayers,openProf,cleanProf,get PROFS(){return PROFS},set PROFS(v){PROFS=v},STORE_:null,get wqP(){return wq},get scar(){return scar},goldTime,chDailies,chWeekly,chEv,chSync,totalPts,lvOf,renderChal,cosSet,cosGet,chOwnedTitles,TITLES,get chToday(){return chToday},set chToday(v){chToday=v},get chWk(){return chWk},set chWk(v){chWk=v},cleanProf,get SCL(){return SCL},get LAPS(){return LAPS},get RD(){return RD},get vT(){return vT},get ds(){return ds},tyreReset,get tyreK(){return tyreK},get tyreT(){return tyreT},get tyreStat(){return tyreStat},fieldList,get L(){return L},get raceT(){return raceT},opts,crCheck,crReset(){crSeen=null;crLive=false;crQ.length=0;crShowing=false;delete __LS['fpr-crseen'];},addBoard(r){board=board.concat(r);},get crShowing(){return crShowing},get crQ(){return crQ},GR,grResultRows,csPull,csPush,csMergeAch,achBlank,set ACHS(v){ACHS=v},get csDoc(){return csDoc},towerEntries,get towerPos(){return towerPos},get finishRank(){return finishRank}};\n`+src.slice(end);
@@ -273,5 +273,21 @@ ok(t.state==='finish'&&t.finishRank===2&&/1位 Rival[^]*2位 あなた/.test(t.g
    const run=(o,sd)=>{t.TL.bad=false;t.TL.out=0;let k=t.pl.idx;for(let f=0;f<40;f++){k=(k+1)%N;const p=t.P[k],n=t.NR[k],l=(sd>0?t.TL.lp:t.TL.ln)[k];if(l>1e8)continue;const q=sd*(l+o);t.pl.x=p.x+n.x*q;t.pl.z=p.z+n.z*q;t.pl.th=t.TH[k];t.pl.v=40;step(1);}return t.TL.bad;};
    ok(!run(-0.3,1)&&!run(-0.3,-1),'on the track just inside the white line: no offence');
    ok(run(t.CARS[3].body.w*0.5+1.0,1)||run(t.CARS[3].body.w*0.5+1.0,-1),'all four wheels past the white line: an offence');}
+  // garage setup (2026-11-13): stock = every factor 1, each setting a trade-off, saved per car, the garage on the machine step
+  {t.toMenu('course');const ci=t.CARS.findIndex(c=>c.id==='gt3rs'),car=t.CARS[ci];t.selectCar(ci);t.setupSave(car,{});t.suApply();
+   const su=t.SU,one=['acc','vmax','gr','drag','grip','fF','fR','wtB','brk','resp','roll','heat','off'].every(k=>su[k]===1);
+   ok(one&&su.df===car.df&&su.rideY===0&&t.PGT.every((v,i)=>v===car.gearTop[i]),'stock setup: every factor is exactly 1 (records and AI unchanged)');
+   const b=t.suPerf(car,t.suCalc(car,{})),lg=t.suPerf(car,t.suCalc(car,{gear:5})),sh=t.suPerf(car,t.suCalc(car,{gear:-5}));
+   ok(Math.abs(b.top-car.top)<.5&&Math.abs(b.t100-car.t100sim)<.02,'the stock sheet matches the spec ('+b.top.toFixed(0)+' km/h, '+b.t100.toFixed(2)+' s)');
+   ok(lg.top>b.top+4&&lg.t100>b.t100&&sh.top<b.top-4&&sh.t100<b.t100,'long gears: more top speed, slower 0-100 / short: the reverse ('+lg.top.toFixed(0)+'/'+lg.t100.toFixed(2)+' vs '+sh.top.toFixed(0)+'/'+sh.t100.toFixed(2)+')');
+   const wg=t.suPerf(car,t.suCalc(car,{wing:5}));ok(wg.highG>b.highG&&wg.top<b.top,'more wing: more high-speed grip, less top speed');
+   const pr=t.suCalc(car,{pres:-5});ok(pr.grip>1&&pr.heat>1,'low tyre pressure: more grip, the tyres heat faster');
+   t.setupSave(car,{gear:3,wing:-2});t.selectCar((ci+1)%t.CARS.length);ok(t.SU.vmax===1,'another car keeps its own (stock) setup');
+   t.selectCar(ci);ok(t.setupOf(car).gear===3&&t.setupOf(car).wing===-2&&t.SU.vmax>1&&t.PGT[0]>car.gearTop[0],'the setup is saved per car and applied when it is picked again');
+   ok(JSON.parse(__LS['fpr-setup']).gt3rs.gear===3,'saved in localStorage fpr-setup');
+   t.showStep('car');step(3);ok(t.GAR.on,'the machine step happens in the garage');t.garageTabSet('setup');ok(t.gTab==='setup','the setup tab opens');
+   t.showStep('course');step(3);ok(!t.GAR.on,'leaving the machine step leaves the garage');
+   t.setMode('free');t.start();for(let k=0;k<400&&t.state!=='race';k++)step(1);ok(!t.GAR.on&&t.SU.vmax>1,'the race runs with the setup');
+   t.toMenu('course');t.setupSave(car,{});t.suApply();}
 }catch(e){ok(false,'exception: '+e.message+' '+e.stack.split('\n')[1]);}
 origLog(fails?`\n${fails} FAILED`:'\nALL PASSED');process.exit(fails?1:0);},30);

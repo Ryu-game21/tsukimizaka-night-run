@@ -242,6 +242,28 @@ body.mirhud #cn{margin-top:calc(min(34vw,400px) / 3.6 + 8px)}
 .carbtn{position:relative}.carbtn .nw{position:absolute;top:5px;right:5px;font:700 9px/1 var(--f-dot);letter-spacing:.08em;color:#08121c;background:#ffd23a;border-radius:2px;padding:2px 4px 1px;display:none}
 .carbtn.unused .nw{display:block}.carbtn.unused b{padding-right:38px}
 .carstat{margin:2px 0 6px;font-size:12px;color:var(--dim);letter-spacing:.04em}.carstat b{color:#ffd23a;font-weight:600}
+.gtabs{display:flex;gap:2px;margin:10px 0 10px;border-bottom:1px solid var(--line)}
+.gtab{appearance:none;font:inherit;font-family:var(--f-dot);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--dim);background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 14px 7px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.gtab[aria-selected="true"]{color:var(--amber);border-bottom-color:var(--amber)}
+.gtab:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.gtab em{font:700 9px/1 var(--f-dot);font-style:normal;letter-spacing:.08em;color:#08121c;background:#ffd23a;border-radius:2px;padding:2px 4px 1px}
+.setup{display:grid;gap:4px}
+.surow{display:grid;grid-template-columns:8.2em minmax(0,1fr) 6.6em;align-items:center;gap:2px 10px;padding:5px 8px;border:1px solid transparent;border-radius:3px}
+.surow:focus-within{border-color:var(--line);background:rgba(205,215,228,.05)}
+.surow b{font-size:13px;font-weight:600;color:var(--ink)}
+.surow .sv{font-family:var(--f-dot);font-weight:600;font-size:13px;color:var(--lcd);text-align:right;white-space:nowrap}
+.surow .sv.on{color:#ffd23a}
+.surow .ss{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;font-size:11px;color:var(--dim)}
+.surow input{width:100%;margin:0;accent-color:var(--amber)}
+.surow .sd{grid-column:1/-1;margin:0;font-size:11px;line-height:1.5;color:var(--dim);display:none}
+.surow:focus-within .sd,.surow:hover .sd{display:block}
+.superf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0 8px}
+.superf div{border:1px solid var(--line);border-radius:3px;padding:6px 8px 5px;display:grid;gap:1px;min-width:0}
+.superf span{font-size:10px;color:var(--dim);letter-spacing:.06em}
+.superf b{font-family:var(--f-dot);font-weight:600;font-size:16px;color:var(--lcd);font-variant-numeric:tabular-nums;white-space:nowrap}
+.superf i{font-style:normal;font-size:11px;font-family:var(--f-dot);color:var(--dim);white-space:nowrap}
+.superf i.up{color:#7fe0a0}.superf i.dn{color:#ff8a70}
+.sufoot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:11px;color:var(--dim)}
 .spec{margin-top:12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 18px;font-variant-numeric:tabular-nums}
 .spec h2{grid-column:1/-1;margin:0;font-family:var(--f-dot);font-weight:600;font-size:24px;color:var(--amber);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
 .spec h2 small{font-size:12px;color:var(--dim);font-family:var(--f-body);letter-spacing:.06em}
@@ -678,12 +700,24 @@ body.phl .press{display:none}
     </section>
 
     <section class="step" data-s="car" hidden>
-      <p class="eyebrow">STEP 2 ・ MACHINE SELECT</p>
-      <h1>マシン選択</h1>
-      <p class="hintline">← → で切り替え ・ Enter で決定</p>
-      <div class="spec" id="spec"></div>
-      <p class="carstat" id="carStat"></p>
-      <div class="carsel" id="cars" role="group" aria-label="マシン"></div>
+      <p class="eyebrow">STEP 2 ・ GARAGE</p>
+      <h1>ガレージ</h1>
+      <div class="gtabs" id="gTabs" role="tablist" aria-label="ガレージ">
+        <button class="gtab" type="button" role="tab" data-g="car" aria-selected="true">マシン</button>
+        <button class="gtab" type="button" role="tab" data-g="setup" aria-selected="false">セッティング<em id="suMark" hidden>変更あり</em></button>
+      </div>
+      <div id="gCar" role="tabpanel">
+        <p class="hintline">← → で切り替え ・ Enter で決定 ・ 上の「セッティング」で車を調整</p>
+        <div class="spec" id="spec"></div>
+        <p class="carstat" id="carStat"></p>
+        <div class="carsel" id="cars" role="group" aria-label="マシン"></div>
+      </div>
+      <div id="gSetup" role="tabpanel" hidden>
+        <p class="hintline"><b id="suCar"></b> ・ ↑ ↓ で項目、← → で調整 ・ 車ごとに保存されます</p>
+        <div class="setup" id="setup"></div>
+        <div class="superf" id="suPerf"></div>
+        <div class="sufoot"><button class="tog" type="button" id="suReset">すべて標準に戻す</button><span>標準は実車のカタログどおり。どの項目も一長一短です。</span></div>
+      </div>
     </section>
 
     <section class="step" data-s="course" hidden>
@@ -1113,6 +1147,44 @@ CARS.forEach(c=>{
   c.t100sim=simT100(c,c.acc,c.vmax);
 });
 let CAR=CARS[0];
+/* ---------- garage setup (2026-11-13, the user: pick the car in a garage and set it up there) ----------
+   Seven settings per car, each -5..+5 (0 = the car as it comes, every factor exactly 1, so old records and the AI are
+   unchanged). Each one is a trade-off, not a free gain: SU holds the player's factors (AI and rivals keep the base car).
+   gear: short = more pull (acc), long = more top speed (vmax, gear tops PGT) / wing: downforce vs drag /
+   ride: low = more downforce and grip, harsher off the road / susp: hard = quicker turn-in, less grip, less roll /
+   bal: front vs rear grip (understeer - oversteer) / bias: rear = the car rotates more under braking, both ends lose a
+   little stopping power / pres: low = more grip but the tyres heat up faster, a little more rolling drag.
+   Saved per car in localStorage fpr-setup = {carId:{gear,wing,...}}. */
+const SETUP_ITEMS=[
+  {k:'gear',n:'ギア比',l:'加速',r:'最高速',d:'ショートにすると立ち上がりの加速が鋭く、ロングにすると直線の最高速が伸びます。'},
+  {k:'wing',n:'ウイング',l:'少なめ',r:'多め',d:'多いほど高速コーナーとブレーキが安定、そのぶん空気抵抗で最高速が落ちます。'},
+  {k:'ride',n:'車高',l:'低い',r:'高い',d:'低いとダウンフォースとグリップが増えますが、縁石や芝に乗ったときの減速が大きくなります。'},
+  {k:'susp',n:'サスペンション',l:'柔らかい',r:'硬い',d:'硬いとハンドルの反応が速く車体が傾きにくい、柔らかいとタイヤが路面をつかみやすくなります。'},
+  {k:'bal',n:'前後のバランス',l:'アンダー',r:'オーバー',d:'アンダー寄りは安定して曲がりにくい、オーバー寄りは向きが変わりやすく後ろが流れやすくなります。'},
+  {k:'bias',n:'ブレーキバランス',l:'前',r:'後ろ',d:'後ろ寄りはブレーキで車の向きが変わりやすくなります。どちらかに寄せすぎると止まる力が少し落ちます。'},
+  {k:'pres',n:'タイヤの空気圧',l:'低い',r:'高い',d:'低いとグリップが上がりタイヤが早く温まりますが、熱を持ちやすくなります。高いとその逆です。'}];
+let SETUPS={};try{const s=JSON.parse(localStorage.getItem('fpr-setup')||'{}');if(s&&typeof s==='object')SETUPS=s;}catch(e){}
+function setupOf(car){const s=SETUPS[car.id]||{},o={};SETUP_ITEMS.forEach(it=>{const v=Math.round(+s[it.k]||0);o[it.k]=Math.max(-5,Math.min(5,v));});return o;}
+function setupSave(car,s){const o={};let any=false;SETUP_ITEMS.forEach(it=>{if(s[it.k]){o[it.k]=s[it.k];any=true;}});
+  if(any)SETUPS[car.id]=o;else delete SETUPS[car.id];try{localStorage.setItem('fpr-setup',JSON.stringify(SETUPS));}catch(e){}}
+const setupIsStock=s=>SETUP_ITEMS.every(it=>!s[it.k]);
+function suCalc(car,s){
+  const x=k=>(s&&+s[k]||0)/5,g=x('gear'),w=x('wing'),lo=-x('ride'),h=x('susp'),b=x('bal'),bb=x('bias'),p=x('pres');
+  const df0=car.df||0;let df=df0*(1+.5*w)+.04*w+(lo>0?.03:.02)*lo;df=Math.max(0,df);
+  return {acc:(1-.08*g)*(1+.01*p),vmax:1+.06*g,gr:1+.05*g,drag:1+.1*w,df,
+    grip:(1+.01*lo)*(1-.015*h)*(1-.015*p),fF:1+.07*b,fR:1-.07*b,wtB:1+.7*bb,brk:1-.05*bb*bb,
+    resp:h>=0?1+.35*h:1+.25*h,roll:1-.45*h,heat:p<=0?1-.4*p:1-.3*p,off:lo>=0?1+.3*lo:1+.25*lo,rideY:-.03*lo};
+}
+let SU=suCalc(CAR,{}),PGT=CAR.gearTop;
+function suApply(){SU=suCalc(CAR,setupOf(CAR));PGT=CAR.gearTop.map(v=>v*SU.gr);}
+const dfP=sp=>1+SU.df*Math.min(2.4,(sp/DF_V)*(sp/DF_V));   // the player's downforce (with the wing / ride height)
+// what the setup does to the numbers on the spec sheet (the garage shows them next to the stock car)
+function suPerf(car,su){
+  const vEq=(a,V,k)=>Math.sqrt(a/(k+a/(V*V))),c2={drive:car.drive,k:car.k*su.drag};
+  let top=car.top*vEq(car.acc*su.acc,car.vmax*su.vmax,car.k*su.drag)/vEq(car.acc,car.vmax,car.k);if(car.lim)top=Math.min(car.lim,top);
+  return {top,t100:simT100(c2,car.acc*su.acc,car.vmax*su.vmax),lowG:su.grip,highG:su.grip*(1+su.df)/(1+(car.df||0)),brk:su.brk*(1+.6*su.df)/(1+.6*(car.df||0)),
+    turn:su.fF/su.fR,resp:su.resp,heat:su.heat};
+}
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- course data ---------- */
@@ -1966,7 +2038,7 @@ function computeTrack(c){
     R[i]=(2*CW*ds)/Math.max(ang,1e-4);
     const n=T[(i+1)%N];step[i]=T[i].x*n.z-T[i].z*n.x;
     vc[i]=Math.min(VAI,vCorner(GAI,R[i],CAR));
-    vP[i]=Math.min(VMAX,vCorner(GRIP,R[i],CAR)*0.93);vT[i]=vP[i];
+    vP[i]=Math.min(VMAX,vCorner(GRIP*SU.grip,R[i],{df:SU.df})*0.93);vT[i]=vP[i];   // the player's line: with the garage setup
   }
   VP=vP;
   for(let pass=0;pass<2;pass++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;
@@ -1998,6 +2070,8 @@ function computeTrack(c){
   return minY;
 }
 
+// the garage's state (garageTick) and a counter of atmosphere rebuilds, so leaving the garage does not undo a newer one
+const GAR={on:false,g:null,env:null,mon:null,monKey:'',save:null,envT:0,gen:0};let envGen=0;
 let courseDirty=false;
 function buildCourse(ci){
   courseDirty=false;
@@ -2009,7 +2083,7 @@ function buildCourse(ci){
   scene.background=canvasTex(4,256,(g)=>{const gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,E.sky[0]);gr.addColorStop(.62,E.sky[1]);gr.addColorStop(1,E.sky[2]);g.fillStyle=gr;g.fillRect(0,0,4,256);});
   hemi.color.setHex(E.hemi[0]);hemi.groundColor.setHex(E.hemi[1]);hemi.intensity=E.hemi[2];
   sunL.color.setHex(E.dir[0]);sunL.intensity=E.dir[1];head.intensity=E.head;
-  makeEnv(E);
+  makeEnv(E);envGen++;
   const outward=new Int8Array(N);for(let i=0;i<N;i++)outward[i]=(NR[i].x*(P[i].x-CX)+NR[i].z*(P[i].z-CZ))>0?1:-1;
   const R0=P2P?P2P.in0-N:0,R1=P2P?P2P.end:N;   // the part that is drawn (all of it on a loop)
   if(C.terrain)terrainShow(C);else if(camera.far!==4000){camera.far=4000;camera.updateProjectionMatrix();}
@@ -2455,7 +2529,7 @@ function rigUpdate(R,dt,v,steer,yawRate,acc,gain){
 }
 // drive a placed car's rig from how its pose changed since the last frame, so the player, rivals, the ghost, the replay
 // and the showroom demo all move the same way. steerIn (-1..1) when the input is known (the player), else from the yaw rate.
-function rigDrive(obj,dt,wb,steerIn){
+function rigDrive(obj,dt,wb,steerIn,gain,dy){
   if(!obj||!(dt>0))return;
   let R=obj.userData.rig;if(R===undefined)R=obj.userData.rig=rigOf(obj);
   if(!R)return;
@@ -2471,7 +2545,9 @@ function rigDrive(obj,dt,wb,steerIn){
   let st=steerIn;
   if(st==null||!isFinite(st)){const sp=Math.abs(v),lock=0.5*(1-Math.min(0.6,sp/75));
     st=sp>1?Math.max(-1,Math.min(1,Math.atan((wb||2.5)*R.yaw/Math.max(sp,2))*Math.sign(v)/lock)):0;}
-  rigUpdate(R,dt,v,st,R.yaw,R.acc,1);
+  rigUpdate(R,dt,v,st,R.yaw,R.acc,gain==null?1:gain);
+  // the garage's ride height: the body (not the wheels) moves up or down
+  if(R.body){if(R.y0==null)R.y0=R.body.position.y;const y=R.y0+(dy||0);if(R.body.position.y!==y)R.body.position.y=y;}
 }
 /* ---------- driver's seat: the camera sits at each car's own driver eye point, inside the model's real cabin ----------
    [x,y,z] in car space (m; +x = left, +z = nose). Right-hand-drive cars sit at -x. null = the model has no usable
@@ -2536,7 +2612,7 @@ function hoodClip(on){
 // the drawn dashboard, at this car's seat: sideways offset (car +x = left) for the driver's side
 function seatSide(){const c=CAB[CAR.id];return c?c[0]:RHD[CAR.id]?-0.37:0.37;}
 function rigFrame(dt){
-  rigDrive(playerCar,dt,CAR.body.wb,pl.steer);
+  rigDrive(playerCar,dt,CAR.body.wb,pl.steer,SU.roll,SU.rideY);
   if(ghostCar){const gc=CARS.find(c=>c.id===ghostCar.userData.carId);rigDrive(ghostCar,dt,gc&&gc.body.wb);}
   AI.forEach(a=>rigDrive(a.mesh,dt,a.car&&a.car.body.wb));
   if(scar&&scar.mesh)rigDrive(scar.mesh,dt,scar.car.body.wb);
@@ -2629,7 +2705,7 @@ let rivalsWanted=false;
 function wantRivals(on){if(rivalsWanted===on)return;rivalsWanted=on;if(!on)return;buildCars();
   if(opts.sc)SCCARS.concat(CARS.filter(c=>c.id==='vantage')).forEach(c=>loadModel(c));}   // the safety car, too
 function buildCars(){
-  CAR=CARS[carSel];
+  CAR=CARS[carSel];suApply();
   disposeObj(playerCar);disposeObj(ghostCar);
   playerCar=makeCar(CAR);
   ghostCar=makeGhostCar(CARS.find(c=>c.id===ghostCarId)||CAR);
@@ -2665,7 +2741,7 @@ function shiftGear(d){
   if(!isMT()||(state!=='race'&&state!=='count'))return;
   const ng=pl.gear+d;if(ng<0||ng>CAR.gears)return;   // 0 = neutral (below 1st)
   // refuse a downshift that would over-rev the engine
-  if(d<0&&ng>=1&&Math.abs(pl.v)*3.6>CAR.gearTop[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:CAR.gearTop[ng-1],t:2.5};updateRevWarn(0);return;}
+  if(d<0&&ng>=1&&Math.abs(pl.v)*3.6>PGT[ng-1]){beep(220,0.06,1);revWarn={g:ng,lim:PGT[ng-1],t:2.5};updateRevWarn(0);return;}
   pl.gear=ng;
 }
 let sigOn=false,sigT0=0,countTotal=0,state='menu',raceT=0,raceT0=0,lapStart=0,laps=[],countT=0,shake=0,finishRank=0,demoS=0,msgT=0,popT=0,best=null;
@@ -3705,8 +3781,53 @@ function selectCar(k){
   document.querySelectorAll('.carbtn').forEach((b,i)=>b.setAttribute('aria-pressed',i===k));
   // the course's speed profile depends on the car, but rebuilding the whole course on every tap made picking a car
   // slow: it is rebuilt once, when you leave the car step or start (courseDirty)
-  initAudio();buildCars();renderSpec();if(step==='car')courseDirty=true;else buildCourse(sel);renderCourseCards();renderBoard();menuRevT=1.1;tmUi();
+  initAudio();buildCars();renderSpec();renderSetup();if(step==='car')courseDirty=true;else buildCourse(sel);renderCourseCards();renderBoard();menuRevT=1.1;tmUi();
 }
+/* garage tabs (machine / setup) and the setup sheet: one slider per SETUP_ITEMS entry, the stock and the set-up
+   numbers side by side (suPerf), saved per car on every change */
+let gTab='car';
+function garageTabSet(t,focus){
+  gTab=t==='setup'?'setup':'car';
+  document.querySelectorAll('#gTabs .gtab').forEach(b=>b.setAttribute('aria-selected',b.dataset.g===gTab));
+  $('gCar').hidden=gTab!=='car';$('gSetup').hidden=gTab!=='setup';
+  if(gTab==='setup')renderSetup();
+  if(focus){const el=gTab==='setup'?document.querySelector('#setup input'):document.querySelector('.carbtn[aria-pressed="true"]');if(el)try{el.focus({preventScroll:true});}catch(e){}}
+}
+function suSummary(){const st=setupOf(CAR),ch=SETUP_ITEMS.filter(it=>st[it.k]);return ch.length?ch.map(it=>it.n+' '+suLabel(it,st[it.k])).join('、'):'標準';}
+const suLabel=(it,v)=>v?(v<0?it.l:it.r)+' '+Math.abs(v):'標準';
+function renderSetup(){
+  const s=setupOf(CAR),box=$('setup');$('suCar').textContent=CAR.maker+' '+CAR.name;
+  if(box.dataset.built!=='1'){
+    box.innerHTML=SETUP_ITEMS.map(it=>`<div class="surow"><b>${it.n}</b><div class="ss"><span>${it.l}</span><input type="range" min="-5" max="5" step="1" value="0" data-su="${it.k}" aria-label="${it.n}（${it.l}〜${it.r}）"><span>${it.r}</span></div><span class="sv" data-sv="${it.k}"></span><p class="sd">${it.d}</p></div>`).join('');
+    box.dataset.built='1';
+    box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{const s2=setupOf(CAR),v=+inp.value;if(s2[inp.dataset.su]===v)return;s2[inp.dataset.su]=v;setupSave(CAR,s2);setupChanged(inp.dataset.su,v);}));
+  }
+  SETUP_ITEMS.forEach(it=>{const inp=box.querySelector(`input[data-su="${it.k}"]`),sv=box.querySelector(`[data-sv="${it.k}"]`),v=s[it.k];
+    if(+inp.value!==v)inp.value=v;sv.textContent=suLabel(it,v);sv.classList.toggle('on',!!v);inp.setAttribute('aria-valuetext',suLabel(it,v));});
+  renderSuPerf();
+}
+function renderSuPerf(){
+  const b=suPerf(CAR,suCalc(CAR,{})),m=suPerf(CAR,SU),pct=(x,y)=>Math.round((x/y-1)*100);
+  const cell=(n,val,d,good,unit)=>`<div><span>${n}</span><b>${val}</b><i class="${d===0?'':(d>0)===good?'up':'dn'}">${d===0?'標準':(d>0?'+':'')+d+unit}</i></div>`;
+  const dt=Math.round((m.t100-b.t100)*100)/100,dtop=Math.round(m.top-b.top);
+  $('suPerf').innerHTML=cell('最高速',Math.round(m.top)+'<small> km/h</small>',dtop,true,' km/h')+cell('0-100km/h',m.t100.toFixed(2)+'<small> 秒</small>',dt,false,' 秒')
+    +cell('低速コーナー',Math.round(m.lowG*100)+'%',pct(m.lowG,b.lowG),true,'%')+cell('高速コーナー',Math.round(m.highG*100)+'%',pct(m.highG,b.highG),true,'%')
+    +cell('ブレーキ',Math.round(m.brk*100)+'%',pct(m.brk,b.brk),true,'%')+cell('曲がりやすさ',Math.round(m.turn*100)+'%',pct(m.turn,b.turn),true,'%')
+    +cell('ハンドルの反応',Math.round(m.resp*100)+'%',pct(m.resp,b.resp),true,'%')+cell('タイヤの温まり',Math.round(m.heat*100)+'%',pct(m.heat,b.heat),true,'%');
+  const mk=$('suMark');if(mk)mk.hidden=setupIsStock(setupOf(CAR));
+}
+function setupChanged(k,v){
+  suApply();courseDirty=true;   // the recommended speeds (guide, corner calls) follow the setup
+  const it=SETUP_ITEMS.find(x=>x.k===k),sv=document.querySelector(`#setup [data-sv="${k}"]`),inp=document.querySelector(`#setup input[data-su="${k}"]`);
+  if(sv){sv.textContent=suLabel(it,v);sv.classList.toggle('on',!!v);}if(inp)inp.setAttribute('aria-valuetext',suLabel(it,v));
+  renderSuPerf();initAudio();uiSnd('hover');
+}
+(()=>{const t=$('gTabs');if(!t)return;
+  t.querySelectorAll('.gtab').forEach(b=>b.addEventListener('click',()=>{garageTabSet(b.dataset.g,true);uiSnd('toggle');}));
+  $('suReset').addEventListener('click',()=>{setupSave(CAR,{});suApply();courseDirty=true;renderSetup();});
+  $('setup').addEventListener('keydown',e=>{if(e.code!=='ArrowUp'&&e.code!=='ArrowDown')return;const ins=[...document.querySelectorAll('#setup input')],i=ins.indexOf(document.activeElement);
+    if(i<0)return;e.preventDefault();const j=Math.max(0,Math.min(ins.length-1,i+(e.code==='ArrowDown'?1:-1)));try{ins[j].focus();}catch(er){}});
+})();
 function pkey(base){return (!PLAYER||PLAYER===LEGACY_OWNER)?base:base+'@'+PLAYER;}
 function bestKey(c,car){return pkey('fpr-best-'+c.id+'-'+(car||CAR).id);}
 function courseBest(c){try{const b=parseFloat(localStorage.getItem(bestKey(c)));return b>0?b:null;}catch(e){return null;}}
@@ -4179,7 +4300,7 @@ $('pEdit').addEventListener('click',openNameDlg);
 document.querySelectorAll('#bScope .tog').forEach(b=>b.addEventListener('click',()=>{boardScope=b.dataset.s;try{localStorage.setItem('fpr-board-scope',boardScope);}catch(e){}renderBoard();}));
 
 /* ---------- flow: title → mode → machine → course → transmission → condition → ready ---------- */
-const STEPS=['mode','car','course','tm','cond','go'],STEPN={mode:'モード',car:'マシン',course:'コース',tm:'変速',cond:'天候',go:'スタート'};
+const STEPS=['mode','car','course','tm','cond','go'],STEPN={mode:'モード',car:'ガレージ',course:'コース',tm:'変速',cond:'天候',go:'スタート'};
 let step='title',optsBack='title';
 function showStep(s){
   if(s!=='go')try{cmIntroStop();}catch(e){}
@@ -4200,6 +4321,7 @@ function showStep(s){
   if(s==='cond'||s==='go'){if(realOn)startReal();renderRealInfo();}
   if(s==='course'){renderCourseCards();renderBoard();rpMenuUi();}
   if(s==='tm')tmUi();
+  if(s==='car')renderSetup();
   $('showName').hidden=s!=='car';
   $('menu').scrollTop=0;
   const f=s==='car'?'.carbtn[aria-pressed="true"]':s==='course'?'.course[aria-pressed="true"]':s==='mode'?'.mtog[aria-pressed="true"]':s==='tm'?'.tmtog[aria-pressed="true"]':s==='go'?'#startBtn':s==='title'?'#goStart':s==='cond'?'#times .tog[aria-pressed="true"]':'#vol';
@@ -4267,6 +4389,120 @@ function uiSnd(kind,arg){
     if(b.id==='nextBtn'||b.id==='backBtn'||b.closest('#stepBar'))return;   // the step whoosh covers it
     uiSnd(b.matches('.tog')?'toggle':'click');},true);
 })();
+/* ---------- the garage (2026-11-13): the machine step happens in a garage instead of on the track ----------
+   While the menu is on the machine step, the demo car stops, the course (world), rivals and rain are hidden and a room
+   is built around the car where it stands: a glossy floor with the bay marked out, panelled walls, a roll-up shutter,
+   light strips in the ceiling, tool chests, tyre racks and a wall monitor with the car and its setup. No extra lights
+   (a new light count would recompile every material in the game): the hemisphere and sun lights are re-aimed while
+   inside and given back on the way out, the fog is thinned out, the car and floor reflect a small garage environment
+   (PMREM of the room) instead of the sky. Leaving the step puts everything back; the demo drive resumes. */
+function garageEnv(){
+  if(GAR.env)return GAR.env;
+  try{pmrem=pmrem||new THREE.PMREMGenerator(renderer);const es=new THREE.Scene();
+    es.add(new THREE.Mesh(new THREE.BoxGeometry(18,6,18),new THREE.MeshBasicMaterial({color:0x34373e,side:THREE.BackSide})));
+    const fl=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshBasicMaterial({color:0x111215}));fl.rotation.x=-Math.PI/2;fl.position.y=-2.9;es.add(fl);
+    const lm=new THREE.MeshBasicMaterial({color:0xffffff});
+    for(const x of [-1.4,1.4])for(const z of [-3,0,3]){const b=new THREE.Mesh(new THREE.BoxGeometry(.5,.1,2.6),lm);b.position.set(x,2.9,z);es.add(b);}
+    for(const z of [-8.9,8.9]){const b=new THREE.Mesh(new THREE.BoxGeometry(8,1.2,.1),new THREE.MeshBasicMaterial({color:0x8a8f99}));b.position.set(0,1.2,z);es.add(b);}
+    GAR.env=pmrem.fromScene(es,0.03).texture;es.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
+  }catch(e){GAR.env=null;}
+  return GAR.env;
+}
+function garageMonitor(){
+  const key=CAR.id+'|'+JSON.stringify(setupOf(CAR));if(!GAR.mon||GAR.monKey===key)return;GAR.monKey=key;
+  const cv=GAR.mon.image,g=cv.getContext('2d'),w=cv.width,h=cv.height,s=setupOf(CAR);
+  g.fillStyle='#05080d';g.fillRect(0,0,w,h);g.strokeStyle='rgba(120,190,255,.25)';g.lineWidth=1;
+  for(let x=0;x<w;x+=32){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke();}for(let y=0;y<h;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}
+  g.fillStyle='#ffd23a';g.font='600 22px "Chakra Petch",sans-serif';g.fillText('GARAGE ・ SETUP SHEET',28,44);
+  g.fillStyle='#ece8dc';g.font='700 38px "M PLUS 1","Hiragino Sans",sans-serif';g.fillText((CAR.maker+' '+CAR.name).slice(0,22),28,98);
+  g.font='500 20px "M PLUS 1","Hiragino Sans",sans-serif';
+  SETUP_ITEMS.forEach((it,i)=>{const y=150+i*44,v=s[it.k];g.fillStyle='#9fb3c8';g.fillText(it.n,28,y);
+    g.fillStyle='rgba(205,215,228,.18)';g.fillRect(300,y-16,400,10);g.fillStyle=v?'#ffd23a':'#7fe0a0';g.fillRect(300+200+v*38-5,y-21,10,20);
+    g.fillStyle='#ece8dc';g.fillText(v?(v<0?it.l:it.r)+' '+Math.abs(v):'標準',740,y);});
+  GAR.mon.needsUpdate=true;
+}
+function garageBuild(){
+  if(GAR.g)return GAR.g;
+  const G=new THREE.Group();G.name='garage';const env=garageEnv(),RW=9,RD=9,RH=5.8;
+  const noise=(g,w,h,n,a)=>{for(let i=0;i<n;i++){g.fillStyle='rgba('+(Math.random()<.5?'255,255,255':'0,0,0')+','+(Math.random()*a)+')';g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2);}};
+  // floor: dark epoxy with tile seams, glossy
+  const ft=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#2b2e34';g.fillRect(0,0,w,h);noise(g,w,h,5000,.07);g.strokeStyle='rgba(0,0,0,.45)';g.lineWidth=3;
+    for(let k=0;k<=4;k++){g.beginPath();g.moveTo(k*128,0);g.lineTo(k*128,h);g.stroke();g.beginPath();g.moveTo(0,k*128);g.lineTo(w,k*128);g.stroke();}});
+  ft.wrapS=ft.wrapT=THREE.RepeatWrapping;ft.repeat.set(RW/2,RD/2);
+  const fm=new THREE.MeshStandardMaterial({map:ft,roughness:.22,metalness:.1});if(env){fm.envMap=env;fm.envMapIntensity=.9;}
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(RW*2,RD*2),fm);floor.rotation.x=-Math.PI/2;floor.position.y=.004;floor.receiveShadow=true;G.add(floor);
+  // the bay: yellow lines round the car, a darker mat under it
+  const bay=new THREE.MeshBasicMaterial({color:0xd9b33a}),mat=new THREE.Mesh(new THREE.PlaneGeometry(3.2,5.9),new THREE.MeshStandardMaterial({color:0x17181b,roughness:.9}));
+  mat.rotation.x=-Math.PI/2;mat.position.y=.008;mat.receiveShadow=true;G.add(mat);
+  [[1.75,0,.1,6.6],[-1.75,0,.1,6.6],[0,3.3,3.6,.1],[0,-3.3,3.6,.1]].forEach(([x,z,w,d])=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),bay);m.rotation.x=-Math.PI/2;m.position.set(x,.011,z);G.add(m);});
+  // walls: concrete above, dark panels below, an amber stripe between
+  const wt=canvasTex(1024,512,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#3b4048');gr.addColorStop(.6,'#4a5059');g.fillStyle=gr;g.fillRect(0,0,w,h);noise(g,w,h,9000,.06);
+    g.fillStyle='rgba(0,0,0,.22)';for(let x=0;x<w;x+=256)g.fillRect(x,0,3,h*.62);
+    g.fillStyle='#1b1e24';g.fillRect(0,h*.66,w,h*.34);g.fillStyle='rgba(255,255,255,.05)';for(let x=0;x<w;x+=128)g.fillRect(x,h*.66,2,h*.34);
+    g.fillStyle='#d9a23a';g.fillRect(0,h*.64,w,h*.02);});
+  wt.wrapS=THREE.RepeatWrapping;
+  const wall=(len,x,z,ry)=>{const t=wt.clone();t.needsUpdate=true;t.wrapS=THREE.RepeatWrapping;t.repeat.set(len/6,1);
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(len,RH),new THREE.MeshStandardMaterial({map:t,roughness:.85}));m.position.set(x,RH/2,z);m.rotation.y=ry;m.receiveShadow=true;G.add(m);return m;};
+  wall(RW*2,0,-RD,0);wall(RW*2,0,RD,Math.PI);wall(RD*2,RW,0,-Math.PI/2);wall(RD*2,-RW,0,Math.PI/2);
+  // ceiling and its light strips
+  const ce=new THREE.Mesh(new THREE.PlaneGeometry(RW*2,RD*2),new THREE.MeshStandardMaterial({color:0x15171b,roughness:.9}));ce.rotation.x=Math.PI/2;ce.position.y=RH;G.add(ce);
+  const lm=new THREE.MeshBasicMaterial({color:0xf6f8ff}),frame=new THREE.MeshStandardMaterial({color:0x2a2d33,roughness:.6,metalness:.5});
+  for(const x of [-1.4,1.4])for(const z of [-3,0,3]){const b=new THREE.Mesh(new THREE.BoxGeometry(.26,.05,2.5),lm);b.position.set(x,RH-.35,z);G.add(b);
+    const f=new THREE.Mesh(new THREE.BoxGeometry(.36,.08,2.6),frame);f.position.set(x,RH-.3,z);G.add(f);}
+  for(const z of [-6.5,6.5])for(const x of [-5.5,5.5]){const b=new THREE.Mesh(new THREE.BoxGeometry(2.2,.05,.2),lm);b.position.set(x,RH-.2,z);G.add(b);}
+  // roll-up shutter on one side
+  const sh=canvasTex(256,512,(g,w,h)=>{g.fillStyle='#8c9096';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=16){g.fillStyle='rgba(0,0,0,.28)';g.fillRect(0,y,w,3);g.fillStyle='rgba(255,255,255,.12)';g.fillRect(0,y+4,w,2);}noise(g,w,h,2500,.08);
+    g.fillStyle='#d9a23a';g.fillRect(0,h-26,w,26);g.fillStyle='#1b1e24';for(let x=-20;x<w;x+=40){g.beginPath();g.moveTo(x,h);g.lineTo(x+20,h-26);g.lineTo(x+40,h-26);g.lineTo(x+20,h);g.fill();}});
+  const shm=new THREE.Mesh(new THREE.PlaneGeometry(6.4,4.6),new THREE.MeshStandardMaterial({map:sh,roughness:.55,metalness:.4}));shm.position.set(-RW+.02,2.3,0);shm.rotation.y=Math.PI/2;G.add(shm);
+  // the sign on the front wall
+  const sg=canvasTex(1024,256,(g,w,h)=>{g.clearRect(0,0,w,h);g.textAlign='center';g.fillStyle='#ece8dc';g.font='800 96px "M PLUS 1","Hiragino Sans",sans-serif';g.fillText('月見坂ナイトラン',w/2,118);
+    g.fillStyle='#ffd23a';g.font='600 40px "Chakra Petch",sans-serif';g.fillText('TSUKIMIZAKA NIGHT RUN ・ GARAGE 02',w/2,196);});
+  const sgm=new THREE.Mesh(new THREE.PlaneGeometry(8,2),new THREE.MeshBasicMaterial({map:sg,transparent:true}));sgm.position.set(0,3.9,RD-.03);sgm.rotation.y=Math.PI;G.add(sgm);
+  // tool chests along the back wall
+  const ch=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#b4231d';g.fillRect(0,0,w,h);for(let y=18;y<h;y+=46){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(8,y,w-16,4);g.fillStyle='#c9ccd1';g.fillRect(w*.3,y+14,w*.4,6);}});
+  const chm=new THREE.MeshStandardMaterial({map:ch,roughness:.38,metalness:.5}),top=new THREE.MeshStandardMaterial({color:0x60656d,roughness:.4,metalness:.8});
+  [-5.6,-4.2,4.2,5.6].forEach(x=>{const b=new THREE.Mesh(new THREE.BoxGeometry(1.3,1.05,.6),chm);b.position.set(x,.53,-RD+.4);G.add(b);const t=new THREE.Mesh(new THREE.BoxGeometry(1.34,.04,.64),top);t.position.set(x,1.07,-RD+.4);G.add(t);});
+  const bench=new THREE.Mesh(new THREE.BoxGeometry(4,.08,.8),new THREE.MeshStandardMaterial({color:0x7a5a3a,roughness:.7}));bench.position.set(0,.95,-RD+.5);G.add(bench);
+  [-1.85,1.85].forEach(x=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.08,.95,.7),top);l.position.set(x,.47,-RD+.5);G.add(l);});
+  // the wall monitor above the bench: the car and its setup sheet (garageMonitor)
+  const mc=document.createElement('canvas');mc.width=1024;mc.height=512;GAR.mon=new THREE.CanvasTexture(mc);GAR.monKey='';
+  const mon=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.6),new THREE.MeshBasicMaterial({map:GAR.mon}));mon.position.set(0,2.75,-RD+.06);G.add(mon);
+  const bez=new THREE.Mesh(new THREE.BoxGeometry(3.36,1.76,.06),new THREE.MeshStandardMaterial({color:0x0b0c0e,roughness:.4}));bez.position.set(0,2.75,-RD+.02);G.add(bez);
+  // tyre racks on the other side
+  const tm=new THREE.MeshStandardMaterial({color:0x111214,roughness:.92}),rim=new THREE.MeshStandardMaterial({color:0x9a9fa6,roughness:.3,metalness:.9}),rack=new THREE.MeshStandardMaterial({color:0x2c3036,roughness:.5,metalness:.6});
+  const tg=new THREE.CylinderGeometry(.34,.34,.27,24),rg=new THREE.CylinderGeometry(.22,.22,.275,16);
+  [-5,-2.6,2.6,5].forEach(z=>{for(let k=0;k<4;k++){const t=new THREE.Mesh(tg,tm);t.position.set(RW-.5,.14+k*.28,z);G.add(t);const r=new THREE.Mesh(rg,rim);r.position.copy(t.position);G.add(r);}
+    const p=new THREE.Mesh(new THREE.BoxGeometry(.06,1.4,.06),rack);p.position.set(RW-.1,.7,z+.45);G.add(p);});
+  G.visible=false;scene.add(G);GAR.g=G;garageMonitor();
+  return G;
+}
+function garageMats(env,int){
+  const set=o=>{const m=o.isMesh&&o.material;if(!m||!m.isMeshStandardMaterial)return;if(!m.envMap!==!env)m.needsUpdate=true;m.envMap=env;m.envMapIntensity=int;};
+  Object.values(MODELS).forEach(w=>w.traverse(set));if(playerCar)playerCar.traverse(set);
+}
+// called every frame after the camera: in the garage while the menu shows the machine step
+function garageTick(dt){
+  const want=state==='menu'&&step==='car';
+  if(want&&!GAR.on){
+    garageBuild();GAR.on=true;GAR.gen=envGen;
+    GAR.save={fog:scene.fog.density,hc:hemi.color.getHex(),hg:hemi.groundColor.getHex(),hi:hemi.intensity,sc:sunL.color.getHex(),si:sunL.intensity,sp:sunL.position.clone(),hd:head.intensity};
+    world.visible=false;scene.fog.density=0;
+    hemi.color.setHex(0xe2e6ee);hemi.groundColor.setHex(0x3a3b40);hemi.intensity=.85;sunL.color.setHex(0xffffff);sunL.intensity=.6;head.intensity=Math.min(head.intensity,.6);
+    if(GAR.env)garageMats(GAR.env,.9);GAR.envT=0;
+  }else if(!want&&GAR.on){
+    GAR.on=false;world.visible=true;if(GAR.g)GAR.g.visible=false;
+    const s=GAR.save;if(s&&GAR.gen===envGen){scene.fog.density=s.fog;hemi.color.setHex(s.hc);hemi.groundColor.setHex(s.hg);hemi.intensity=s.hi;sunL.color.setHex(s.sc);sunL.intensity=s.si;sunL.position.copy(s.sp);head.intensity=s.hd;}
+    if(envTex)garageMats(envTex,envInt);
+  }
+  if(!GAR.on)return;
+  const G=GAR.g;G.visible=true;G.position.set(pl.x,pl.y,pl.z);G.rotation.set(0,pl.th,0);
+  rainMesh.visible=false;sprayMesh.visible=false;
+  // the light from above and a little ahead; the shadow camera follows (gfxFrame keeps this direction)
+  sunL.position.set(pl.x+Math.sin(pl.th)*14+Math.cos(pl.th)*6,pl.y+40,pl.z+Math.cos(pl.th)*14-Math.sin(pl.th)*6);sunL.target.position.set(pl.x,pl.y,pl.z);sunL.target.updateMatrixWorld();
+  // a newly built player car (another machine picked) gets the garage reflections too
+  GAR.envT-=dt;if(GAR.envT<=0){GAR.envT=.5;if(GAR.env)garageMats(GAR.env,.9);}
+  garageMonitor();
+}
 // the 3D view behind the menu: one shot per step, blended smoothly (MCAM.p/l follow the target)
 const MCAM={p:null,l:null,cut:'title',t:0};
 function menuShot(dt){
@@ -4377,7 +4613,7 @@ function nextStep(){const k=STEPS.indexOf(step);if(step==='title')showStep('mode
 function prevStep(){if(step==='opts'){showStep(optsBack);return;}if(step==='prof'){showStep(profBack);return;}const k=STEPS.indexOf(step);showStep(k>0?STEPS[k-1]:'title');}
 function renderSummary(){
   const c=COURSES[sel];
-  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':grWanted(c)?'レース（'+c.laps+'周・ゴースト対戦）':'レース（'+(c.p2p?'片道':c.laps+'周')+'・4台・AI '+aiLv().n+'）'],['マシン',CAR.maker+' '+CAR.name],['コース',c.name],
+  $('summary').innerHTML=[['モード',mode==='free'?'フリー走行':grWanted(c)?'レース（'+c.laps+'周・ゴースト対戦）':'レース（'+(c.p2p?'片道':c.laps+'周')+'・4台・AI '+aiLv().n+'）'],['マシン',CAR.maker+' '+CAR.name],['セッティング',suSummary()],['コース',c.name],
     ['変速',TM==='mt'?(canMT()?'MT マニュアル':'MT（この車は変速なしのため自動）'):'AT オートマ'],['時間帯',TIMES[timeSel].n+(realOn?'（現地）':'')],['天候',WEATHERS[wxSel].n]]
     .map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
 }
@@ -4385,14 +4621,15 @@ function focusSel(q){const b=document.querySelector(q+'[aria-pressed="true"]');i
 function menuKey(e){
   if(e.code==='Escape'||(e.code==='Backspace'&&step!=='title')){if(step!=='title'){e.preventDefault();prevStep();}return;}
   if(e.code==='ArrowLeft'||e.code==='ArrowRight'){const d=e.code==='ArrowRight'?1:-1;
-    if(step==='car'){e.preventDefault();selectCar((carSel+d+CARS.length)%CARS.length);focusSel('.carbtn');initAudio();uiSnd('rev');orbitA+=.9;}
+    if(step==='car'){if(gTab==='setup')return;   // the setup sliders take the arrow keys
+      e.preventDefault();selectCar((carSel+d+CARS.length)%CARS.length);focusSel('.carbtn');initAudio();uiSnd('rev');orbitA+=.9;}
     else if(step==='course'){e.preventDefault();selectCourse((sel+d+COURSES.length)%COURSES.length);focusSel('.course');initAudio();uiSnd('click');}
     else if(step==='mode'){e.preventDefault();setMode(mode==='race'?'free':'race');focusSel('.mtog');}
     else if(step==='tm'){e.preventDefault();setTM(TM==='at'?'mt':'at');focusSel('.tmtog');}
     return;}
   if(e.code==='Enter'||e.code==='Space'){
     const ae=document.activeElement;
-    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SUMMARY'||ae.tagName==='A'))return;
+    if(ae&&((ae.tagName==='INPUT'&&ae.type!=='range')||ae.tagName==='SUMMARY'||ae.tagName==='A'))return;
     if(ae&&ae.tagName==='BUTTON'&&!ae.matches('.carbtn,.course,.pick'))return;   // other buttons click natively
     e.preventDefault();nextStep();
   }
@@ -5379,7 +5616,7 @@ function tyreUpdate(dt,sp,aLat,thr,brk,trac){
     const front=q<2,isLeft=q%2===0,outside=left?!isLeft:isLeft;
     let h=lat*(outside?0.8:0.2)*6.5+bg*(front?0.65:0.35)*4.5;
     if(spin&&(D==='4WD'||(front?D==='FF':D!=='FF')))h+=spin;
-    h*=Math.min(1,sp/8+0.2);
+    h*=Math.min(1,sp/8+0.2)*SU.heat;
     tyreT[q]+=(h-(tyreT[q]-amb)*cool*(1+Math.max(0,tyreT[q]-amb)/90))*dt;tyreT[q]=Math.max(amb-2,Math.min(160,tyreT[q]));
   }
   tyreCalc();
@@ -5638,7 +5875,7 @@ function aiBuild(){
   for(let pass=0;pass<2;pass++)for(let i=N-1;i>=0;i--){const j=(i+1)%N;vcD[i]=Math.min(vcD[i],Math.sqrt(vcD[j]*vcD[j]+2*BR_AI*D.b*ds));}
 }
 function updateAI(dt,active){
-  const hide=mode==='free'&&state!=='menu';
+  const hide=mode==='free'&&state!=='menu'||GAR.on;
   AI.forEach(a=>a.mesh.visible=!hide);
   if(hide)return;
   const pprog=(pl.lap-1)*L+pl.idx*ds;let lmax=HALF-2;
@@ -5681,38 +5918,38 @@ function updatePlayer(dt,canDrive){
   const thr=canDrive&&keys.up,brk=canDrive?keys.down:(state==='finish'&&!FIN.on?1:0);pl.brkIn=brk&&pl.v>0.5?1:0;   // brake lamps: the pedal while rolling forward (held at a standstill it backs up)
 
   const kst=keys.left-keys.right,gst=!kst&&GY.on?gyroSteer():0,st=canDrive?(kst||gst):0;
-  pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6)));
+  pl.steer+=(st-pl.steer)*Math.min(1,dt*(GY.on&&!kst?9:(st?3.5:6))*SU.resp);
   const v=pl.v,sp=Math.abs(v);let a=0;
   const D=CAR.drive;
   slipUpdate(dt,sp);const sl=pl.slip||0;
   // traction: rear/mid drive spins up a little off the line, 4WD bites
   const trac=tractionOf(CAR,sp);
   // turbo lag: early single-turbo cars wait for boost after the throttle opens
-  const kmhP=sp*3.6,gA=gearOf(kmhP),gU=isMT()?Math.max(1,pl.gear):gA,gt=CAR.gearTop[gU-1],neutral=isMT()&&pl.gear===0,rr=kmhP/gt;
+  const kmhP=sp*3.6,gA=gearOf(kmhP),gU=isMT()?Math.max(1,pl.gear):gA,gt=PGT[gU-1],neutral=isMT()&&pl.gear===0,rr=kmhP/gt;
   // MT: rev limiter cuts drive, a gear too tall pulls weakly (less multiplication, low rpm)
-  let mtK=1;if(neutral)mtK=0;else if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,CAR.gearTop[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
+  let mtK=1;if(neutral)mtK=0;else if(isMT()){if(rr>=0.995)mtK=0;else if(gU>gA)mtK=Math.min(1,PGT[gA-1]/gt)*(rr<.35?.55+rr*1.3:1);}
   if(CAR.lag){const r=CAR.red*rr;const tgt=thr&&r>CAR.red*.42?1:0;pl.boost=(pl.boost||0)+(tgt-(pl.boost||0))*Math.min(1,dt*(tgt?1.3:5));}
   const lagK=CAR.lag?0.72+0.36*(pl.boost||0):1;
-  if(thr)a+=v>=0?CAR.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/(CAR.vmax*(1+.05*sl)),2)):(neutral?0:22);
-  if(brk)a+=v>0.5?-CAR.brake*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfK(CAR,sp)-1)):(v>-8?-6:0);
+  if(thr)a+=v>=0?CAR.acc*SU.acc*trac*lagK*mtK*(1-Math.pow(Math.max(v,0)/(CAR.vmax*SU.vmax*(1+.05*sl)),2)):(neutral?0:22);
+  if(brk)a+=v>0.5?-CAR.brake*SU.brk*WEATHERS[wxSel].brake*(0.35+0.65*tyreK)*(1+0.6*(dfP(sp)-1)):(v>-8?-6:0);
   // off-throttle: rolling drag plus engine braking, stronger at high rpm and in low gears (EV: regen)
   if(!thr&&!brk){
     let eb=1.4;
-    if(v>0.5)eb=neutral?0.9:0.9+(CAR.ev||CAR.cvt?1.8*Math.min(1,kmhP/70):2.2*Math.min(1.05,rr)*Math.sqrt(CAR.gearTop[CAR.gears-1]/gt));
+    if(v>0.5)eb=neutral?0.9:0.9+(CAR.ev||CAR.cvt?1.8*Math.min(1,kmhP/70):2.2*Math.min(1.05,rr)*Math.sqrt(PGT[CAR.gears-1]/gt));
     pl.eb=eb-1.4;a-=eb*Math.sign(v);
   }else pl.eb=0;
   // wind: drag works on the airspeed (head/tail wind along the heading); crosswind pushes the car sideways a little
   const wv=windNow(dt),hx=Math.sin(pl.th),hz=Math.cos(pl.th),wAlong=wv.x*hx+wv.z*hz,va=v-wAlong;
-  a-=CAR.k*va*Math.abs(va)*(1-.4*sl);   // in a tow the drag drops (slipUpdate)
+  a-=CAR.k*SU.drag*va*Math.abs(va)*(1-.4*sl);   // in a tow the drag drops (slipUpdate)
   if(wind.ms){const wCross=wv.x*hz-wv.z*hx;pl.windDrift=wCross*Math.abs(wCross)*0.0011*Math.min(1,sp/15);}else pl.windDrift=0;
-  if(offTrack(pl.idx,pl.off))a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*Math.sign(v);
+  if(offTrack(pl.idx,pl.off))a-=(5+sp*0.12)*(D==='4WD'?0.55:1)*(C.model?0.6:1)*SU.off*Math.sign(v);
   pl.v+=a*dt;
   if(CAR.lim&&pl.v>CAR.lim/3.6)pl.v=CAR.lim/3.6;
   scHoldPlayer(dt);
   if(!thr&&!brk&&Math.abs(pl.v)<0.4)pl.v=0;
   // dirty air: right behind a car in a corner, the wings work less (only cars with downforce feel it)
-  const dirty=sl>.15&&cornerAt[pl.idx]>=0?.06*sl*Math.min(1,(dfK(CAR,sp)-1)*4):0;
-  const g=GRIP*tyreK*(D==='FF'&&thr?0.95:1)*dfK(CAR,sp)*(1-dirty);
+  const dirty=sl>.15&&cornerAt[pl.idx]>=0?.06*sl*Math.min(1,(dfP(sp)-1)*4):0;
+  const g=GRIP*SU.grip*tyreK*(D==='FF'&&thr?0.95:1)*dfP(sp)*(1-dirty);
   const k=Math.min(sp/6*CAR.steer,CAR.steer,g/Math.max(sp,1));
   // how hard the tyres are working: cornering at the grip limit, or heavy braking
   const latR=Math.abs(pl.steer)*k*sp/g;
@@ -5725,7 +5962,7 @@ function updatePlayer(dt,canDrive){
      throttle moves it back, and on a rear- or mid-engined car the drive uses up rear grip (power oversteer).
      When the rear cannot hold the corner the heading swings further (oversteer); a stability limit keeps the slip
      under ~32 deg so a keyboard player does not spin. Sliding scrubs speed. */
-  {const wt=Math.max(-.22,Math.min(.22,-a/(9.8*GAME_G)*.3)),gF=g*(1+wt),gR0=g*(1-wt);
+  {const wt=Math.max(-.22,Math.min(.22,-a/(9.8*GAME_G)*.3*(a<0&&brk?SU.wtB:1))),gF=g*(1+wt)*SU.fF,gR0=g*(1-wt)*SU.fR;
    const rwd=D==='FR'||D==='MR'||D==='RR',use=thr&&a>0&&sp>4?Math.min(.92,a/Math.max(gR0,1)*(rwd?1.15:D==='4WD'?.45:0)):0,gR=gR0*Math.sqrt(1-use*use);
    const ks=Math.min(sp/6*CAR.steer,CAR.steer),rF=gF/Math.max(sp,1);
    let r=Math.max(-rF,Math.min(rF,pl.steer*ks*Math.sign(pl.v)));
@@ -5855,7 +6092,7 @@ function updateCamera(dt){
   const realHood=!show&&vid==='cockpit'&&!cab&&HOOD_Z[CAR.id]!=null&&!!(CAR.model&&MODELS[CAR.id]);hoodClip(realHood);
   playerCar.visible=show||FIN.on||!VIEWS[view].fp||cab||realHood;interior.visible=!show&&!FIN.on&&vid==='cockpit'&&!cab;hoodG.visible=interior.visible&&!realHood;cowl.visible=realHood;
   if(playerCar.visible){
-    playerCar.position.set(pl.x,pl.y,pl.z);playerCar.rotation.set(-Math.atan(sl),pl.th,0,'YXZ');
+    playerCar.position.set(pl.x,pl.y,pl.z);playerCar.rotation.set(GAR.on?0:-Math.atan(sl),pl.th,0,'YXZ');
     const d=((pl.th-camTh+Math.PI*3)%(Math.PI*2))-Math.PI;camTh+=d*Math.min(1,dt*(vid==='top'?2.5:4.5));
   }
   if(show){
@@ -5957,7 +6194,7 @@ function sizeHud(){
   const sc=(Math.max(mW,96)-16)/Math.max(maxX-minX,maxZ-minZ);
   mapBase={sc,ox:mW/2-CX*sc,oz:mW/2-CZ*sc};mapBg=null;arrowKey='';
 }
-function gearOf(kmh){const t=CAR.gearTop;for(let g=0;g<t.length;g++)if(kmh<t[g]*0.97)return g+1;return t.length;}
+function gearOf(kmh){const t=PGT;for(let g=0;g<t.length;g++)if(kmh<t[g]*0.97)return g+1;return t.length;}
 function drawGauge(kmh,rpm,gear){
   const c=gc,w=gW,h=gH;if(!w)return;c.clearRect(0,0,w,h);
   const grd=c.createLinearGradient(0,0,0,h);grd.addColorStop(0,'rgba(8,10,20,0)');grd.addColorStop(.35,'rgba(8,10,20,.82)');grd.addColorStop(1,'rgba(8,10,20,.92)');
@@ -6206,6 +6443,7 @@ let gfxSlow=0;
 function gfxFrame(dt){
   const night=timeSel==='night',dusk=timeSel==='dusk';
   const rr=C&&C.terrain;GFX.bloom.strength=night?1.1:dusk?.7:rr?.2:.32;GFX.bloom.threshold=night?.38:dusk?.6:rr?.9:.78;GFX.bloom.radius=.5;
+  if(GAR.on){GFX.bloom.strength=.4;GFX.bloom.threshold=.85;}
   const live=state==='race'||state==='count'||state==='finish',fp=live&&VIEWS[view]&&VIEWS[view].fp;
   const sp=live?Math.max(0,Math.min(1,(Math.abs(pl.v)*3.6-110)/190)):0;
   GFX.grade.uniforms.uSpeed.value+=(sp*(fp?.35:1)-GFX.grade.uniforms.uSpeed.value)*Math.min(1,dt*3);
@@ -6224,7 +6462,10 @@ addEventListener('resize',resize);
 let lastT=performance.now(),hudTick=0,loadTick=0;
 function frame(now){
   const rdt=Math.min(0.05,(now-lastT)/1000);lastT=now;const dt=rdt*fxTimeScale(rdt);
-  if(state==='menu'){
+  if(state==='menu'&&GAR.on){
+    // in the garage the car stands still in its bay, front wheels turned a little like a showroom car
+    pl.v=0;pl.beta=0;pl.steer+=(.32-pl.steer)*Math.min(1,dt*2.5);updateAI(dt,true);
+  }else if(state==='menu'){
     const vd=Math.min(VMAX*0.55,vT[pl.idx]*0.85+6);
     demoS+=vd*dt;if(P2P){const w=wrap(demoS);if(w>(P2P.end-10)*ds&&w<P2P.in0*ds)demoS+=(P2P.in0+4)*ds-w;}const o=sample(demoS,Math.sin(demoS*0.004)*W*0.18,tmp);
     pl.x=o.x;pl.z=o.z;pl.y=o.y;pl.idx=o.i;pl.th=TH[o.i];pl.v=vd;pl.off=0;pl.beta=0;
@@ -6252,9 +6493,9 @@ function frame(now){
   if(popT>0){popT-=dt;if(popT<=0)$('pop').classList.remove('show');}
   if(splitT>0){splitT-=dt;if(splitT<=0)$('split').classList.remove('show');}
   if(state==='replay')updateReplayCam(dt);else updateCamera(dt);
-  updateWeatherFx(dt);
+  updateWeatherFx(dt);garageTick(dt);
   const kmh=Math.abs(pl.v)*3.6,gear=pl.v<-0.3?'R':(CAR.cvt||CAR.ev)?'D':state==='replay'?rpGear:isMT()?(pl.gear||'N'):gearOf(kmh),g=typeof gear==='number'?gear:1;
-  const IDLE=s2P().idle||950;let rpm=Math.max(IDLE,CAR.red*kmh/CAR.gearTop[g-1]);
+  const IDLE=s2P().idle||950;let rpm=Math.max(IDLE,CAR.red*kmh/PGT[g-1]);
   // MT rev limiter: the needle bounces just under the red line
   if((isMT()||state==='replay')&&rpm>=CAR.red*.99)rpm=CAR.red*(.975+.025*Math.abs(Math.sin(performance.now()/28)));
   // CVT: engine holds near its power band under throttle while the ratio does the work
