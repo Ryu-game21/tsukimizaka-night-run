@@ -4511,7 +4511,7 @@ function menuShot(dt){
   if(st==='course'){P=[pl.x-fx*26+rx*30,pl.y+42,pl.z-fz*26+rz*30];Lk=[pl.x+fx*24,pl.y,pl.z+fz*24];fov=50;}
   else if(st==='tm'||st==='cond'){P=[pl.x-fx*6.6+rx*1.2,pl.y+1.5,pl.z-fz*6.6+rz*1.2];Lk=[pl.x+fx*5,pl.y+.8,pl.z+fz*5];fov=56;}
   else if(st==='go'){const w=Math.sin(orbitA*.6)*.6;P=[pl.x+fx*5.4+rx*(2.4+w),pl.y+.55,pl.z+fz*5.4+rz*(2.4+w)];Lk=[pl.x-fx*.6,pl.y+.55,pl.z-fz*.6];fov=42;}
-  else if(st==='car'){const a=pl.th+Math.PI*.6+Math.sin(orbitA)*1.25,r=5.6;P=[pl.x+Math.sin(a)*r,pl.y+.95,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.55,pl.z];fov=40;}
+  else if(st==='car'){const a=pl.th+Math.PI*.6+Math.sin(orbitA)*1.25,r=6.6;P=[pl.x+Math.sin(a)*r,pl.y+1.15,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.5,pl.z];fov=42;}
   else if(st==='title'){const a=pl.th+Math.PI*.85+Math.sin(orbitA*.7)*1.4,r=10.5;P=[pl.x+Math.sin(a)*r,pl.y+3.4,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.6,pl.z];fov=48;}
   else{const a=pl.th+Math.PI*.75+Math.sin(orbitA)*1.1,r=7.2;P=[pl.x+Math.sin(a)*r,pl.y+1.7,pl.z+Math.cos(a)*r];Lk=[pl.x,pl.y+.65,pl.z];fov=46;}
   const k=reduceMotion?1:1-Math.exp(-dt*2.4);
