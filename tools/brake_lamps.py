@@ -23,7 +23,7 @@ NOTLAMP = re.compile(r'disc|disk|calip|bump|handbrake|interior|int_', re.I)
 # cars whose lamps the colour test misses or mistakes (dark lenses, red paint, lamps in a shared atlas): the lamp
 # materials by name (checked by eye on work/brk/<id>.png)
 MATS = {'alfa33': 'rear_lights', 'vantage': 'light_red', 'gt500': 'rearlight', 'f40lb': 'tailight', 'p930': '930_lights$',
-        'f458': 'tail_light', 'lfa': 'RED_GLASS', 'laferrari': 'break_lights_glasses|tail_lights', 'r34': '^Material.00[12]$', 'rx7': 'Material.019$', 's2000': '^Material$|Material.007$', 'a90': 'TOYOTA_SUPRA_MAIN_LIGHT',
+        'f458': 'tail_light', 'lfa': 'RED_GLASS', 'laferrari': 'break_lights_glasses|tail_lights', 'r34': '^Material.00[12]$', 'rx7': 'Material.019$', 's2000': '^Material$|Material.007$', 'a90': 'TOYOTA_SUPRA_MAIN_LIGHT', 'gdb': '^Material.012$',
         'model3': 'breaklight|rear_light', 'mclarenf1': 'brakelight|rear_lamp', 'imola': 'RED_GLASS|LightA', 's30z': 'Material.006|Material.001$'}
 # read off the gridded back view by hand: [x, y, w, h] of the left lamp (z from the body there)
 MANUAL = {'f458': [0.77, 0.855, 0.18, 0.18]}

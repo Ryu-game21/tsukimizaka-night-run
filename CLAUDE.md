@@ -63,9 +63,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 - `const CAB={` … 運転席視点の目の位置 `[x,y,z]`（車の座標、右ハンドルは -x）。3D モデルの本物の車内にカメラを置く
   （車体のロール/ピッチと一緒に動く、運転中はガラスを薄くする）。内装がないモデルは null で、従来の描いたダッシュボードを使う。
   車を追加したら、真上からの断面と運転席からの画像で座席を確かめて決める。
-  車内のないモデル（インプレッサ）は描いたダッシュボード＋`HOOD_Z[車]`（車の座標 z）より前だけ残した本物のモデル（ボンネット・フェンダー・ミラー）を見せる（`hoodClip`、自分の車のマテリアルだけ複製してクリッピング平面）。
-  `HOOD_Z` は車ごとに運転席からの描画で決める（今は gdb .95 だけ。フロントガラスの前端か、車体の高さが立ち上がる所。R34・S2000 は 2026-11-14 に内装つきのモデルへ替えたので外した）。目の高さは `CARS` の `eye`（描いたダッシュボードの車は eye−0.06、車の中心から 0.35m 後ろ。2026-11-14 ユーザー「前すぎる、少し下げたい」。ダッシュボードの色も暗すぎたので濃い灰色に）。
-  運転席のガラス（`cabGlass`）：透明（BLEND）でガラスらしい名前か暗い色のもの、または glTF の transmission を持つもの（名前に関係なく。r128 では内側からほぼ不透明に見える）を、運転中だけほぼ透明の複製にする。ライト類は名前で除外。窓が不透明な普通の素材のモデルは `CAB_GLASS[車]` にマテリアル名（rx7：Material.003、r34：Windshield）。2026-11-14 に全33台の運転席を描画して前が見えることを確認。
+  車内のないモデル（今はない。2026-11-14 まではインプレッサ）は描いたダッシュボード＋`HOOD_Z[車]`（車の座標 z）より前だけ残した本物のモデル（ボンネット・フェンダー・ミラー）を見せる（`hoodClip`、自分の車のマテリアルだけ複製してクリッピング平面）。
+  `HOOD_Z` は車ごとに運転席からの描画で決める（今は空。フロントガラスの前端か、車体の高さが立ち上がる所。R34・S2000・インプレッサは 2026-11-14 に内装つきのモデルへ替えたので外した）。目の高さは `CARS` の `eye`（描いたダッシュボードの車は eye−0.06、車の中心から 0.35m 後ろ。2026-11-14 ユーザー「前すぎる、少し下げたい」。ダッシュボードの色も暗すぎたので濃い灰色に）。
+  運転席のガラス（`cabGlass`）：透明（BLEND）でガラスらしい名前か暗い色のもの、または glTF の transmission を持つもの（名前に関係なく。r128 では内側からほぼ不透明に見える）を、運転中だけほぼ透明の複製にする。ライト類は名前で除外。窓が不透明な普通の素材のモデルは `CAB_GLASS[車]` にマテリアル名（rx7：Material.003、r34：Windshield、gdb：Material.007・Material.010）。2026-11-14 に全33台の運転席を描画して前が見えることを確認。
 - `const XXX_DATA={pts:[...],hw:[...],bank:[...],rw:[...]}` … コースの中心線（x,y,z を 4m 間隔で平らに並べたもの）、
   半幅、バンク（横方向 1m あたりの高さ変化）、任意で壁の距離 `rw`。
 - `const COURSES=[` … コース一覧（`pts:XXX_DATA.pts` などで参照、`W` `N` `runoff` `laps` `env` `credit`）。
@@ -196,10 +196,10 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
 Sketchfab の無料の車・コースには、ゲームやメーカーのコンフィギュレーターから取り出したもの、他人のモデルの塗り直しが多い（付いている CC ライセンスは当てにならない）。**新しいモデルは、作者のプロフィールと説明欄で「自分で作った」と分かるものだけを使う**（API `api.sketchfab.com/v3/users/<uid>` の biography、`/v3/models/<uid>` の description）。
 - 使わない作者：Ddiaz Design（本人が「ゲームやコンフィギュレーターのモデル」と明記）、outpiston・Game_mode（「Gran Turismo・Forza などから」）、Alex.Ka.（ゲームのモデルの改造）、Tyler_Dave＝Dave Love / Dave Bored（「他人のモデルを塗り直し」、コース15本とウラカン GT3・SLS SC）、SparkyStore のジェスコ（PUBG Mobile から）。vecarz（heynic）は他人のモデルを整えて再配布していることがある（R34 は Ddiaz 由来だった）。
 - 自分で作っている作者：Lexyc16、Martin Trafas（TinoD2）、Lionsharp Studios、Ipatov Kirill（nesya100）、mrgesy、Jiaxing（saitoyang）、zxargon（WastingMyCars）、MAC ULT ARTS、Arjun.JS、mc010699（授業の課題）。
-- 2026-11-14 に差し替え済み（id はそのまま、記録も引き継ぎ）：r34（Lexyc16 → 同日に内装つきの Arjun.JS へ）・a90 → スープラ RZ JZA80（Martin Trafas）・vettegs → コルベット C7（Martin Trafas）・nsxr → NSX NA1（Lexyc16）・s2000（zxargon → 同日に内装つきの mc010699 へ）・rx7（Lexyc16）・gdb（MAC ULT ARTS）。
+- 2026-11-14 に差し替え済み（id はそのまま、記録も引き継ぎ）：r34（Lexyc16 → 同日に内装つきの Arjun.JS へ）・a90 → スープラ RZ JZA80（Martin Trafas）・vettegs → コルベット C7（Martin Trafas）・nsxr → NSX NA1（Lexyc16）・s2000（zxargon → 同日に内装つきの mc010699 へ）・rx7（Lexyc16）・gdb（MAC ULT ARTS → 同日、内装つきを探して初代 GC8 セダンの chwashere123 へ。車も「インプレッサ WRX STi バージョンVI」1999年・5速MT に変更、ユーザーの選択。車内の黒い素材 Material.013 は model.json で少し明るくした）。
   重いモデル（コルベット 107万三角形など）は gltfpack（meshoptimizer を GitHub から取ってビルド、`-si <比率> -noq -km -kn`）で減らしてから optimize2 に通した（optimize2 の格子クラスタリングは UV の継ぎ目で止まり、ほとんど減らない）。
 - まだ問題のある車：gt4rs・lfa・mc20cielo・f458・gtr3・jesko・imola（Ddiaz、同じ車種の代わりなし）、evo10・nsx 以外の Game_mode / outpiston、mclarenf1、hgt3、slssc、コース15本（地図データから作り直す方針）。
-- 内装つきの候補で使わなかったもの：R34 の AzzyLino（形が粗い）・Pooya_dh（内装なし）、インプレッサの iammoney45（内装なし）。ファイルは C:\ゲーム\車 に置いてある（ユーザーのパソコン、使用中／使っていない／候補で整理）。
+- 内装つきの候補で使わなかったもの：R34 の AzzyLino（形が粗い）・Pooya_dh（内装なし）、インプレッサの iammoney45（内装なし）・MACULTARTS の GC8（内装なし）・savelliy07（部品名 Xray_/s15_misc でゲームからの抜き出しらしい）・akashi.3d（作者が他人のモデルが元と明記、部品名 022_Subaru…/Xray_CALLIPE）。ファイルは C:\ゲーム\車 に置いてある（ユーザーのパソコン、使用中／使っていない／候補で整理）。
 - ダウンロードはユーザーのアプリ内ブラウザ（Sketchfab にログイン）で S3 の署名つき URL を開いてダウンロードフォルダに保存し、`device_stage_files` で取り込む（クラウドの作業環境とパソコンのシェルからは Sketchfab の S3 に届かない）。
 
 ## 車を追加する手順（Sketchfab の GLB）
