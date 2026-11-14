@@ -190,6 +190,16 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   `data/users/<uid>/save` = `{players:{<名前>:{ach,at}}, last}` にも保存し（`achSave` から数秒まとめて）、開いたときに端末のデータと合わせる（解除済み・マップは和、数値は大きいほう、デイリー/ウィークリー/連続日数は新しい期間）。
   ベストタイムは共有ランキングの自分の行から端末に戻す。新しい端末の名前入力には前回の名前（`last`）が入る。2026-10-20、別の端末/アプリで開いて実績が見えなくなった件の対策。
 
+## モデルの出どころ（2026-11-14 の調査、ユーザーの指示で差し替え中）
+
+Sketchfab の無料の車・コースには、ゲームやメーカーのコンフィギュレーターから取り出したもの、他人のモデルの塗り直しが多い（付いている CC ライセンスは当てにならない）。**新しいモデルは、作者のプロフィールと説明欄で「自分で作った」と分かるものだけを使う**（API `api.sketchfab.com/v3/users/<uid>` の biography、`/v3/models/<uid>` の description）。
+- 使わない作者：Ddiaz Design（本人が「ゲームやコンフィギュレーターのモデル」と明記）、outpiston・Game_mode（「Gran Turismo・Forza などから」）、Alex.Ka.（ゲームのモデルの改造）、Tyler_Dave＝Dave Love / Dave Bored（「他人のモデルを塗り直し」、コース15本とウラカン GT3・SLS SC）、SparkyStore のジェスコ（PUBG Mobile から）。vecarz（heynic）は他人のモデルを整えて再配布していることがある（R34 は Ddiaz 由来だった）。
+- 自分で作っている作者：Lexyc16、Martin Trafas（TinoD2）、Lionsharp Studios、Ipatov Kirill（nesya100）、mrgesy、Jiaxing（saitoyang）、zxargon（WastingMyCars）、MAC ULT ARTS。
+- 2026-11-14 に差し替え済み（id はそのまま、記録も引き継ぎ）：r34（Lexyc16）・a90 → スープラ RZ JZA80（Martin Trafas）・vettegs → コルベット C7（Martin Trafas）・nsxr → NSX NA1（Lexyc16）・s2000（zxargon）・rx7（Lexyc16）・gdb（MAC ULT ARTS）。
+  重いモデル（コルベット 107万三角形など）は gltfpack（meshoptimizer を GitHub から取ってビルド、`-si <比率> -noq -km -kn`）で減らしてから optimize2 に通した（optimize2 の格子クラスタリングは UV の継ぎ目で止まり、ほとんど減らない）。
+- まだ問題のある車：gt4rs・lfa・mc20cielo・f458・gtr3・jesko・imola（Ddiaz、同じ車種の代わりなし）、evo10・nsx 以外の Game_mode / outpiston、mclarenf1、hgt3、slssc、コース15本（地図データから作り直す方針）。
+- ダウンロードはユーザーのアプリ内ブラウザ（Sketchfab にログイン）で S3 の署名つき URL を開いてダウンロードフォルダに保存し、`device_stage_files` で取り込む（クラウドの作業環境とパソコンのシェルからは Sketchfab の S3 に届かない）。
+
 ## 車を追加する手順（Sketchfab の GLB）
 
 作業用の `work/`（.gitignore 済み）に GLB を置いて進める。
