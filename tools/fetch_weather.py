@@ -67,27 +67,43 @@ def main():
     url = ('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
            '&current=temperature_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day'
            '&daily=sunrise,sunset&timezone=auto&wind_speed_unit=ms&forecast_days=1')
-    doc = {'at': int(time.time() * 1000), 'src': 'open-meteo', 'courses': {}}
-    try:
-        with urllib.request.urlopen(url, timeout=30) as r:
-            j = json.load(r)
-        if isinstance(j, dict) and j.get('error'):
-            raise ValueError(j.get('reason') or 'error')
-        courses = parse(j if isinstance(j, list) else [j])
-        if not courses:
-            raise ValueError('no data')
-        doc.update(status='ok', msg='', courses=courses)
-    except urllib.error.HTTPError as e:
-        reason = ''
+    # Retry network failures (2026-11-14: TLS handshakes from the Actions runners to Open-Meteo timed out on and
+    # off, then 4 hours in a row). HTTP 4xx (incl. 429 = limit) and bad data are not retried; 5xx is.
+    waits = [5, 15]
+    for n in range(len(waits) + 1):
+        doc = {'at': int(time.time() * 1000), 'src': 'open-meteo', 'courses': {}}
+        retry = False
         try:
-            reason = json.loads(e.read().decode()).get('reason', '')
-        except Exception:
-            pass
-        lim = e.code == 429 or 'limit' in reason.lower()
-        doc.update(status='limit' if lim else 'error', msg=reason or ('HTTP %d' % e.code))
-    except Exception as e:
-        lim = 'limit' in str(e).lower()
-        doc.update(status='limit' if lim else 'error', msg=str(e)[:200])
+            with urllib.request.urlopen(url, timeout=20) as r:
+                j = json.load(r)
+            if isinstance(j, dict) and j.get('error'):
+                raise ValueError(j.get('reason') or 'error')
+            courses = parse(j if isinstance(j, list) else [j])
+            if not courses:
+                raise ValueError('no data')
+            doc.update(status='ok', msg='', courses=courses)
+        except urllib.error.HTTPError as e:
+            reason = ''
+            try:
+                reason = json.loads(e.read().decode()).get('reason', '')
+            except Exception:
+                pass
+            lim = e.code == 429 or 'limit' in reason.lower()
+            doc.update(status='limit' if lim else 'error', msg=reason or ('HTTP %d' % e.code))
+            retry = not lim and e.code >= 500
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            lim = 'limit' in str(e).lower()
+            doc.update(status='limit' if lim else 'error', msg=str(e)[:200])
+            retry = not lim
+        except Exception as e:
+            lim = 'limit' in str(e).lower()
+            doc.update(status='limit' if lim else 'error', msg=str(e)[:200])
+        if doc['status'] == 'ok' or not retry or n == len(waits):
+            break
+        print('try %d failed (%s), retrying in %ds' % (n + 1, doc['msg'], waits[n]), file=sys.stderr)
+        time.sleep(waits[n])
+    if n:
+        print('tries:', n + 1, file=sys.stderr)
     if doc['status'] != 'ok':
         # a failed run keeps the last good courses/at in the shared doc: write it with ArtifactData "update"
         doc = {'status': doc['status'], 'msg': doc['msg'], 'checked': doc['at']}

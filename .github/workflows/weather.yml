@@ -15,7 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: fetch
-        run: python3 tools/fetch_weather.py /tmp/now.json || true
+        # a failed fetch still saves now.json (status limit/error) so the shared doc says why; the warning makes it visible on GitHub
+        run: python3 tools/fetch_weather.py /tmp/now.json || echo "::warning title=weather::$(head -c 300 /tmp/now.json)"
       - name: save to the weather branch
         run: |
           git config user.name 'weather-bot'
