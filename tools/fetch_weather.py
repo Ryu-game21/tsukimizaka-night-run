@@ -71,8 +71,18 @@ def main():
            '&daily=sunrise,sunset&timezone=auto&wind_speed_unit=ms&forecast_days=1')
     doc = {'at': int(time.time() * 1000), 'src': 'open-meteo', 'courses': {}}
     try:
-        with urllib.request.urlopen(url, timeout=30) as r:
-            j = json.load(r)
+        # GitHub's runners sometimes time out on the TLS handshake (2026-11-15): try up to 4 times, a little apart
+        for k in range(4):
+            try:
+                with urllib.request.urlopen(url, timeout=30) as r:
+                    j = json.load(r)
+                break
+            except urllib.error.HTTPError:
+                raise
+            except Exception:
+                if k == 3:
+                    raise
+                time.sleep(10 * (k + 1))
         if isinstance(j, dict) and j.get('error'):
             raise ValueError(j.get('reason') or 'error')
         courses = parse(j if isinstance(j, list) else [j])
