@@ -2325,7 +2325,7 @@ const wheelSpin=new THREE.Group(),interior=new THREE.Group(),hoodG=new THREE.Gro
 camera.add(interior,hoodG);
 const hoodMat=new THREE.MeshLambertMaterial({color:0x8a1520});
 {
-  const dark=new THREE.MeshLambertMaterial({color:0x121319});
+  const dark=new THREE.MeshLambertMaterial({color:0x2c2f37,emissive:0x0e0f13});   // dark grey, not black: readable at night too (2026-11-14)
   const hood=new THREE.Mesh(new THREE.BoxGeometry(1.9,0.14,2.6),hoodMat);hood.position.set(0,-0.66,-2.45);hood.rotation.x=0.05;hoodG.add(hood);
   const bulge=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.06,2.4),hoodMat);bulge.position.set(0,-0.57,-2.5);bulge.rotation.x=0.05;hoodG.add(bulge);
   const dash=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.36,0.7),dark);dash.position.set(0,-0.56,-0.95);interior.add(dash);
@@ -2336,7 +2336,7 @@ const hoodMat=new THREE.MeshLambertMaterial({color:0x8a1520});
   for(const s of[-1,1]){const pil=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.5,0.12),dark);pil.position.set(s*0.98,0.05,-0.82);pil.rotation.set(-0.5,0,s*-0.32);interior.add(pil);}
   const mirror=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.09,0.03),new THREE.MeshLambertMaterial({color:0x22242c}));mirror.position.set(0,0.48,-0.7);interior.add(mirror);
   const wheelTilt=new THREE.Group();wheelTilt.position.set(0,-0.47,-0.58);wheelTilt.rotation.x=-0.42;interior.add(wheelTilt);wheelTilt.add(wheelSpin);
-  const wm=new THREE.MeshLambertMaterial({color:0x1b1c22});
+  const wm=new THREE.MeshLambertMaterial({color:0x2c2e36,emissive:0x0a0b0e});
   wheelSpin.add(new THREE.Mesh(new THREE.TorusGeometry(0.2,0.024,8,36),wm));
   wheelSpin.add(new THREE.Mesh(new THREE.BoxGeometry(0.38,0.035,0.02),wm));
   const sp2=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.19,0.02),wm);sp2.position.y=-0.095;wheelSpin.add(sp2);
@@ -6178,8 +6178,9 @@ function updateCamera(dt){
     fovT=Math.max(9,Math.min(55,2*Math.atan(9/dist)*180/Math.PI));snap=true;
   }else{
     if(!(cab&&seatCamera(sx,sy))){
-      const h=CAR.eye,ss=seatSide(),lx=fz*ss,lz=-fx*ss;
-      camera.position.set(pl.x+lx+sx,pl.y+h+sy,pl.z+lz);
+      // drawn dashboard: the seat sits a little behind the car's centre and the eye a touch lower (2026-11-14, user: too far forward)
+      const h=CAR.eye-0.06,ss=seatSide(),bk=0.35,lx=fz*ss-fx*bk,lz=-fx*ss-fz*bk;
+      camera.position.set(pl.x+lx+sx,pl.y+h+sy-sl*bk,pl.z+lz);
       camera.lookAt(pl.x+lx+fx*10,pl.y+h-0.12+sl*10,pl.z+lz+fz*10);
     }
     camera.rotateZ(-pl.steer*Math.min(1,Math.abs(pl.v)/40)*0.025);
