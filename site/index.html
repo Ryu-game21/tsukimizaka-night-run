@@ -2596,6 +2596,8 @@ function cabAnchor(){
 }
 // from inside, tinted glass would black out the view: see-through glass on the player's car while in the seat
 const glassRe=/glass|window|wind|vitre|scheib/i,notGlass=/light|lamp|tembus|logo|engine/i;
+// models whose windows are an opaque material (no glass at all): those materials count as glass from the seat
+const CAB_GLASS={rx7:['Material.003']};
 // a faint courtesy light so the dashboard stays readable at night (reaches only ~1.5 m)
 const cabLight=new THREE.PointLight(0xc8d4ff,0.5,1.6,2);cabLight.position.set(0,0.1,0.2);cabLight.visible=false;camera.add(cabLight);
 function cabGlass(on){
@@ -2604,9 +2606,16 @@ function cabGlass(on){
   playerCar.traverse(o=>{
     if(o.isSprite){o.visible=!on;return;}
     if(!o.isMesh)return;const m=o.userData.glassOrig||o.material;
-    if(!m||Array.isArray(m)||!m.transparent||(m.opacity<0.45&&!m.transmission)||notGlass.test(m.name||''))return;
-    if(!(glassRe.test(m.name||'')||m.color&&m.color.r+m.color.g+m.color.b<0.45))return;
-    if(!o.userData.glassOrig){o.userData.glassOrig=m;const g=m.clone();g.opacity=m.map?0.05:Math.min(0.12,m.opacity);if(g.transmission)g.transmission=0;g.userData={};o.userData.glassCab=g;}
+    // glass = a see-through-ish material (alpha blend, or the glTF transmission extension: r128 renders transmission
+    // glass nearly opaque from inside) named like glass or dark-tinted, or any transmission material (2026-11-14: the
+    // new models name theirs Material.007 etc.); lamps by name stay. Already near-clear glass is left alone.
+    if(!m||Array.isArray(m))return;
+    const forced=(CAB_GLASS[CAR.id]||[]).includes(m.name);
+    if(!forced){if(notGlass.test(m.name||''))return;
+    const tr=(m.transmission||0)>0.05,dark=m.color&&m.color.r+m.color.g+m.color.b<0.45;
+    if(!(tr||m.transparent&&(glassRe.test(m.name||'')||dark)))return;
+    if(!tr&&m.opacity<0.18)return;}
+    if(!o.userData.glassOrig){o.userData.glassOrig=m;const g=m.clone();g.transparent=true;g.depthWrite=false;g.opacity=m.map?0.05:Math.min(0.12,m.opacity);if(g.transmission)g.transmission=0;g.userData={};o.userData.glassCab=g;}
     o.material=on?o.userData.glassCab:o.userData.glassOrig;
   });
 }
@@ -2623,8 +2632,9 @@ function seatCamera(sx,sy){
 }
 // drawn-dashboard cars: everything of the player's model behind the windscreen base (car z < HOOD_Z) is clipped away,
 // so from the seat only the real bonnet, wings and lamps show. Player-only material copies (the models share theirs).
-// HOOD_Z per car, checked by eye (none needed now: every car has a real interior)
-const HOOD_Z={},hoodPlane=new THREE.Plane(),_hn=new THREE.Vector3();
+// HOOD_Z per car (the windscreen base: the glass's front edge or where the body profile rises), checked by eye.
+// 2026-11-14: R34 (Lexyc16), S2000 (zxargon) and Impreza (MAC ULT ARTS) models have no interior
+const HOOD_Z={r34:.85,s2000:.45,gdb:.95},hoodPlane=new THREE.Plane(),_hn=new THREE.Vector3();
 function hoodClip(on){
   if(on){renderer.localClippingEnabled=true;const z0=HOOD_Z[CAR.id]||0.6;_hn.set(Math.sin(pl.th),0,Math.cos(pl.th));
     hoodPlane.normal.copy(_hn);hoodPlane.constant=-(_hn.x*(pl.x+_hn.x*z0)+_hn.z*(pl.z+_hn.z*z0));}
