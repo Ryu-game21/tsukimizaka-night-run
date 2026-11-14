@@ -2579,7 +2579,7 @@ function rigDrive(obj,dt,wb,steerIn,gain,dy){
 /* ---------- driver's seat: the camera sits at each car's own driver eye point, inside the model's real cabin ----------
    [x,y,z] in car space (m; +x = left, +z = nose). Right-hand-drive cars sit at -x. null = the model has no usable
    interior (the simple dashboard drawn on the camera is used instead, at the car's own seat and eye height). */
-const CAB={nsxr:[-0.34,0.95,-0.15],s30z:[-0.39,1.0,-0.45],m3e30:[0.38,1.05,-0.25],s180sx:[-0.36,1.08,-0.4],r34:null,a90:[0.4,1.05,-0.35],
+const CAB={nsxr:[-0.34,0.95,-0.15],s30z:[-0.39,1.0,-0.45],m3e30:[0.38,1.05,-0.25],s180sx:[-0.36,1.08,-0.4],r34:null,a90:[-0.38,1.05,-0.35],
   p930:[0.36,1.0,-0.3],gt3rs:[0.36,1.08,-0.38],alfa33:[0.29,0.82,-0.11],mclarenf1:[0,0.95,0],challenger:[0.4,1.1,-0.3],gt500:[0.4,1.12,-0.38],
   ae86:[-0.37,1.05,-0.25],rx7:[0.37,0.98,-0.35],gdb:null,  hgt3:[0.33,0.9,0.08],lpi8004:[0.38,0.88,-0.1],gryaris:[-0.33,1.12,-0.18],evo10:[0.35,1.12,-0.15],vantage:[0.4,1.0,-0.37],gt4rs:[0.39,1.02,-0.22],
   lfa:[0.41,0.97,-0.35],vettegs:[0.38,0.98,-0.45],civicbtcc:[-0.27,1.05,-0.28],f40lb:[0.41,0.9,0],mc20cielo:[0.39,0.92,-0.05],
