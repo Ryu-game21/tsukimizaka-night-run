@@ -4,7 +4,8 @@
 name: weather
 on:
   schedule:
-    - cron: '20 * * * *'
+    # three times an hour: GitHub runs scheduled jobs late and sometimes skips them, so one missed run is not an hour lost
+    - cron: '5,25,45 * * * *'
   workflow_dispatch:
 permissions:
   contents: write

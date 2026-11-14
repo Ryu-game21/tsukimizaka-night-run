@@ -2899,7 +2899,7 @@ function parseOpenMeteo(arr){
     const t=mins(now),a=mins(sr),b=mins(ss);
     const time=(t!=null&&a!=null&&b!=null&&(Math.abs(t-a)<=50||Math.abs(t-b)<=50))?'dusk':(cu.is_day?'day':'night');
     out[id]={wx:wmoToWx(cu.weather_code,cu.cloud_cover,cu.precipitation),time,code:cu.weather_code,temp:cu.temperature_2m,wind:cu.wind_speed_10m,
-      dir:cu.wind_direction_10m,gust:cu.wind_gusts_10m,local:(now||'').slice(11,16)};});
+      dir:cu.wind_direction_10m,gust:cu.wind_gusts_10m,local:(now||'').slice(11,16),sr:a,ss:b,off:typeof r.utc_offset_seconds==='number'?r.utc_offset_seconds:null};});
   return out;
 }
 async function fetchRealDirect(){
@@ -2917,7 +2917,7 @@ async function fetchRealDirect(){
 function realStatus(st,msg){REAL=Object.assign({},REAL||{courses:{}},{status:st,msg,checked:Date.now()});realChanged();}
 // the shared store copy (Claude build) or the timer (Netlify build)
 function startReal(){
-  if(sdb){
+  if(sdb&&!sdb.vercel){
     if(realSub)return;
     try{realSub=sdb.doc('weather/now').onSnapshot(s=>{
       const d=s&&s.exists?s.data():null;
@@ -2926,12 +2926,18 @@ function startReal(){
       realChanged();},()=>{});}catch(e){}
     return;
   }
-  if(shared!=='off')return;   // still finding out which build this is
+  if(!sdb&&shared!=='off')return;   // still finding out which build this is (the Vercel build fetches by itself)
   if(realTimer)return;
   const due=!REAL||!REAL.at||Date.now()-REAL.at>REAL_EVERY-5000;if(due)fetchRealDirect();
   realTimer=setInterval(()=>{if(realOn)fetchRealDirect();},REAL_EVERY);
 }
-function realFor(id){const r=REAL&&REAL.courses&&REAL.courses[id];return r&&WEATHERS[r.wx]&&TIMES[r.time]?r:null;}
+// time of day at the course right now, from its sunrise/sunset and UTC offset (older data without them: the time when it was fetched)
+function todNow(r){
+  if(typeof r.sr!=='number'||typeof r.ss!=='number'||typeof r.off!=='number')return r.time;
+  const t=((Math.floor(Date.now()/60000+r.off/60))%1440+1440)%1440,near=(x,y)=>Math.min(Math.abs(x-y),1440-Math.abs(x-y))<=50;
+  return near(t,r.sr)||near(t,r.ss)?'dusk':(t>r.sr&&t<r.ss?'day':'night');
+}
+function realFor(id){const r=REAL&&REAL.courses&&REAL.courses[id];if(!r||!WEATHERS[r.wx])return null;const t=todNow(r);return TIMES[t]?Object.assign({},r,{time:t}):null;}
 // what the next run uses: the live conditions when real weather is on (and known), else the menu choice
 function applyCondition(){
   const r=realOn&&C?realFor(C.id):null;
@@ -2947,7 +2953,7 @@ function windNow(dt){   // gusts: the wind breathes between its mean and gust sp
   if(!wind.ms)return {x:0,z:0};windPh+=dt*(0.35+Math.random()*0.1);
   const f=1+Math.max(0,Math.sin(windPh)*0.5+Math.sin(windPh*2.7)*0.5)*((wind.gust/wind.ms)-1)*0.8;return {x:wind.x*f,z:wind.z*f};
 }
-let realSig='';
+let realSig='';setInterval(()=>{if(realOn&&REAL)realChanged();},60000);
 function realChanged(){
   renderRealInfo();
   if(!realOn||!C)return;
@@ -2958,14 +2964,14 @@ const ago=ms=>{const m=Math.round(ms/60000);return m<1?'たった今':m<60?m+'�
 function realLine(id){
   const r=realFor(id);if(!r)return null;
   const loc=REAL_LOC[id]&&REAL_LOC[id][2];
-  return `${loc?loc+'（'+COURSES.find(c=>c.id===id).name+'の天気）':'現地'} ${r.local||''} ・ ${WMO_JA(r.code)}（${WEATHERS[r.wx].n}・${TIMES[r.time].n}）・ ${r.temp!=null?r.temp.toFixed(1)+'°C':'—'} ・ 風 ${dirName(r.dir)} ${(+r.wind).toFixed(1)}m/s（突風 ${(+r.gust).toFixed(1)}m/s）`;
+  return `${loc?loc+'（'+COURSES.find(c=>c.id===id).name+'の天気）':'現地'} ${r.local?r.local+'の観測':''} ・ ${WMO_JA(r.code)}（${WEATHERS[r.wx].n}・${TIMES[r.time].n}）・ ${r.temp!=null?r.temp.toFixed(1)+'°C':'—'} ・ 風 ${dirName(r.dir)} ${(+r.wind).toFixed(1)}m/s（突風 ${(+r.gust).toFixed(1)}m/s）`;
 }
 function realWarn(){
   if(!REAL)return '天候データを取得中…';
   if(REAL.status==='limit')return '天候データ（Open-Meteo）の取得回数が上限に達しました。しばらく新しいデータを取れないため、'+(REAL.at?ago(Date.now()-REAL.at)+'のデータで走ります。':'リアル天候は使えません。');
   if(REAL.status==='error')return '天候データを取得できませんでした（'+(REAL.msg||'不明なエラー')+'）。'+(REAL.at?ago(Date.now()-REAL.at)+'のデータで走ります。':'');
   if(REAL.status==='nodata')return '天候データがまだ届いていません（1時間ごとに更新されます）。';
-  if(REAL.at&&Date.now()-REAL.at>3*3600*1000)return '天候データが'+ago(Date.now()-REAL.at)+'から更新されていません。';
+  if(REAL.at&&Date.now()-REAL.at>90*60*1000)return '天候データが'+ago(Date.now()-REAL.at)+'から更新されていません（最後の観測の天気で走ります。昼・夕方・夜は今の時刻に合わせます）。';
   return '';
 }
 function renderRealInfo(){
@@ -4033,7 +4039,7 @@ function vdbMake(){
   const emit=()=>{const snap={docs:Object.keys(docs).map(id=>({id,data:()=>docs[id]}))};subs.forEach(f=>f(snap));};
   const poll=async()=>{try{const r=await fetch('/api/lb',{cache:'no-store'});if(!r.ok)return;const j=await r.json();docs=j.docs||{};if(UID&&mineAt>Date.now()-30000&&myDoc)docs[UID]=myDoc;emit();}catch(e){}};
   let mineAt=0;
-  return{
+  return{vercel:true,
     collection:p=>({onSnapshot(cb){if(p!=='records')return()=>{};subs.push(cb);poll();if(!iv)iv=setInterval(()=>{if(!document.hidden)poll();},30000);return()=>{};}}),
     doc:p=>({async get(){return none;},onSnapshot(){return()=>{};},async set(d){
       if(p!=='records/'+UID)return;

@@ -56,7 +56,9 @@ def parse(arr):
             tod = 'day' if cu.get('is_day') else 'night'
         out[cid] = {'wx': wmo_to_wx(cu.get('weather_code'), cu.get('cloud_cover'), cu.get('precipitation')), 'time': tod,
                     'code': cu.get('weather_code'), 'temp': cu.get('temperature_2m'), 'wind': cu.get('wind_speed_10m'),
-                    'dir': cu.get('wind_direction_10m'), 'gust': cu.get('wind_gusts_10m'), 'local': (cu.get('time') or '')[11:16]}
+                    'dir': cu.get('wind_direction_10m'), 'gust': cu.get('wind_gusts_10m'), 'local': (cu.get('time') or '')[11:16],
+                    # the game works out day/dusk/night for the current time from these (the data can be an hour or two old)
+                    'sr': a, 'ss': b, 'off': r.get('utc_offset_seconds')}
     return out
 
 

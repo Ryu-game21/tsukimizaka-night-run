@@ -183,6 +183,9 @@ Netlify だけなら GLB を直接置けるが、両方の公開先で同じフ�
   フリーはアウトラップ・セクター（自己ベスト/ゴースト比較、遅れたコーナー名）・周回タイム・ゴールド・走りのくせ（突っ込みすぎ・減速しすぎ・ダート・道幅）。
   共通でタイヤ（適温・オーバーヒート）と接触。1回出たら8秒以上空け、キーごとに再発言の間隔。遅らせる発言は `rdLater`（ゲーム時間）。設定 `opts.radio`。
 - 共有ランキング（`initShared`）は Claude の `window.claude.use('db')` があるときだけ動き、無ければ端末内の記録に切り替わる。
+- `real weather`（`REAL`/`startReal`/`fetchRealDirect`/`realFor`/`todNow`、`tools/fetch_weather.py`、`.github/workflows/weather.yml`）… リアル天候。Netlify 版と Vercel 版はページが Open-Meteo から直接15分ごと、Claude 版は GitHub Actions（毎時 5・25・45分、遅れや飛ばしが多いので3回）→ weather ブランチ → スケジュールタスク「リアル天候の更新」（毎時50分）→ 共有データ `weather/now`。
+  2026-11-15 ユーザー「天気の反映がうまく行ってない」：Vercel 版は `vdbMake` が `weather/now` に何も返さないのに「共有データあり＝Claude 版」と判断して直接取りに行かず、11/12 から一度も天気が届いていなかった（`sdb.vercel` で直接取得へ）。Claude 版は Actions が 3時間以上止まっていた。
+  昼・夕方・夜は取得時ではなく今の時刻で決める（`todNow`：各コースの日の出 `sr`・日の入り `ss`（現地の分）と UTC との差 `off`（秒））。古いデータの警告は90分。
 - `Vercel ranking`（`VLB`/`vdbMake`/`vRegister`/`vClaim`/`vPost`、`api/lb.mjs`、2026-11-12 ユーザー「Vercel は Vercel だけのランキングで、名前が被ったら登録できない、ツールからの介入は受け付けない」）… `*.vercel.app` で開いたときだけ、`vdb`（records だけを扱う claude db の代わり：GET/POST `/api/lb`、30秒ごとに読み直し）で共有ランキング。ゴースト・クラウドセーブ・live/notice は何もしない（ゴースト対戦は AI 戦）。Netlify 版は端末の記録のまま。
   サーバーは Vercel Function `api/lb.mjs` ＋ Upstash Redis（Vercel Marketplace、Free、環境変数 `KV_REST_API_URL`/`KV_REST_API_TOKEN`）。キー：`recs`（hash uid→records の doc、Claude 版と同じ形）・`nm:<名前キー>`→uid（NFKC・小文字・空白なしで比較、早い者勝ち、他人の名前は 409）・`un:<uid>`（その人の名前、5つまで）・`tk:<sha256(token)>`→uid（端末の合言葉 `fpr-vlb`）。
   書き込み（register/save）は Vercel BotID（`checkBotId`、ページは `/vend/botid.js` の `initBotId`。`tools/build_vend.mjs` が Vercel のビルドで esbuild して作る、`site/vend/` は gitignore）＋ Origin ＋トークン＋回数制限（save 20/分、register 10/時/IP）。タイムは course×car が存在し、`api/_gold.mjs`（`node tools/gold_times.js` がゲームの goldTime から作る）の 80% 以上（実データの最速はゴールドの約 91%）。速すぎ 422・他人の名前 403・トークンなし 401・ツール（BotID なし）403 を実機で確認済み。コースや車を足したら `tools/gold_times.js` を回し直す（無いコース・車の記録は 400 で弾かれる）。
